@@ -1,6 +1,6 @@
 import config from '../../config.json' with { type: 'json' };
-import { splitArray } from '../../utils/utils.js';
 import logger from '../logger.js';
+import { splitArray, randomString } from '../../utils/utils.js';
 
 const MAX_OPERATIONS_PER_REQUEST = 35;
 
@@ -19,10 +19,7 @@ export async function gql(body = {}) {
 		body: bodyString,
 	});
 
-	if (!res.ok) {
-		const errorBody = await res.json();
-		throw new Error(`GQL request failed: ${JSON.stringify(errorBody)}`);
-	}
+	if (!res.ok) throw new Error(`GQL request failed: ${await res.text()}`);
 
 	const responseBody = await res.json();
 	logger.debug(`[GQL] got response:`, responseBody);
@@ -53,8 +50,8 @@ export async function getChannelBanStatus(channelIds, userId = config.bot.id) {
 
 		for (const response of res) {
 			const strikeStatus = response.data?.chatModeratorStrikeStatus;
-			if (!strikeStatus?.roomOwner) continue;
-			bannedMap.set(strikeStatus.roomOwner.id, !!strikeStatus.banDetails);
+			if (strikeStatus?.roomOwner?.id)
+				bannedMap.set(strikeStatus.roomOwner.id, !!strikeStatus.banDetails);
 		}
 	}
 
@@ -829,6 +826,94 @@ export async function acknowledgeChatWarning(channelId) {
 		variables: {
 			input: {
 				channelID: channelId,
+			},
+		},
+	});
+
+	return res.data;
+}
+
+export async function getUnlockableEmotes(login) {
+	const res = await gql({
+		query: `query($login: String!) {
+			user(login: $login) {
+				emoticonPrefix {
+					name
+				}
+				channel {
+					communityPointsSettings {
+						automaticRewards {
+							cost
+							defaultCost
+							isEnabled
+							minimumCost
+							type
+						}
+						emoteVariants {
+							id
+							isUnlockable
+							emote {
+								id
+								token
+							}
+						}
+					}
+					self {
+						communityPoints {
+							balance
+						}
+					}
+				}
+			}
+		}`,
+		variables: { login },
+	});
+
+	return res.data;
+}
+
+export async function unlockChosenEmote(channelId, cost, emoteId) {
+	const res = await gql({
+		query: `mutation ($input: UnlockChosenSubscriberEmoteInput!) {
+			unlockChosenSubscriberEmote(input: $input) {
+				balance
+				error {
+					code
+				}
+			}
+		}`,
+		variables: {
+			input: {
+				channelID: channelId,
+				cost,
+				emoteID: emoteId,
+				transactionID: randomString(null, 10),
+			},
+		},
+	});
+
+	return res.data;
+}
+
+export async function unlockRandomEmote(channelId, cost) {
+	const res = await gql({
+		query: `mutation ($input: UnlockRandomSubscriberEmoteInput!) {
+			unlockRandomSubscriberEmote(input: $input) {
+				balance
+				error {
+					code
+				}
+				emote {
+					token
+					id
+				}
+			}
+		}`,
+		variables: {
+			input: {
+				channelID: channelId,
+				cost,
+				transactionID: randomString(null, 10),
 			},
 		},
 	});

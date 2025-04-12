@@ -77,34 +77,47 @@ export function rgbToHex({ r, g, b }) {
 	return ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
 }
 
-export function levenshteinDistance(a, b) {
-	if (!a.length) return b.length;
-	if (!b.length) return a.length;
+export function damerauLevenshteinDistance(a, b) {
+	const aLen = a.length;
+	const bLen = b.length;
+	const INF = aLen + bLen;
 
-	if (a.length > b.length) [a, b] = [b, a];
+	const da = {};
+	for (const char of new Set([...a, ...b])) da[char] = 0;
 
-	const prev = new Array(a.length + 1);
-
-	let i = 0;
-	for (; i <= a.length; prev[i] = i++);
-
-	for (let j = 1; j <= b.length; j++) {
-		const curr = new Array(a.length + 1);
-		curr[0] = j;
-		for (
-			i = 1;
-			i <= a.length;
-			curr[i] = Math.min(
-				curr[i - 1] + 1,
-				prev[i] + 1,
-				prev[i - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
-			),
-				i++
-		);
-		for (i = 0; i <= a.length; prev[i] = curr[i++]);
+	const d = [];
+	const rows = aLen + 2;
+	const cols = bLen + 2;
+	for (let i = 0; i < rows; d[i++] = new Array(cols).fill(0));
+	d[0][0] = INF;
+	for (let i = 0; i <= aLen; i++) {
+		d[i + 1][1] = i;
+		d[i + 1][0] = INF;
+	}
+	for (let j = 0; j <= bLen; j++) {
+		d[1][j + 1] = j;
+		d[0][j + 1] = INF;
 	}
 
-	return prev[a.length];
+	for (let i = 1; i <= aLen; i++) {
+		let db = 0;
+		for (let j = 1; j <= bLen; j++) {
+			const i1 = da[b[j - 1]];
+			const j1 = db;
+			const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+			if (cost === 0) db = j;
+
+			d[i + 1][j + 1] = Math.min(
+				d[i][j] + cost,
+				d[i + 1][j] + 1,
+				d[i][j + 1] + 1,
+				d[i1][j1] + (i - i1 - 1) + 1 + (j - j1 - 1)
+			);
+		}
+		da[a[i - 1]] = i;
+	}
+
+	return d[aLen + 1][bLen + 1];
 }
 
 export function getClosestString(str, arr) {
@@ -112,7 +125,7 @@ export function getClosestString(str, arr) {
 		bestDistance = Infinity;
 
 	for (const s of arr) {
-		const distance = levenshteinDistance(str, s);
+		const distance = damerauLevenshteinDistance(str, s);
 		if (distance < bestDistance) {
 			if (distance <= 1) return s;
 			bestDistance = distance;
@@ -123,10 +136,10 @@ export function getClosestString(str, arr) {
 	return bestMatch;
 }
 
-export function randomString(
-	cset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789',
-	len = 5
-) {
+const charset =
+	'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+export function randomString(cset, len = 5) {
+	if (!cset) cset = charset;
 	let s = '';
 	for (; s.length < len; s += cset[Math.floor(Math.random() * cset.length)]);
 

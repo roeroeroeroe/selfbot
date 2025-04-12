@@ -9,7 +9,7 @@ import { toPlural } from '../utils/formatters.js';
 import { createPaste, fetchPaste } from './hastebin.js';
 import { getClosestString, shellSplit } from '../utils/utils.js';
 
-const CUSTOM_COMMAND_COOLDOWN_KEY_PREFIX = 'handler:customcommand:';
+const CUSTOM_COMMAND_COOLDOWN_KEY_PREFIX = 'handler:customcommand';
 
 export default async function handle(msg) {
 	msg.messageText = msg.messageText.replace(regex.patterns.invisChars, '');
@@ -33,47 +33,41 @@ export default async function handle(msg) {
 					`[HANDLER] got valid command: ${msg.commandName}, entering regular command handler`
 				);
 				const commandResult = await handleCommand(msg, command);
-				logger.debug(`[HANDLER] executed command ${msg.commandName}`);
-				if (commandResult?.text) {
-					logger.debug(
-						`[HANDLER] command ${msg.commandName}: got result: ${JSON.stringify(commandResult)}, sending now...`
-					);
-					await sendResult(msg, commandResult);
-				}
+				logger.debug(
+					`[HANDLER] executed command ${msg.commandName}, result:`,
+					commandResult
+				);
+				sendResult(msg, commandResult);
 				return;
 			}
 		}
 	}
 
+	let customCommandTriggered = false;
 	for (const customCommand of customCommands.getGlobalAndChannelCommands(
 		msg.channelID
-	)) {
+	))
 		if (customCommand.trigger.test(msg.messageText)) {
 			logger.debug(
 				`[HANDLER] custom command ${customCommand.name} triggered (trigger: ${customCommand.trigger.toString()}, message: ${msg.messageText}), checking cooldown and permissions`
 			);
+			customCommandTriggered = true;
 			if (
-				!cooldown.has(
+				cooldown.has(
 					`${CUSTOM_COMMAND_COOLDOWN_KEY_PREFIX}:${msg.senderUserID}:${customCommand.name}`
-				) &&
-				(customCommand.whitelist === null ||
-					customCommand.whitelist.includes(msg.senderUserID))
-			) {
-				logger.debug(
-					`[HANDLER] cooldown and permissions checks passed for custom command ${customCommand.name} invoked by ${msg.senderUsername}, executing`
-				);
-				const customCommandResult = await executeCustomCommand(
-					msg,
-					customCommand
-				);
-				if (customCommandResult?.text)
-					await sendResult(msg, customCommandResult);
-			}
+				) ||
+				(customCommand.whitelist !== null &&
+					!customCommand.whitelist.includes(msg.senderUserID))
+			)
+				continue;
+			logger.debug(
+				`[HANDLER] cooldown and permissions checks passed for custom command ${customCommand.name} invoked by ${msg.senderUsername}, executing`
+			);
+			sendResult(msg, await executeCustomCommand(msg, customCommand));
 			return;
 		}
-	}
 
-	if (msg.commandName && config.getClosestCommand) {
+	if (!customCommandTriggered && msg.commandName && config.getClosestCommand) {
 		logger.debug(
 			`[HANDLER] unknown command ${msg.commandName}, trying to get closest match`
 		);
@@ -85,7 +79,7 @@ export default async function handle(msg) {
 			logger.debug(
 				`[HANDLER] got best match for command ${msg.commandName}: ${bestMatch}`
 			);
-			await sendResult(msg, {
+			sendResult(msg, {
 				text: `unknown command "${msg.commandName}", the most similar command is: ${bestMatch}`,
 				mention: true,
 			});
@@ -97,16 +91,10 @@ async function handleGlobalFlags(msg, command) {
 	if (msg.commandFlags.help) {
 		try {
 			const link = await createPaste(command.helpPage, true);
-			return {
-				text: link,
-				mention: true,
-			};
+			return { text: link, mention: true };
 		} catch (err) {
 			logger.error('error creating paste:', err);
-			return {
-				text: 'error creating paste',
-				mention: true,
-			};
+			return { text: 'error creating paste', mention: true };
 		}
 	}
 
@@ -116,10 +104,7 @@ async function handleGlobalFlags(msg, command) {
 			for (const arg of shellSplit(content)) msg.args.push(arg);
 		} catch (err) {
 			logger.error('error fetching paste:', err);
-			return {
-				text: `error fetching paste: ${err.message}`,
-				mention: true,
-			};
+			return { text: `error fetching paste: ${err.message}`, mention: true };
 		}
 	}
 }
@@ -145,10 +130,7 @@ async function handleCommand(msg, command) {
 		let errorString = errors[0];
 		if (errors.length > 1)
 			errorString += ` (${errors.length - 1} more ${toPlural(errors.length - 1, 'error')})`;
-		return {
-			text: errorString,
-			mention: true,
-		};
+		return { text: errorString, mention: true };
 	}
 
 	try {
@@ -198,7 +180,7 @@ async function executeCustomCommand(msg, customCommand) {
 				`[HANDLER] custom command ${customCommand.name} -> regular command ${msg.commandName}, entering regular command handler`
 			);
 			const regularCommandResult = await handleCommand(msg, command);
-			if (regularCommandResult?.text) result.text = regularCommandResult.text;
+			result.text = regularCommandResult?.text;
 		} else {
 			result.text = customCommand.response;
 		}
@@ -218,9 +200,10 @@ async function executeCustomCommand(msg, customCommand) {
 	}
 }
 
-async function sendResult(msg, result) {
+function sendResult(msg, result) {
+	if (!result?.text) return;
 	logger.debug(
-		`[HANDLER] sending result: message: ${result.text}, reply: ${result.reply}, mention: ${result.mention}`
+		`[HANDLER] sending result: text: ${result.text}, reply: ${result.reply}, mention: ${result.mention}`
 	);
-	await msg.send(result.text, result.reply, result.mention);
+	msg.send(result.text, result.reply, result.mention);
 }
