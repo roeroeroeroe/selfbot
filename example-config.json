@@ -1,0 +1,31 @@
+{
+	"logMessagesByDefault": true,
+	"loadUnsafeCommands": true,
+	"getClosestCommand": true,
+	"autoJoinRaids": true,
+	"autoAcknowledgeChatWarnings": true,
+	"shell": "/bin/bash",
+	"ircClientTransport": "websocket",
+	"joinRetries": 3,
+	"defaultPrefix": "!",
+	"responsePartsSeparator": " · ",
+	"againstTOS": "message goes against twitch TOS",
+	"hastebinInstance": "https://paste.ivr.fi",
+	"rateLimits": "regular",
+	"authedClientConnectionsPoolSize": 10,
+	"maxHermesConnections": 10,
+	"maxHermesTopicsPerConnection": 50,
+	"messageBatchInsertIntervalMs": 2500,
+	"maxMessageBatchInsertSize": 500,
+	"bot": {
+		"login": "",
+		"id": "0"
+	},
+	"entry_channel": {
+		"login": ""
+	},
+	"logger": {
+		"level": "info",
+		"colorize": true
+	}
+}

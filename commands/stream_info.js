@@ -1,0 +1,119 @@
+import logger from '../services/logger.js';
+import { getEffectiveName, randomString } from '../utils/utils.js';
+import { formatDuration } from '../utils/duration.js';
+import { getStream, getVideo } from '../services/twitch/gql.js';
+import {
+	joinResponseParts,
+	toPlural,
+	trimString,
+} from '../utils/formatters.js';
+
+export default {
+	name: 'streaminfo',
+	aliases: ['si'],
+	description: 'get stream info',
+	unsafe: false,
+	flags: [
+		{
+			name: 'channel',
+			aliases: ['c', 'channel'],
+			type: 'string',
+			defaultValue: '',
+			required: false,
+			description: 'target channel (default: current channel)',
+		},
+	],
+	execute: async msg => {
+		const channelLogin = (
+			msg.commandFlags.channel ||
+			msg.args[0] ||
+			msg.channelName
+		).toLowerCase();
+
+		let res;
+		try {
+			res = await getStream(channelLogin);
+		} catch (err) {
+			logger.error('error getting stream:', err);
+			return { text: 'error getting stream', mention: true };
+		}
+
+		if (!res.user) return { text: 'channel does not exist', mention: true };
+
+		const channelName = getEffectiveName(res.user.login, res.user.displayName);
+		const now = Date.now();
+
+		if (!res.user.stream) {
+			if (!res.user.lastBroadcast?.startedAt)
+				return {
+					text: `${channelName} has never streamed before`,
+					mention: true,
+				};
+
+			const lastLiveResponsePart = `${channelName} was last live ${formatDuration(now - Date.parse(res.user.lastBroadcast.startedAt))} ago`;
+
+			const lastVodId = res.user.videos?.edges[0]?.node?.id;
+			if (!lastVodId) return { text: lastLiveResponsePart, mention: true };
+
+			const vodData = await getVideo(lastVodId);
+			if (!vodData.video) return { text: lastLiveResponsePart, mention: true };
+
+			const responseParts = [lastLiveResponsePart];
+
+			const vodAgo = formatDuration(now - Date.parse(vodData.video.createdAt));
+			const vodDuration = formatDuration(vodData.video.lengthSeconds * 1000);
+			let vodString = `latest VOD (${vodAgo} ago): https://www.twitch.tv/videos/${lastVodId}, ${vodDuration}`;
+
+			if (vodData.video.viewCount)
+				vodString += `, ${vodData.video.viewCount} ${toPlural(vodData.video.viewCount, 'view')}`;
+
+			const topClip = vodData.video.topClips?.edges[0]?.node;
+			if (topClip) {
+				const viewCountPart = topClip.viewCount
+					? ` (${topClip.viewCount} ${toPlural(topClip.viewCount, 'view')})`
+					: '';
+				const clipCreator = getEffectiveName(
+					topClip.curator.login,
+					topClip.curator.displayName
+				);
+				const featuredPart = topClip.isFeatured ? ', featured' : '';
+
+				vodString += `, top clip${viewCountPart}: ${topClip.url}, created by ${clipCreator} ${formatDuration(topClip.videoOffsetSeconds * 1000)} into the stream${featuredPart}`;
+			}
+
+			responseParts.push(vodString);
+			return { text: joinResponseParts(responseParts), mention: true };
+		}
+
+		const stream = res.user.stream;
+
+		const responseParts = [
+			stream.freeformTags?.some(t => t.name === 'Rerun')
+				? `${channelName} is currently live with a rerun`
+				: `${channelName} is currently live`,
+			`uptime: ${formatDuration(now - Date.parse(stream.createdAt))}`,
+		];
+
+		if (res.user.broadcastSettings.title)
+			responseParts.push(
+				`title: ${trimString(res.user.broadcastSettings.title, 50)}`
+			);
+		if (stream.game?.displayName)
+			responseParts.push(`category: ${stream.game.displayName}`);
+		if (stream.language) responseParts.push(`language: ${stream.language}`);
+		responseParts.push(`viewers: ${stream.viewersCount ?? 0}`);
+		if (stream.averageFPS) responseParts.push(`fps: ${stream.averageFPS}`);
+		if (stream.bitrate) responseParts.push(`bitrate: ${stream.bitrate} kbit/s`);
+		if (stream.codec) responseParts.push(`codec: ${stream.codec}`);
+		if (stream.width && stream.height)
+			responseParts.push(`resolution: ${stream.width}x${stream.height}`);
+		if (stream.clipCount)
+			responseParts.push(`clips created: ${stream.clipCount}`);
+		if (res.user.broadcastSettings.isMature)
+			responseParts.push('flagged as mature content');
+		if (res.user.stream.previewImageURL)
+			responseParts.push(res.user.stream.previewImageURL + randomString());
+
+		return { text: joinResponseParts(responseParts), mention: true };
+	},
+};
