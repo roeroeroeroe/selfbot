@@ -27,6 +27,9 @@ const GENERIC_CLIENT_OPTS = {
 	installDefaultMixins: false,
 };
 
+// base16 32char string - emulate webchat
+const BOT_MESSAGES_NONCE = utils.randomString('0123456789abcdef', 32);
+
 function registerCommonEvents(c, clientName) {
 	c.on('connecting', () => logger.debug(`${clientName} connecting...`));
 	c.on('ready', () => logger.info(`${clientName} connected`));
@@ -86,6 +89,7 @@ export default class Client {
 	#sendRateLimiters = {};
 	#sendQueues = new Map();
 	#rateLimitSend;
+	#addToSendRateLimit;
 
 	constructor() {
 		this.#validateConfig();
@@ -146,6 +150,10 @@ export default class Client {
 						await this.#waitSlowMode(msg);
 					}
 				};
+				this.#addToSendRateLimit = () => {
+					this.#sendRateLimiters.normal.add();
+					this.#sendRateLimiters.privileged.add();
+				}
 				break;
 			case 'verified':
 				this.#sendRateLimiters.verified = new RateLimiter(MESSAGES_WINDOW_MS, VERIFIED_MAX_MESSAGES_PER_WINDOW);
@@ -153,6 +161,7 @@ export default class Client {
 					await this.#sendRateLimiters.verified.wait();
 					if (!msg.query.privileged) await this.#waitSlowMode(msg);
 				};
+				this.#addToSendRateLimit = () => this.#sendRateLimiters.verified.add();
 				break;
 			default:
 				throw new Error(`unhandled rate limit preset: ${config.rateLimits}`);
@@ -205,7 +214,7 @@ export default class Client {
 					msg.serverTimestamp.toISOString()
 				);
 			} catch (err) {
-				logger.error('failed to queue message:', err);
+				logger.error('failed to queue message insert:', err);
 			}
 
 		if (msg.query.login !== msg.channelName) {
@@ -225,6 +234,8 @@ export default class Client {
 		}
 
 		if (msg.senderUserID === config.bot.id) {
+			if (msg.ircTags['client-nonce'] !== BOT_MESSAGES_NONCE)
+				this.#addToSendRateLimit();
 			const isPrivileged =
 				msg.isMod || msg.badges.hasVIP || msg.badges.hasBroadcaster;
 			if (!isPrivileged) {
@@ -267,13 +278,13 @@ export default class Client {
 			text = config.againstTOS;
 		}
 
-		let ircCommand = '';
+		let ircCommand;
 		if (reply) {
-			ircCommand = `@reply-parent-msg-id=${msg.messageID} PRIVMSG #${msg.channelName} :${text}`;
+			ircCommand = `@reply-parent-msg-id=${msg.messageID};client-nonce=${BOT_MESSAGES_NONCE} PRIVMSG #${msg.channelName} :${text}`;
 		} else if (mention) {
-			ircCommand = `PRIVMSG #${msg.channelName} :@${msg.senderUsername}, ${text}`;
+			ircCommand = `@client-nonce=${BOT_MESSAGES_NONCE} PRIVMSG #${msg.channelName} :@${msg.senderUsername}, ${text}`;
 		} else {
-			ircCommand = `PRIVMSG #${msg.channelName} :${text}`;
+			ircCommand = `@client-nonce=${BOT_MESSAGES_NONCE} PRIVMSG #${msg.channelName} :${text}`;
 		}
 
 		this.#sendQueues.set(

@@ -24,8 +24,7 @@ Commands:`;
 			if (command.description) line += `__ALIGN__${command.description}`;
 			usageLines.push(line);
 		}
-		usagePage += `\n${utils.format.align(usageLines)}`;
-		usagePage += `\nUse "${msg.prefix} [command] --help" for help about a specific command`;
+		usagePage += `\n${utils.format.align(usageLines)}\nUse "${msg.prefix} [command] --help" for help about a specific command`;
 
 		try {
 			const link = await hastebin.create(usagePage, true);
