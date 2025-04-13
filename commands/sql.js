@@ -1,4 +1,4 @@
-import { query } from '../services/db.js';
+import db from '../services/db.js';
 
 export default {
 	name: 'sql',
@@ -10,7 +10,7 @@ export default {
 		if (!msg.args.length) return { text: 'no query provided', mention: true };
 		const queryString = msg.args.join(' ');
 		try {
-			const rows = await query(queryString);
+			const rows = await db.query(queryString);
 			return {
 				text: rows.length ? JSON.stringify(rows) : 'query returned no rows',
 				mention: true,

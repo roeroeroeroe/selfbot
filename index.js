@@ -2,13 +2,14 @@ import 'dotenv/config';
 import config from './config.json' with { type: 'json' };
 import Client from './services/twitch/tmi.js';
 import logger from './services/logger.js';
+import db from './services/db.js';
 import commands from './services/commands.js';
 import customCommands from './services/custom_commands.js';
 import hermes from './services/twitch/hermes/client.js';
+import utils from './utils/index.js';
 import { validateToken } from './services/twitch/oauth.js';
-import { init as initDB } from './services/db.js';
-import { toPlural } from './utils/formatters.js';
 
+// prettier-ignore
 (async () => {
 	try {
 		logger.debug('[INIT] configuration object:', config);
@@ -23,19 +24,19 @@ import { toPlural } from './utils/formatters.js';
 		logger.info('[INIT] validated token');
 
 		logger.debug('[INIT] initializing db');
-		await initDB();
+		await db.init();
 
 		logger.debug('[INIT] initializing hermes');
 		let c = await hermes.init();
-		logger.info(`[INIT] subscribing to ${c} hermes ${toPlural(c, 'topic')}...`);
+		logger.info(`[INIT] subscribing to ${c} hermes ${utils.format.plural(c, 'topic')}...`);
 
 		logger.debug('[INIT] loading commands');
 		c = await commands.load();
-		logger.info(`[INIT] loaded ${c} ${toPlural(c, 'command')}`);
+		logger.info(`[INIT] loaded ${c} ${utils.format.plural(c, 'command')}`);
 
 		logger.debug('[INIT] loading custom commands');
 		c = await customCommands.load();
-		logger.info(`[INIT] loaded ${c} ${toPlural(c, 'custom command')}`);
+		logger.info(`[INIT] loaded ${c} ${utils.format.plural(c, 'custom command')}`);
 
 		logger.debug('[INIT] creating tmi client');
 		new Client().connect();

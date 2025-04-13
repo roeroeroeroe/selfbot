@@ -2,8 +2,8 @@ import WebSocket from 'ws';
 import events from './events.js';
 import config from '../../../config.json' with { type: 'json' };
 import logger from '../../logger.js';
-import { sleep, randomString } from '../../../utils/utils.js';
-import { query } from '../../db.js';
+import db from '../../db.js';
+import utils from '../../../utils/index.js';
 
 const WS_URL = `wss://hermes.twitch.tv/v1?clientId=${process.env.TWITCH_ANDROID_CLIENT_ID}`;
 const HEALTH_CHECK_INTERVAL_MS = 2000;
@@ -65,39 +65,36 @@ let idCounter = 0,
 	isProcessingQueue = false;
 
 async function init() {
-	if (
-		typeof config.maxHermesConnections !== 'number' ||
-		config.maxHermesConnections < 1
-	)
-		throw new Error('maxHermesConnections can not be less than 1');
-	if (config.maxHermesConnections > MAX_CONNECTIONS)
-		throw new Error(
-			`maxHermesConnections can not be greater than ${MAX_CONNECTIONS}`
-		);
-	if (
-		typeof config.maxHermesTopicsPerConnection !== 'number' ||
-		config.maxHermesTopicsPerConnection < 1
-	)
-		throw new Error('maxHermesTopicsPerConnection can not be less than 1');
-	if (config.maxHermesTopicsPerConnection > MAX_TOPICS_PER_CONNECTION)
-		throw new Error(
-			`maxHermesTopicsPerConnection can not be greater than ${MAX_TOPICS_PER_CONNECTION}`
-		);
+	validateConfig();
 	subscribe('chatrooms-user-v1', config.bot.id);
-	const channels = await query('SELECT id FROM channels');
+	const channels = await db.query('SELECT id FROM channels');
 	for (const channel of channels)
 		for (const sub of CHANNEL_SUBS) subscribe(sub, channel.id);
 
 	return channels.length * CHANNEL_SUBS.length + 1;
 }
 
+// prettier-ignore
+function validateConfig() {
+	const { maxHermesConnections, maxHermesTopicsPerConnection } = config;
+	if (typeof maxHermesConnections !== 'number' || maxHermesConnections < 1)
+		throw new Error('maxHermesConnections can not be less than 1');
+	if (maxHermesConnections > MAX_CONNECTIONS)
+		throw new Error(`maxHermesConnections can not be greater than ${MAX_CONNECTIONS}`);
+	if (typeof maxHermesTopicsPerConnection !== 'number' || maxHermesTopicsPerConnection < 1)
+		throw new Error('maxHermesTopicsPerConnection can not be less than 1');
+	if (maxHermesTopicsPerConnection > MAX_TOPICS_PER_CONNECTION)
+		throw new Error(`maxHermesTopicsPerConnection can not be greater than ${MAX_TOPICS_PER_CONNECTION}`);
+}
+
 function connect(c) {
 	c.ws.on('open', () => {
 		logger.debug(`[Hermes] [connection ${c.id}] connected`);
-
+		c.pendingTopics = c.topics;
+		c.isAuthenticated = false;
 		c.ws.send(
 			JSON.stringify({
-				id: randomString(BASE64URL_CHARSET, 21),
+				id: utils.randomString(BASE64URL_CHARSET, 21),
 				type: 'authenticate',
 				authenticate: {
 					token: process.env.TWITCH_ANDROID_TOKEN,
@@ -105,9 +102,6 @@ function connect(c) {
 				timestamp: new Date().toISOString(),
 			})
 		);
-
-		c.pendingTopics = c.topics;
-		c.isAuthenticated = false;
 	});
 
 	c.ws.on('message', data => {
@@ -121,131 +115,7 @@ function connect(c) {
 			return;
 		}
 
-		switch (msg.type) {
-			case 'welcome':
-				c.keepAliveMs = ((msg.welcome?.keepaliveSec || 10) + 2.5) * 1000;
-				c.recoveryUrl = msg.welcome?.recoveryUrl; // TODO
-				c.lastKeepaliveTime = Date.now();
-				c.healthCheckInterval = setInterval(() => {
-					if (Date.now() - c.lastKeepaliveTime > c.keepAliveMs) {
-						logger.warning(
-							`[Hermes] [connection ${c.id}] missed keepalive, reconnecting...`
-						);
-						clearInterval(c.healthCheckInterval);
-						if (c.ws.readyState === c.ws.OPEN) c.ws.terminate();
-					}
-				}, HEALTH_CHECK_INTERVAL_MS);
-				logger.debug(
-					`[Hermes] [connection ${c.id}] received welcome, keepAliveMs set to ${c.keepAliveMs}`
-				);
-				break;
-
-			case 'authenticateResponse':
-				if (msg.authenticateResponse?.result === 'ok') {
-					c.isAuthenticated = true;
-					logger.debug(
-						`[Hermes] [connection ${c.id}] authenticated successfully`
-					);
-					for (const topic of c.pendingTopics)
-						c.ws.send(JSON.stringify(buildSubscriptionMessage(topic)));
-					delete c.pendingTopics;
-				} else {
-					for (const topic of c.pendingTopics)
-						topicIdToChannelIdMap.delete(topic.id);
-					logger.error(
-						`[Hermes] [connection ${c.id}] authentication failed: ${msg.authenticateResponse?.error}`
-					);
-					if (c.ws.readyState === c.ws.OPEN) c.ws.terminate();
-				}
-				break;
-
-			case 'keepalive':
-				c.lastKeepaliveTime = Date.now();
-				break;
-
-			case 'subscribeResponse':
-				if (msg.subscribeResponse?.result === 'error') {
-					logger.error(
-						`[Hermes] [connection ${c.id}] error subscribing: ${msg.subscribeResponse.error} (code: ${msg.subscribeResponse.errorCode})`
-					);
-					if (!msg.parentId) {
-						logger.warning(
-							`[Hermes] [connection ${c.id}] not removing failed subscription: got no parent id:`,
-							msg
-						);
-						break;
-					}
-					const topicIndex = c.topics.findIndex(t => t.id === msg.parentId);
-					if (topicIndex !== -1) {
-						const [removedTopic] = c.topics.splice(topicIndex, 1);
-						topicIdToChannelIdMap.delete(removedTopic.id);
-						logger.debug(
-							`[Hermes] [connection ${c.id}] removed failed subscription to ${removedTopic.topicString}`
-						);
-					} else {
-						logger.warning(
-							`[Hermes] [connection ${c.id}] failed to find failed subscription with id ${msg.parentId}`
-						);
-					}
-				}
-				break;
-
-			case 'unsubscribeResponse':
-				if (msg.unsubscribeResponse?.result === 'error')
-					logger.error(
-						`[Hermes] [connection ${c.id}] error unsubscribing: ${msg.unsubscribeResponse.error} (code: ${msg.unsubscribeResponse.errorCode})`
-					);
-				break;
-
-			case 'notification':
-				if (!msg.notification?.pubsub) {
-					logger.warning(
-						`[Hermes] [connection ${c.id}] no pubsub data in notification: ${JSON.stringify(msg)}`
-					);
-					return;
-				}
-				if (!msg.notification.subscription?.id) {
-					logger.warning(
-						`[Hermes] [connection ${c.id}] no subscription id in notification: ${JSON.stringify(msg)}`
-					);
-					return;
-				}
-				let pubsubData;
-				try {
-					pubsubData = JSON.parse(msg.notification.pubsub);
-				} catch (err) {
-					logger.error(
-						`[Hermes] [connection ${c.id}] failed to parse notification pubsub data:`,
-						err
-					);
-					return;
-				}
-
-				pubsubData.channelId = topicIdToChannelIdMap.get(
-					msg.notification.subscription.id
-				);
-				if (!pubsubData.channelId) {
-					logger.warning(
-						`[Hermes] [connection ${c.id}] unknown subscription id: ${msg.notification.subscription.id}`
-					);
-					return;
-				}
-
-				handlePubsubData(pubsubData);
-				break;
-
-			case 'reconnect':
-				logger.debug(
-					`[Hermes] [connection ${c.id}] server requested reconnect`
-				);
-				if (c.ws.readyState === c.ws.OPEN) c.ws.terminate();
-				break;
-
-			default:
-				logger.warning(
-					`[Hermes] [connection ${c.id}] unknown message type: ${msg.type}`
-				);
-		}
+		handleWSMessage(c, msg);
 	});
 
 	c.ws.on('error', err =>
@@ -277,6 +147,133 @@ function connect(c) {
 			connect(newConnection);
 		}, WS_RECONNECT_DELAY_MS);
 	});
+}
+
+function handleWSMessage(c, msg) {
+	switch (msg.type) {
+		case 'welcome':
+			c.keepAliveMs = ((msg.welcome?.keepaliveSec || 10) + 2.5) * 1000;
+			c.recoveryUrl = msg.welcome?.recoveryUrl; // TODO
+			c.lastKeepaliveTime = Date.now();
+			c.healthCheckInterval = setInterval(() => {
+				if (Date.now() - c.lastKeepaliveTime > c.keepAliveMs) {
+					logger.warning(
+						`[Hermes] [connection ${c.id}] missed keepalive, reconnecting...`
+					);
+					clearInterval(c.healthCheckInterval);
+					if (c.ws.readyState === c.ws.OPEN) c.ws.terminate();
+				}
+			}, HEALTH_CHECK_INTERVAL_MS);
+			logger.debug(
+				`[Hermes] [connection ${c.id}] received welcome, keepAliveMs set to ${c.keepAliveMs}`
+			);
+			break;
+
+		case 'authenticateResponse':
+			if (msg.authenticateResponse?.result === 'ok') {
+				c.isAuthenticated = true;
+				logger.debug(
+					`[Hermes] [connection ${c.id}] authenticated successfully`
+				);
+				for (const topic of c.pendingTopics)
+					c.ws.send(JSON.stringify(buildSubscriptionMessage(topic)));
+				delete c.pendingTopics;
+			} else {
+				for (const topic of c.pendingTopics)
+					topicIdToChannelIdMap.delete(topic.id);
+				logger.error(
+					`[Hermes] [connection ${c.id}] authentication failed: ${msg.authenticateResponse?.error}`
+				);
+				if (c.ws.readyState === c.ws.OPEN) c.ws.terminate();
+			}
+			break;
+
+		case 'keepalive':
+			c.lastKeepaliveTime = Date.now();
+			break;
+
+		case 'subscribeResponse':
+			if (msg.subscribeResponse?.result === 'error') {
+				logger.error(
+					`[Hermes] [connection ${c.id}] error subscribing: ${msg.subscribeResponse.error} (code: ${msg.subscribeResponse.errorCode})`
+				);
+				if (!msg.parentId) {
+					logger.warning(
+						`[Hermes] [connection ${c.id}] not removing failed subscription: got no parent id:`,
+						msg
+					);
+					return;
+				}
+				const topicIndex = c.topics.findIndex(t => t.id === msg.parentId);
+				if (topicIndex !== -1) {
+					const [removedTopic] = c.topics.splice(topicIndex, 1);
+					topicIdToChannelIdMap.delete(removedTopic.id);
+					logger.debug(
+						`[Hermes] [connection ${c.id}] removed failed subscription to ${removedTopic.topicString}`
+					);
+				} else {
+					logger.warning(
+						`[Hermes] [connection ${c.id}] failed to find failed subscription with id ${msg.parentId}`
+					);
+				}
+			}
+			break;
+
+		case 'unsubscribeResponse':
+			if (msg.unsubscribeResponse?.result === 'error')
+				logger.error(
+					`[Hermes] [connection ${c.id}] error unsubscribing: ${msg.unsubscribeResponse.error} (code: ${msg.unsubscribeResponse.errorCode})`
+				);
+			break;
+
+		case 'notification':
+			if (!msg.notification?.pubsub) {
+				logger.warning(
+					`[Hermes] [connection ${c.id}] no pubsub data in notification: ${JSON.stringify(msg)}`
+				);
+				return;
+			}
+			if (!msg.notification.subscription?.id) {
+				logger.warning(
+					`[Hermes] [connection ${c.id}] no subscription id in notification: ${JSON.stringify(msg)}`
+				);
+				return;
+			}
+
+			let pubsubData;
+			try {
+				pubsubData = JSON.parse(msg.notification.pubsub);
+			} catch (err) {
+				logger.error(
+					`[Hermes] [connection ${c.id}] failed to parse notification pubsub data:`,
+					err
+				);
+				return;
+			}
+
+			pubsubData.channelId = topicIdToChannelIdMap.get(
+				msg.notification.subscription.id
+			);
+			if (!pubsubData.channelId) {
+				logger.warning(
+					`[Hermes] [connection ${c.id}] unknown subscription id: ${msg.notification.subscription.id}`
+				);
+				return;
+			}
+
+			handlePubsubData(pubsubData);
+			break;
+
+		case 'reconnect':
+			logger.debug(`[Hermes] [connection ${c.id}] server requested reconnect`);
+			if (c.ws.readyState === c.ws.OPEN) c.ws.terminate();
+			break;
+
+		default:
+			logger.warning(
+				`[Hermes] [connection ${c.id}] unknown message type: ${msg.type}`
+			);
+	}
 }
 
 function handlePubsubData(pubsubData = {}) {
@@ -315,7 +312,7 @@ async function processQueue() {
 }
 
 async function handleSubscription(subscription) {
-	const topicId = randomString(BASE64URL_CHARSET, 21);
+	const topicId = utils.randomString(BASE64URL_CHARSET, 21);
 	const topicString = `${subscription.sub}.${subscription.channelId}`;
 
 	let c = connections.find(
@@ -335,7 +332,7 @@ async function handleSubscription(subscription) {
 		0,
 		WS_CONNECTION_SPAWN_DELAY_MS - (Date.now() - lastCreationTime)
 	);
-	if (waitTime > 0) await sleep(waitTime);
+	if (waitTime) await utils.sleep(waitTime);
 
 	if (connections.length >= config.maxHermesConnections) {
 		logger.warning(
@@ -373,7 +370,7 @@ function unsubscribe(sub, channelId) {
 			c.ws.send(
 				JSON.stringify({
 					type: 'unsubscribe',
-					id: randomString(BASE64URL_CHARSET, 21),
+					id: utils.randomString(BASE64URL_CHARSET, 21),
 					unsubscribe: {
 						id: topic.id,
 						type: 'pubsub',

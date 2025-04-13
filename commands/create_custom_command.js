@@ -1,10 +1,10 @@
 import logger from '../services/logger.js';
-import regex from '../utils/regex.js';
+import db from '../services/db.js';
 import commands from '../services/commands.js';
 import customCommands from '../services/custom_commands.js';
+import utils from '../utils/index.js';
 import { resolveUser } from '../services/twitch/gql.js';
 import { getUsers } from '../services/twitch/helix.js';
-import { getChannel } from '../services/db.js';
 
 export default {
 	name: 'createcommand',
@@ -38,7 +38,7 @@ export default {
 			description: 'command trigger',
 			validator: v => {
 				try {
-					const m = v.match(regex.patterns.regexp);
+					const m = v.match(utils.regex.patterns.regexp);
 					new RegExp(m[1], m[2]);
 					return true;
 				} catch {
@@ -118,7 +118,7 @@ export default {
 							text: `channel ${msg.commandFlags.channel} does not exist`,
 							mention: true,
 						};
-					if (!(await getChannel(user.id)))
+					if (!(await db.channel.get(user.id)))
 						return {
 							text: `unknown channel: ${user.login}`,
 							mention: true,
@@ -152,7 +152,7 @@ export default {
 				mention: true,
 			};
 
-		const match = msg.commandFlags.trigger.match(regex.patterns.regexp);
+		const match = msg.commandFlags.trigger.match(utils.regex.patterns.regexp);
 		const trigger = new RegExp(match[1], match[2]);
 
 		let whitelist = null;

@@ -3,8 +3,8 @@ import { fileURLToPath } from 'url';
 import { readFile } from 'fs/promises';
 import commands from '../services/commands.js';
 import logger from '../services/logger.js';
-import { createPaste } from '../services/hastebin.js';
-import { alignLines } from '../utils/formatters.js';
+import hastebin from '../services/hastebin.js';
+import utils from '../utils/index.js';
 
 export default {
 	name: 'help',
@@ -24,11 +24,11 @@ Commands:`;
 			if (command.description) line += `__ALIGN__${command.description}`;
 			usageLines.push(line);
 		}
-		usagePage += `\n${alignLines(usageLines)}`;
+		usagePage += `\n${utils.format.align(usageLines)}`;
 		usagePage += `\nUse "${msg.prefix} [command] --help" for help about a specific command`;
 
 		try {
-			const link = await createPaste(usagePage, true);
+			const link = await hastebin.create(usagePage, true);
 			return {
 				text: link,
 				mention: true,

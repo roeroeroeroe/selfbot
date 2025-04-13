@@ -1,13 +1,5 @@
 import config from '../config.json' with { type: 'json' };
 
-export function trimString(s, lim = 485) {
-	return s.length > lim ? s.slice(0, lim - 1) + '…' : s;
-}
-
-export function joinResponseParts(arr, sep = config.responsePartsSeparator) {
-	return arr.join(sep);
-}
-
 const iecByteUnits = [
 	'B',
 	'KiB',
@@ -19,19 +11,32 @@ const iecByteUnits = [
 	'ZiB',
 	'YiB',
 ];
-export function formatBytes(b, precision = 1) {
-	if (typeof b !== 'number' || b < 1) return '0 B';
-	let i = 0;
-	for (let n = iecByteUnits.length - 1; b >= 1024 && i < n; b /= 1024, i++);
 
-	return `${b.toFixed(precision)} ${iecByteUnits[i]}`;
+function trimString(str, lim = 485) {
+	return str.length > lim ? str.slice(0, lim - 1) + '…' : str;
 }
 
-export function toPlural(n, single, plural = `${single}s`) {
+function joinParts(arr, sep = config.responsePartsSeparator) {
+	return arr.join(sep);
+}
+
+function formatBytes(bytes, precision = 1) {
+	if (typeof bytes !== 'number' || bytes < 1) return '0 B';
+	let i = 0;
+	for (
+		let n = iecByteUnits.length - 1;
+		bytes >= 1024 && i < n;
+		bytes /= 1024, i++
+	);
+
+	return `${bytes.toFixed(precision)} ${iecByteUnits[i]}`;
+}
+
+function toPlural(n, single, plural = `${single}s`) {
 	return n === 1 ? single : plural;
 }
 
-export function alignLines(arr, partsSeparator = '__ALIGN__') {
+function align(arr, partsSeparator = '__ALIGN__') {
 	if (!Array.isArray(arr)) arr = arr.split('\n');
 
 	let maxWidth = 0;
@@ -56,7 +61,10 @@ export function alignLines(arr, partsSeparator = '__ALIGN__') {
 	return alignedLines.join('\n');
 }
 
-export function formatDate(date) {
-	const iso = new Date(date).toISOString();
-	return `${iso.substring(0, 10)} ${iso.substring(11, 19)} UTC`;
-}
+export default {
+	trim: trimString,
+	join: joinParts,
+	bytes: formatBytes,
+	plural: toPlural,
+	align,
+};

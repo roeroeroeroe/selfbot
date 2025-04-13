@@ -21,7 +21,7 @@ const pool = new pg.Pool({
 	connectionTimeoutMillis: 2000,
 });
 
-export async function query(query, values = []) {
+async function query(query, values = []) {
 	const c = await pool.connect();
 	logger.debug(`[DB] running query "${query}" with values:`, values);
 	const before = performance.now();
@@ -40,17 +40,8 @@ export async function query(query, values = []) {
 	}
 }
 
-export async function init() {
-	if (
-		config.messageBatchInsertIntervalMs > MAX_MESSAGE_BATCH_INSERT_INTERVAL_MS
-	)
-		throw new Error(
-			`messageBatchInsertIntervalMs can not be greater than ${MAX_MESSAGE_BATCH_INSERT_INTERVAL_MS}`
-		);
-	if (config.maxMessageBatchInsertSize > MAX_MESSAGE_BATCH_SIZE)
-		throw new Error(
-			`maxMessageBatchInsertSize can not be greater than ${MAX_MESSAGE_BATCH_SIZE}`
-		);
+async function init() {
+	validateConfig();
 	await query(
 		`CREATE TABLE IF NOT EXISTS channels (
 			id VARCHAR(15) PRIMARY KEY,
@@ -119,7 +110,15 @@ export async function init() {
 	);
 }
 
-export async function insertChannel(
+// prettier-ignore
+function validateConfig() {
+	if (config.messageBatchInsertIntervalMs > MAX_MESSAGE_BATCH_INSERT_INTERVAL_MS)
+		throw new Error(`messageBatchInsertIntervalMs can not be greater than ${MAX_MESSAGE_BATCH_INSERT_INTERVAL_MS}`);
+	if (config.maxMessageBatchInsertSize > MAX_MESSAGE_BATCH_SIZE)
+		throw new Error(`maxMessageBatchInsertSize can not be greater than ${MAX_MESSAGE_BATCH_SIZE}`);
+}
+
+async function insertChannel(
 	id,
 	login,
 	displayName,
@@ -137,7 +136,7 @@ export async function insertChannel(
 	);
 }
 
-export async function updateChannel(channelId, key, value, channelData) {
+async function updateChannel(channelId, key, value, channelData) {
 	logger.debug(
 		`[DB] updating channel ${channelId}, setting new ${key}: ${value}`
 	);
@@ -152,7 +151,7 @@ export async function updateChannel(channelId, key, value, channelData) {
 	]);
 }
 
-export async function deleteChannel(channelId) {
+async function deleteChannel(channelId) {
 	logger.debug(`[DB] deleting channel ${channelId}`);
 	await Promise.all([
 		query('DELETE FROM channels WHERE id = $1', [channelId]),
@@ -160,7 +159,33 @@ export async function deleteChannel(channelId) {
 	]);
 }
 
-export async function insertCustomCommand(
+async function getChannel(channelId) {
+	logger.debug(`[DB] getting channel ${channelId}`);
+	const cache = await redis.get(`${REDIS_CHANNEL_KEY_PREFIX}:${channelId}`);
+	if (cache) {
+		logger.debug(`[REDIS] found channel ${channelId}:`, cache);
+		return JSON.parse(cache);
+	}
+
+	const channel = (
+		await query(
+			'SELECT login, display_name, log, prefix, suspended, privileged, joined_at FROM channels WHERE id = $1',
+			[channelId]
+		)
+	)[0];
+	if (channel) {
+		const channelDataString = JSON.stringify(channel);
+		logger.debug(`[DB] found channel ${channelId}: ${channelDataString}`);
+		await redis.set(
+			`${REDIS_CHANNEL_KEY_PREFIX}:${channelId}`,
+			channelDataString
+		);
+		return channel;
+	}
+	logger.debug(`[DB] unknown channel ${channelId}`);
+}
+
+async function insertCustomCommand(
 	commandName,
 	channelId,
 	trigger,
@@ -190,7 +215,7 @@ export async function insertCustomCommand(
 	);
 }
 
-export async function updateCustomCommand(commandName, newValues = {}) {
+async function updateCustomCommand(commandName, newValues = {}) {
 	const keys = Object.keys(newValues);
 	logger.debug(
 		`[DB] updating custom command ${commandName}, setting ${keys.length} new values`
@@ -206,12 +231,12 @@ export async function updateCustomCommand(commandName, newValues = {}) {
 	await query(`${queryStr.slice(0, -2)} WHERE name = $${i}`, values);
 }
 
-export async function deleteCustomCommand(commandName) {
+async function deleteCustomCommand(commandName) {
 	logger.debug(`[DB] deleting custom command ${commandName}`);
 	await query('DELETE FROM customcommands WHERE name = $1', [commandName]);
 }
 
-export async function queueMessageInsert(channelId, userId, text, timestamp) {
+async function queueMessageInsert(channelId, userId, text, timestamp) {
 	if (text.includes('\t')) {
 		logger.warning(`[DB] not queuing message: \\t not allowed: ${text}`);
 		return;
@@ -220,32 +245,6 @@ export async function queueMessageInsert(channelId, userId, text, timestamp) {
 	const record = `${channelId}\t${userId}\t${text}\t${timestamp}`;
 	await redis.rpush(REDIS_MESSAGES_QUEUE_KEY, record);
 	logger.debug(`[DB] queued message: ${record}`);
-}
-
-export async function getChannel(channelId) {
-	logger.debug(`[DB] getting channel ${channelId}`);
-	const cache = await redis.get(`${REDIS_CHANNEL_KEY_PREFIX}:${channelId}`);
-	if (cache) {
-		logger.debug(`[REDIS] found channel ${channelId}:`, cache);
-		return JSON.parse(cache);
-	}
-
-	const channel = (
-		await query(
-			'SELECT login, display_name, log, prefix, suspended, privileged, joined_at FROM channels WHERE id = $1',
-			[channelId]
-		)
-	)[0];
-	if (channel) {
-		const channelDataString = JSON.stringify(channel);
-		logger.debug(`[DB] found channel ${channelId}: ${channelDataString}`);
-		await redis.set(
-			`${REDIS_CHANNEL_KEY_PREFIX}:${channelId}`,
-			channelDataString
-		);
-		return channel;
-	}
-	logger.debug(`[DB] unknown channel ${channelId}`);
 }
 
 async function flushMessages() {
@@ -292,3 +291,22 @@ async function flushMessages() {
 		logger.error('[DB] failed to flush messages from Redis:', err);
 	}
 }
+
+export default {
+	init,
+	query,
+	channel: {
+		insert: insertChannel,
+		update: updateChannel,
+		delete: deleteChannel,
+		get: getChannel,
+	},
+	customCommand: {
+		insert: insertCustomCommand,
+		update: updateCustomCommand,
+		delete: deleteCustomCommand,
+	},
+	message: {
+		queueInsert: queueMessageInsert,
+	},
+};

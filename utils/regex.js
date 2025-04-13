@@ -1,3 +1,5 @@
+const tosPatterns = ['racism', 'age', 'homophobia'];
+
 const patterns = {
 	invisChars:
 		/[\u034f\u2800\u{E0000}\u180e\ufeff\u2000-\u200d\u206D\uDC00\uDB40]/u,
@@ -8,8 +10,6 @@ const patterns = {
 	url: /[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/,
 	regexp: /\/(.*?)\/([gimsuy]*)/,
 };
-
-const tosPatterns = ['racism', 'age', 'homophobia'];
 
 function checkMessage(str) {
 	for (const p of tosPatterns) if (patterns[p].test(str)) return p;

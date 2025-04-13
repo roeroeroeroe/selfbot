@@ -1,8 +1,6 @@
-import { parseDurationString } from '../utils/duration.js';
-import regex from '../utils/regex.js';
+import utils from '../utils/index.js';
 
 const flagTypes = ['string', 'boolean', 'number', 'duration', 'url'];
-
 const globalFlagsSchema = [
 	{
 		name: 'help',
@@ -22,29 +20,20 @@ const globalFlagsSchema = [
 	},
 ];
 
-export function initFlags(schema) {
+function init(schema) {
 	const flags = {};
 	const aliasesMap = {};
 
+	// prettier-ignore
 	for (const flag of [...globalFlagsSchema, ...schema]) {
 		if (flag === null || typeof flag !== 'object')
 			throw new Error('flag must be an object');
-
-		if (
-			typeof flag.name !== 'string' ||
-			flag.name === '' ||
-			/\s/.test(flag.name)
-		)
+		if (typeof flag.name !== 'string' || flag.name === '' || /\s/.test(flag.name))
 			throw new Error('flag name must be a string with no spaces');
-
 		if (typeof flag.type !== 'string' || !flagTypes.includes(flag.type))
-			throw new Error(
-				`type for flag "${flag.name}" must be one of ${flagTypes.join(', ')}`
-			);
-
+			throw new Error(`type for flag "${flag.name}" must be one of ${flagTypes.join(', ')}`);
 		if (typeof flag.required !== 'boolean')
 			throw new Error(`'required' for flag "${flag.name}" must be a boolean`);
-
 		if (typeof flag.description !== 'string')
 			throw new Error(`description for flag "${flag.name}" must be a string`);
 
@@ -54,9 +43,7 @@ export function initFlags(schema) {
 			flag.type !== 'url' &&
 			typeof flag.defaultValue !== flag.type
 		)
-			throw new Error(
-				`default value for flag "${flag.name}" must be a ${flag.type}`
-			);
+			throw new Error(`default value for flag "${flag.name}" must be a ${flag.type}`);
 
 		if (flag.validator && typeof flag.validator !== 'function')
 			throw new Error(`validator for flag "${flag.name}" must be a function`);
@@ -67,37 +54,29 @@ export function initFlags(schema) {
 			flag.aliases.length > 2 ||
 			flag.aliases.every(a => typeof a !== 'string' && a !== null)
 		)
-			throw new Error(
-				`aliases for flag "${flag.name}" must be an array of 1 or 2 strings (or null for unused short/long forms)`
-			);
+			throw new Error(`aliases for flag "${flag.name}" must be an array of 1 or 2 strings (or null for unused short/long forms)`);
 
 		const [short, long] = flag.aliases;
 		if (short !== null) {
 			if (typeof short !== 'string' || short.length !== 1)
-				throw new Error(
-					`short option for flag "${flag.name}" must be a single character`
-				);
+				throw new Error(`short option for flag "${flag.name}" must be a single character`);
 			if (aliasesMap[short])
-				throw new Error(
-					`short option for flag "${flag.name}" conflicts with flag "${aliasesMap[short]}"`
-				);
+				throw new Error(`short option for flag "${flag.name}" conflicts with flag "${aliasesMap[short]}"`);
+
 			aliasesMap[short] = flag.name;
 		}
+
 		if (long !== null) {
 			if (typeof long !== 'string' || long.length < 2)
-				throw new Error(
-					`long option for flag "${flag.name}" must be at least 2 characters long`
-				);
+				throw new Error(`long option for flag "${flag.name}" must be at least 2 characters long`);
 			if (/\s/.test(long))
-				throw new Error(
-					`long option for flag "${flag.name}" must be a string with no spaces`
-				);
+				throw new Error(`long option for flag "${flag.name}" must be a string with no spaces`);
 			if (aliasesMap[long])
-				throw new Error(
-					`long option for flag "${flag.name}" conflicts with flag "${aliasesMap[long]}"`
-				);
+				throw new Error(`long option for flag "${flag.name}" conflicts with flag "${aliasesMap[long]}"`);
+
 			aliasesMap[long] = flag.name;
 		}
+
 		flags[flag.name] = flag;
 	}
 
@@ -112,13 +91,13 @@ const converters = {
 	},
 	duration: v => {
 		try {
-			return parseDurationString(v);
+			return utils.duration.parse(v);
 		} catch (err) {
 			throw new Error(`invalid duration: ${err.message}`);
 		}
 	},
 	url: v => {
-		if (!regex.patterns.url.test(v)) throw new Error('invalid url');
+		if (!utils.regex.patterns.url.test(v)) throw new Error('invalid url');
 		return v;
 	},
 };
@@ -137,7 +116,7 @@ function vconv(flag, v) {
 	}
 }
 
-export function parseFlags(argv, flagData) {
+function parse(argv, flagData) {
 	const { flags, aliasesMap } = flagData;
 	const options = {};
 	for (const k in flags) options[k] = flags[k].defaultValue;
@@ -222,3 +201,8 @@ export function parseFlags(argv, flagData) {
 
 	return { options, rest, errors };
 }
+
+export default {
+	init,
+	parse,
+};

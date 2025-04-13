@@ -1,8 +1,8 @@
 import logger from '../services/logger.js';
 import hermes from '../services/twitch/hermes/client.js';
-import { deleteChannel, query } from '../services/db.js';
+import db from '../services/db.js';
+import utils from '../utils/index.js';
 import { getUsers } from '../services/twitch/helix.js';
-import { toPlural } from '../utils/formatters.js';
 
 export default {
 	name: 'part',
@@ -23,7 +23,7 @@ export default {
 		if (!msg.args.length)
 			return { text: 'you must provide at least one channel', mention: true };
 
-		const existingChannels = await query('SELECT id FROM channels');
+		const existingChannels = await db.query('SELECT id FROM channels');
 		const existingIds = new Set();
 		for (const c of existingChannels) existingIds.add(c.id);
 
@@ -40,7 +40,7 @@ export default {
 
 		for (const c of channelsToPart)
 			try {
-				await deleteChannel(c.id);
+				await db.channel.delete(c.id);
 				for (const sub of hermes.CHANNEL_SUBS) hermes.unsubscribe(sub, c.id);
 				msg.client.part(c.login);
 			} catch (err) {
@@ -52,7 +52,7 @@ export default {
 			text:
 				channelsToPart.length === 1
 					? `parted #${channelsToPart[0].login} ${channelsToPart[0].id}`
-					: `parted ${channelsToPart.length} ${toPlural(channelsToPart.length, 'channel')}`,
+					: `parted ${channelsToPart.length} ${utils.format.plural(channelsToPart.length, 'channel')}`,
 			mention: true,
 		};
 	},

@@ -1,13 +1,7 @@
 import logger from '../services/logger.js';
+import hastebin from '../services/hastebin.js';
 import { getFollowers } from '../services/twitch/gql.js';
-import { getEffectiveName } from '../utils/utils.js';
-import { createPaste } from '../services/hastebin.js';
-import {
-	formatDate,
-	joinResponseParts,
-	toPlural,
-	alignLines,
-} from '../utils/formatters.js';
+import utils from '../utils/index.js';
 
 export default {
 	name: 'followers',
@@ -76,7 +70,7 @@ export default {
 		const list = [];
 		const messageParts = [];
 		if (result.followerEdges.length) {
-			const formattedFollowersCount = `${result.totalCount} ${toPlural(result.totalCount, 'follower')}`;
+			const formattedFollowersCount = `${result.totalCount} ${utils.format.plural(result.totalCount, 'follower')}`;
 			messageParts.push(formattedFollowersCount);
 			list.push(`${formattedFollowersCount}:\n`);
 
@@ -95,36 +89,36 @@ export default {
 					});
 
 			for (const e of result.followerEdges) {
-				const parts = [getEffectiveName(e.node.login, e.node.displayName)];
+				const parts = [utils.getEffectiveName(e.node.login, e.node.displayName)];
 
 				const followers = e.node.followers?.totalCount;
 				if (followers) {
-					parts.push(`${followers} ${toPlural(followers, 'follower')}`);
+					parts.push(`${followers} ${utils.format.plural(followers, 'follower')}`);
 				}
 				if (e.node.stream) {
 					const viewers = e.node.stream.viewersCount || 0;
-					parts.push(`live (${viewers} ${toPlural(viewers, 'viewer')})`);
+					parts.push(`live (${viewers} ${utils.format.plural(viewers, 'viewer')})`);
 				}
 
 				parts[parts.length - 1] +=
-					`__ALIGN__followed at: ${formatDate(e.followedAt)}`;
+					`__ALIGN__followed at: ${utils.date.format(e.followedAt)}`;
 
 				if (e.notificationSettings.isEnabled) {
 					parts.push('');
 				}
 
-				list.push(joinResponseParts(parts));
+				list.push(utils.format.join(parts));
 			}
 		}
 
 		try {
-			const link = await createPaste(alignLines(list), true);
+			const link = await hastebin.create(utils.format.align(list), true);
 			messageParts.push(link);
-			return { text: joinResponseParts(messageParts), mention: true };
+			return { text: utils.format.join(messageParts), mention: true };
 		} catch (err) {
 			logger.error('error creating paste:', err);
 			messageParts.push('error creating paste');
-			return { text: joinResponseParts(messageParts), mention: true };
+			return { text: utils.format.join(messageParts), mention: true };
 		}
 	},
 };

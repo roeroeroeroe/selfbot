@@ -1,5 +1,5 @@
 import logger from '../logger.js';
-import { splitArray } from '../../utils/utils.js';
+import utils from '../../utils/index.js';
 
 const HELIX_URL = 'https://api.twitch.tv/helix';
 
@@ -15,7 +15,7 @@ export async function getUsers(logins, ids) {
 	if (!Array.isArray(inputArray)) inputArray = [inputArray];
 
 	const userMap = new Map();
-	const batches = splitArray(inputArray, 100);
+	const batches = utils.splitArray(inputArray, 100);
 	logger.debug(
 		`[HELIX] getUsers: getting ${inputArray.length} users (${batches.length} batches)`
 	);

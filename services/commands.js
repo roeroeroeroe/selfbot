@@ -3,8 +3,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import config from '../config.json' with { type: 'json' };
 import logger from './logger.js';
-import { initFlags } from './flag.js';
-import { alignLines } from '../utils/formatters.js';
+import flag from './flag.js';
+import utils from '../utils/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -14,9 +14,9 @@ let knownCommands = [],
 	dirty = false;
 
 function add(command) {
-	if (!command.aliases) command.aliases = [];
+	command.aliases ??= [];
 	validateCommandModule(command);
-	command.flagData = initFlags(command.flags || []);
+	command.flagData = flag.init(command.flags ?? []);
 
 	let usage = `Usage of ${command.name}`;
 	if (command.aliases.length) usage += ` (${command.aliases.join(', ')})`;
@@ -30,7 +30,7 @@ function add(command) {
 		if (flag.description) line += `__ALIGN__${flag.description}`;
 		usageLines.push(`  ${line}`);
 	}
-	usage += `\n${alignLines(usageLines)}`;
+	usage += `\n${utils.format.align(usageLines)}`;
 	command.helpPage = usage;
 
 	commands.set(command.name, command);

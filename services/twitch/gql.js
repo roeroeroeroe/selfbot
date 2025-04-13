@@ -1,6 +1,6 @@
 import config from '../../config.json' with { type: 'json' };
 import logger from '../logger.js';
-import { splitArray, randomString } from '../../utils/utils.js';
+import utils from '../../utils/index.js';
 
 const MAX_OPERATIONS_PER_REQUEST = 35;
 
@@ -30,7 +30,10 @@ export async function getChannelBanStatus(channelIds, userId = config.bot.id) {
 	if (!Array.isArray(channelIds)) channelIds = [channelIds];
 	const bannedMap = new Map();
 
-	for (const batch of splitArray(channelIds, MAX_OPERATIONS_PER_REQUEST)) {
+	for (const batch of utils.splitArray(
+		channelIds,
+		MAX_OPERATIONS_PER_REQUEST
+	)) {
 		const res = await gql(
 			batch.map(channelId => {
 				bannedMap.set(channelId, null);
@@ -148,11 +151,11 @@ export async function getUsers(logins, ids) {
 			${baseUserQuery}
 		}
 	}`;
-	const chunks = splitArray(inputArray, 105);
+	const chunks = utils.splitArray(inputArray, 105);
 	const userMap = new Map();
 	for (const chunk of chunks) {
 		const responses = await gql(
-			splitArray(chunk, MAX_OPERATIONS_PER_REQUEST).map(b => ({
+			utils.splitArray(chunk, MAX_OPERATIONS_PER_REQUEST).map(b => ({
 				query,
 				variables: { [varName]: b },
 			}))
@@ -887,7 +890,7 @@ export async function unlockChosenEmote(channelId, cost, emoteId) {
 				channelID: channelId,
 				cost,
 				emoteID: emoteId,
-				transactionID: randomString(null, 10),
+				transactionID: utils.randomString(null, 10),
 			},
 		},
 	});
@@ -913,7 +916,7 @@ export async function unlockRandomEmote(channelId, cost) {
 			input: {
 				channelID: channelId,
 				cost,
-				transactionID: randomString(null, 10),
+				transactionID: utils.randomString(null, 10),
 			},
 		},
 	});

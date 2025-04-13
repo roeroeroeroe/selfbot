@@ -13,7 +13,7 @@ const durationUnits = {
 const nonMsDurationUnits = { ...durationUnits };
 delete nonMsDurationUnits.ms;
 
-export function formatDuration(ms, largest = 3, separator = ' ') {
+function format(ms, largest = 3, separator = ' ') {
 	if (typeof ms !== 'number' || isNaN(ms)) return `0${separator}s`;
 
 	const resultParts = [];
@@ -29,7 +29,7 @@ export function formatDuration(ms, largest = 3, separator = ' ') {
 	return resultParts.length ? resultParts.join(separator) : `0${separator}s`;
 }
 
-export function parseDurationString(str) {
+function parse(str) {
 	unitPattern.lastIndex = 0;
 	let ms = 0,
 		match;
@@ -41,3 +41,8 @@ export function parseDurationString(str) {
 
 	return ms;
 }
+
+export default {
+	format,
+	parse,
+};

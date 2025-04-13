@@ -1,12 +1,6 @@
 import logger from '../services/logger.js';
-import { getEffectiveName, randomString } from '../utils/utils.js';
-import { formatDuration } from '../utils/duration.js';
+import utils from '../utils/index.js';
 import { getStream, getVideo } from '../services/twitch/gql.js';
-import {
-	joinResponseParts,
-	toPlural,
-	trimString,
-} from '../utils/formatters.js';
 
 export default {
 	name: 'streaminfo',
@@ -40,7 +34,10 @@ export default {
 
 		if (!res.user) return { text: 'channel does not exist', mention: true };
 
-		const channelName = getEffectiveName(res.user.login, res.user.displayName);
+		const channelName = utils.getEffectiveName(
+			res.user.login,
+			res.user.displayName
+		);
 		const now = Date.now();
 
 		if (!res.user.stream) {
@@ -50,7 +47,7 @@ export default {
 					mention: true,
 				};
 
-			const lastLiveResponsePart = `${channelName} was last live ${formatDuration(now - Date.parse(res.user.lastBroadcast.startedAt))} ago`;
+			const lastLiveResponsePart = `${channelName} was last live ${utils.duration.format(now - Date.parse(res.user.lastBroadcast.startedAt))} ago`;
 
 			const lastVodId = res.user.videos?.edges[0]?.node?.id;
 			if (!lastVodId) return { text: lastLiveResponsePart, mention: true };
@@ -60,29 +57,33 @@ export default {
 
 			const responseParts = [lastLiveResponsePart];
 
-			const vodAgo = formatDuration(now - Date.parse(vodData.video.createdAt));
-			const vodDuration = formatDuration(vodData.video.lengthSeconds * 1000);
+			const vodAgo = utils.duration.format(
+				now - Date.parse(vodData.video.createdAt)
+			);
+			const vodDuration = utils.duration.format(
+				vodData.video.lengthSeconds * 1000
+			);
 			let vodString = `latest VOD (${vodAgo} ago): https://www.twitch.tv/videos/${lastVodId}, ${vodDuration}`;
 
 			if (vodData.video.viewCount)
-				vodString += `, ${vodData.video.viewCount} ${toPlural(vodData.video.viewCount, 'view')}`;
+				vodString += `, ${vodData.video.viewCount} ${utils.format.plural(vodData.video.viewCount, 'view')}`;
 
 			const topClip = vodData.video.topClips?.edges[0]?.node;
 			if (topClip) {
 				const viewCountPart = topClip.viewCount
-					? ` (${topClip.viewCount} ${toPlural(topClip.viewCount, 'view')})`
+					? ` (${topClip.viewCount} ${utils.format.plural(topClip.viewCount, 'view')})`
 					: '';
-				const clipCreator = getEffectiveName(
+				const clipCreator = utils.getEffectiveName(
 					topClip.curator.login,
 					topClip.curator.displayName
 				);
 				const featuredPart = topClip.isFeatured ? ', featured' : '';
 
-				vodString += `, top clip${viewCountPart}: ${topClip.url}, created by ${clipCreator} ${formatDuration(topClip.videoOffsetSeconds * 1000)} into the stream${featuredPart}`;
+				vodString += `, top clip${viewCountPart}: ${topClip.url}, created by ${clipCreator} ${utils.duration.format(topClip.videoOffsetSeconds * 1000)} into the stream${featuredPart}`;
 			}
 
 			responseParts.push(vodString);
-			return { text: joinResponseParts(responseParts), mention: true };
+			return { text: utils.format.join(responseParts), mention: true };
 		}
 
 		const stream = res.user.stream;
@@ -91,12 +92,12 @@ export default {
 			stream.freeformTags?.some(t => t.name === 'Rerun')
 				? `${channelName} is currently live with a rerun`
 				: `${channelName} is currently live`,
-			`uptime: ${formatDuration(now - Date.parse(stream.createdAt))}`,
+			`uptime: ${utils.duration.format(now - Date.parse(stream.createdAt))}`,
 		];
 
 		if (res.user.broadcastSettings.title)
 			responseParts.push(
-				`title: ${trimString(res.user.broadcastSettings.title, 50)}`
+				`title: ${utils.format.trim(res.user.broadcastSettings.title, 50)}`
 			);
 		if (stream.game?.displayName)
 			responseParts.push(`category: ${stream.game.displayName}`);
@@ -112,8 +113,10 @@ export default {
 		if (res.user.broadcastSettings.isMature)
 			responseParts.push('flagged as mature content');
 		if (res.user.stream.previewImageURL)
-			responseParts.push(res.user.stream.previewImageURL + randomString());
+			responseParts.push(
+				res.user.stream.previewImageURL + utils.randomString()
+			);
 
-		return { text: joinResponseParts(responseParts), mention: true };
+		return { text: utils.format.join(responseParts), mention: true };
 	},
 };

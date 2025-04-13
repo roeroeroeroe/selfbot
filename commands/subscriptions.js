@@ -1,7 +1,6 @@
 import logger from '../services/logger.js';
+import utils from '../utils/index.js';
 import { subscriptionBenefits } from '../services/twitch/gql.js';
-import { joinResponseParts, toPlural } from '../utils/formatters.js';
-import { splitString } from '../utils/utils.js';
 
 export default {
 	name: 'subscriptions',
@@ -67,10 +66,12 @@ export default {
 		}
 
 		const responseParts = [];
-		responseParts.push(`${res.length} ${toPlural(res.length, 'channel')}`);
+		responseParts.push(
+			`${res.length} ${utils.format.plural(res.length, 'channel')}`
+		);
 		if (allEmotes.length)
 			responseParts.push(
-				`${allEmotes.length} ${toPlural(allEmotes.length, 'emote')}`
+				`${allEmotes.length} ${utils.format.plural(allEmotes.length, 'emote')}`
 			);
 		if (counters.gifted) responseParts.push(`gifted: ${counters.gifted}`);
 		for (const t in counters.tiers) {
@@ -80,9 +81,9 @@ export default {
 		}
 
 		if (msg.commandFlags.printEmotes && allEmotes.length)
-			for (const message of splitString(allEmotes.join(' '), 499))
+			for (const message of utils.splitString(allEmotes.join(' '), 499))
 				await msg.send(message);
 
-		return { text: joinResponseParts(responseParts), mention: true };
+		return { text: utils.format.join(responseParts), mention: true };
 	},
 };

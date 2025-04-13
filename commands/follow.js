@@ -1,6 +1,6 @@
 import logger from '../services/logger.js';
 import { resolveUser, followUser } from '../services/twitch/gql.js';
-import { getEffectiveName } from '../utils/utils.js';
+import utils from '../utils/index.js';
 
 export default {
 	name: 'follow',
@@ -60,7 +60,7 @@ export default {
 				};
 			const user = res.followUser.follow.user;
 			return {
-				text: `followed ${getEffectiveName(user.login, user.displayName)} ${user.id}`,
+				text: `followed ${utils.getEffectiveName(user.login, user.displayName)} ${user.id}`,
 				mention: true,
 			};
 		} catch (err) {

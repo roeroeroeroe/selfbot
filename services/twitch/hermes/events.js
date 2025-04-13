@@ -1,10 +1,9 @@
 import config from '../../../config.json' with { type: 'json' };
 import cooldown from '../../cooldown.js';
 import logger from '../../logger.js';
-import { trimString } from '../../../utils/formatters.js';
-import { getEffectiveName } from '../../../utils/utils.js';
+import db from '../../db.js';
+import utils from '../../../utils/index.js';
 import { acknowledgeChatWarning, joinRaid, resolveUser } from '../gql.js';
-import { getChannel } from '../../db.js';
 
 const CHANNEL_MODERATION_ACTION_COOLDOWN_MS = 2500;
 
@@ -45,10 +44,11 @@ export default {
 		}
 
 		const action = msg.data.action;
-		const channel = getEffectiveName(user.login, user.displayName);
+		const channel = utils.getEffectiveName(user.login, user.displayName);
 
 		let message = `[Hermes] user_moderation_action: ${action} in ${channel}`;
-		if (msg.data.reason) message += `, reason: ${trimString(msg.data.reason)}`;
+		if (msg.data.reason)
+			message += `, reason: ${utils.format.trim(msg.data.reason)}`;
 		logger.info(message);
 
 		if (action === 'warn' && config.autoAcknowledgeChatWarnings)
@@ -73,18 +73,18 @@ export default {
 		if (cooldown.has(`${RAID_COOLDOWN_KEY_PREFIX}:${msg.raid.id}`)) return;
 		cooldown.set(`${RAID_COOLDOWN_KEY_PREFIX}:${msg.raid.id}`, 600000);
 
-		const channel = await getChannel(msg.raid.source_id);
+		const channel = await db.channel.get(msg.raid.source_id);
 		if (!channel) {
 			logger.warning(
 				`[Hermes] raid_update_v2: unknown channel: id:${msg.raid.source_id}`
 			);
 			return;
 		}
-		const sourceChannelName = getEffectiveName(
+		const sourceChannelName = utils.getEffectiveName(
 			channel.login,
 			channel.display_name
 		);
-		const targetChannelName = getEffectiveName(
+		const targetChannelName = utils.getEffectiveName(
 			msg.raid.target_login,
 			msg.raid.target_display_name
 		);
@@ -94,7 +94,7 @@ export default {
 			try {
 				const creator = await resolveUser(null, msg.raid.creator_id);
 				if (creator)
-					message += ` (created by ${getEffectiveName(creator.login, creator.displayName)})`;
+					message += ` (created by ${utils.getEffectiveName(creator.login, creator.displayName)})`;
 			} catch (err) {
 				logger.error('error resolving user:', err);
 			}

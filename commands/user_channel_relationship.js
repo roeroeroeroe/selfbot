@@ -1,11 +1,5 @@
 import logger from '../services/logger.js';
-import { formatDuration } from '../utils/duration.js';
-import { getEffectiveName } from '../utils/utils.js';
-import {
-	formatDate,
-	joinResponseParts,
-	toPlural,
-} from '../utils/formatters.js';
+import utils from '../utils/index.js';
 import {
 	resolveUser,
 	getRelationship,
@@ -95,7 +89,7 @@ export default {
 			results.map(res => (res.status === 'fulfilled' ? res.value : undefined));
 
 		const responseParts = [];
-		const userName = getEffectiveName(
+		const userName = utils.getEffectiveName(
 			relationshipData.user.login,
 			relationshipData.user.displayName
 		);
@@ -103,7 +97,7 @@ export default {
 
 		if (relationshipData.user.relationship?.followedAt)
 			responseParts.push(
-				`followed ${formatDuration(now - Date.parse(relationshipData.user.relationship.followedAt))} ago`
+				`followed ${utils.duration.format(now - Date.parse(relationshipData.user.relationship.followedAt))} ago`
 			);
 		if (relationshipData.user.isModerator) responseParts.push('mod');
 
@@ -111,21 +105,26 @@ export default {
 			e => e.node?.login === user.login
 		);
 		if (founder)
-			responseParts.push(`founder since ${formatDate(founder.grantedAt)}`);
+			responseParts.push(
+				`founder since ${utils.date.format(founder.grantedAt)}`
+			);
 
 		const artist = (artistsData?.artists?.edges ?? []).find(
 			e => e.node?.login === user.login
 		);
 		if (artist)
-			responseParts.push(`artist since ${formatDate(artist.grantedAt)}`);
+			responseParts.push(`artist since ${utils.date.format(artist.grantedAt)}`);
 
 		const vip = (vipsData ?? []).find(e => e.node?.login === user.login);
-		if (vip) responseParts.push(`vip since ${formatDate(vip.grantedAt)}`);
+		if (vip)
+			responseParts.push(`vip since ${utils.date.format(vip.grantedAt)}`);
 
 		const badgesCount =
 			channelViewerData?.channelViewer?.earnedBadges?.length ?? 0;
 		if (badgesCount)
-			responseParts.push(`${badgesCount} ${toPlural(badgesCount, 'badge')}`);
+			responseParts.push(
+				`${badgesCount} ${utils.format.plural(badgesCount, 'badge')}`
+			);
 
 		const subscriptionTenure =
 			relationshipData.user.relationship?.subscriptionTenure;
@@ -137,7 +136,7 @@ export default {
 			subscriptionString += `currently subscribed with a ${subscriptionBenefit.purchasedWithPrime ? 'Prime' : `tier ${subscriptionBenefit.tier[0]}`} subscription`;
 			if (subscriptionBenefit.gift?.isGift) {
 				const gifter = subscriptionBenefit.gift?.gifter
-					? getEffectiveName(
+					? utils.getEffectiveName(
 							subscriptionBenefit.gift.gifter.login,
 							subscriptionBenefit.gift.gifter.displayName
 						)
@@ -145,17 +144,17 @@ export default {
 				subscriptionString += ` gifted by ${gifter}`;
 			}
 			if (subscriptionTenure)
-				subscriptionString += ` for a total of ${subscriptionTenure.months} ${toPlural(subscriptionTenure.months, 'month')}`;
+				subscriptionString += ` for a total of ${subscriptionTenure.months} ${utils.format.plural(subscriptionTenure.months, 'month')}`;
 			if (subscriptionBenefit.endsAt)
-				subscriptionString += `, expires in ${formatDuration(Date.parse(subscriptionBenefit.endsAt) - now)}`;
+				subscriptionString += `, expires in ${utils.duration.format(Date.parse(subscriptionBenefit.endsAt) - now)}`;
 			else if (subscriptionBenefit.renewsAt)
-				subscriptionString += `, renews in ${formatDuration(Date.parse(subscriptionBenefit.renewsAt) - now)}`;
+				subscriptionString += `, renews in ${utils.duration.format(Date.parse(subscriptionBenefit.renewsAt) - now)}`;
 			if (subscriptionBenefit.thirdPartySKU)
 				subscriptionString += `. Third-party SKU: ${subscriptionBenefit.thirdPartySKU}`;
 		} else if (subscriptionTenure?.months) {
-			subscriptionString += `used to be subscribed for a total of ${subscriptionTenure.months} ${toPlural(subscriptionTenure.months, 'month')}`;
+			subscriptionString += `used to be subscribed for a total of ${subscriptionTenure.months} ${utils.format.plural(subscriptionTenure.months, 'month')}`;
 			if (subscriptionTenure.end)
-				subscriptionString += `, expired ${formatDuration(now - Date.parse(subscriptionTenure.end))} ago`;
+				subscriptionString += `, expired ${utils.duration.format(now - Date.parse(subscriptionTenure.end))} ago`;
 		}
 		if (subscriptionString) responseParts.push(subscriptionString);
 
@@ -163,7 +162,7 @@ export default {
 			text:
 				responseParts.length === 1
 					? `no relationship info found between ${userName} and ${channel.login}`
-					: joinResponseParts(responseParts),
+					: utils.format.join(responseParts),
 			mention: true,
 		};
 	},

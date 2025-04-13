@@ -1,5 +1,5 @@
 import logger from '../services/logger.js';
-import { getEffectiveName, getClosestString } from '../utils/utils.js';
+import utils from '../utils/index.js';
 import {
 	resolveUser,
 	getUnlockableEmotes,
@@ -46,7 +46,10 @@ export default {
 			? 'CHOSEN_SUB_EMOTE_UNLOCK'
 			: 'RANDOM_SUB_EMOTE_UNLOCK';
 
-		const channelName = getEffectiveName(channel.login, channel.displayName);
+		const channelName = utils.getEffectiveName(
+			channel.login,
+			channel.displayName
+		);
 
 		const reward = (
 			res.user.channel?.communityPointsSettings?.automaticRewards ?? []
@@ -102,7 +105,7 @@ export default {
 			if (!matchingNode) {
 				let errorString = `emote "${msg.commandFlags.emoteToken}" not found`;
 				if (unlockableEmoteSuffixes.length) {
-					const closestSuffix = getClosestString(
+					const closestSuffix = utils.getClosestString(
 						msg.commandFlags.emoteToken.slice(prefixLength),
 						unlockableEmoteSuffixes
 					);

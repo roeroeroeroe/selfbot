@@ -1,7 +1,7 @@
 import logger from '../services/logger.js';
+import hastebin from '../services/hastebin.js';
+import utils from '../utils/index.js';
 import { resolveUser, getChatters } from '../services/twitch/gql.js';
-import { joinResponseParts } from '../utils/formatters.js';
-import { createPaste } from '../services/hastebin.js';
 
 export default {
 	name: 'chatters',
@@ -102,16 +102,16 @@ export default {
 
 		const messageParts = [totalCount];
 		try {
-			const link = await createPaste(list.join('\n'), true);
+			const link = await hastebin.create(list.join('\n'), true);
 			const collectedChannelsCount = getTotalChatters(chatters);
 			if (collectedChannelsCount !== totalCount)
 				messageParts.push(`collected: ${collectedChannelsCount}`);
 			messageParts.push(link);
-			return { text: joinResponseParts(messageParts), mention: true };
+			return { text: utils.format.join(messageParts), mention: true };
 		} catch (err) {
 			logger.error('error creating paste:', err);
 			messageParts.push('error creating paste');
-			return { text: joinResponseParts(messageParts), mention: true };
+			return { text: utils.format.join(messageParts), mention: true };
 		}
 	},
 };

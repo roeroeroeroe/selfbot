@@ -1,8 +1,8 @@
-import regex from '../utils/regex.js';
+import utils from '../utils/index.js';
 import logger from '../services/logger.js';
 import commands from '../services/commands.js';
+import db from '../services/db.js';
 import customCommands from '../services/custom_commands.js';
-import { getChannel } from '../services/db.js';
 import { resolveUser } from '../services/twitch/gql.js';
 import { getUsers } from '../services/twitch/helix.js';
 
@@ -45,7 +45,7 @@ export default {
 			description: 'new command trigger',
 			validator: v => {
 				try {
-					const m = v.match(regex.patterns.regexp);
+					const m = v.match(utils.regex.patterns.regexp);
 					new RegExp(m[1], m[2]);
 					return true;
 				} catch {
@@ -120,7 +120,7 @@ export default {
 						mention: true,
 					};
 
-				if (!(await getChannel(user.id)))
+				if (!(await db.channel.get(user.id)))
 					return { text: `unknown channel: ${user.login}`, mention: true };
 				if (command.channel_id !== user.id) newValues.channel_id = user.id;
 			} catch (err) {
@@ -142,7 +142,7 @@ export default {
 		}
 
 		if (msg.commandFlags.trigger) {
-			const match = msg.commandFlags.trigger.match(regex.patterns.regexp);
+			const match = msg.commandFlags.trigger.match(utils.regex.patterns.regexp);
 			const regex = new RegExp(match[1], match[2]);
 			if (regex.toString() !== command.trigger.toString())
 				newValues.trigger = regex;

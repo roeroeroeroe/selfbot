@@ -1,8 +1,8 @@
 import logger from '../services/logger.js';
 import customCommands from '../services/custom_commands.js';
+import hastebin from '../services/hastebin.js';
+import utils from '../utils/index.js';
 import { resolveUser } from '../services/twitch/gql.js';
-import { createPaste } from '../services/hastebin.js';
-import { getEffectiveName } from '../utils/utils.js';
 
 export default {
 	name: 'listcommands',
@@ -47,7 +47,7 @@ export default {
 						mention: true,
 					};
 				commands = customCommands.getChannelCommands(user.id);
-				noCommandsMessage = `no commands found for channel ${getEffectiveName(user.login, user.displayName)}`;
+				noCommandsMessage = `no commands found for channel ${utils.getEffectiveName(user.login, user.displayName)}`;
 			} catch (err) {
 				logger.error(`error resolving user ${msg.commandFlags.channel}:`, err);
 				return {
@@ -69,7 +69,7 @@ export default {
 		if (!commands.length) return { text: noCommandsMessage, mention: true };
 
 		try {
-			const link = await createPaste(
+			const link = await hastebin.create(
 				JSON.stringify(
 					commands.map(c => ({ ...c, trigger: String(c.trigger) })),
 					null,

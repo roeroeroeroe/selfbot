@@ -1,10 +1,9 @@
 import config from '../config.json' with { type: 'json' };
 import logger from '../services/logger.js';
+import db from '../services/db.js';
 import hermes from '../services/twitch/hermes/client.js';
-import { query, insertChannel } from '../services/db.js';
+import utils from '../utils/index.js';
 import { getUsers } from '../services/twitch/helix.js';
-import { toPlural } from '../utils/formatters.js';
-import { splitArray } from '../utils/utils.js';
 
 export default {
 	name: 'join',
@@ -42,7 +41,7 @@ export default {
 		if (!msg.args.length)
 			return { text: 'you must provide at least one channel', mention: true };
 
-		const existingChannels = await query('SELECT id FROM channels');
+		const existingChannels = await db.query('SELECT id FROM channels');
 		const existingIds = new Set();
 		for (const c of existingChannels) existingIds.add(c.id);
 
@@ -57,12 +56,12 @@ export default {
 		if (!channelsToJoin.length)
 			return { text: 'no new channels, aborting', mention: true };
 
-		const batches = splitArray(channelsToJoin, 500);
+		const batches = utils.splitArray(channelsToJoin, 500);
 		for (const batch of batches)
 			try {
 				await Promise.all(
 					batch.map(channel =>
-						insertChannel(
+						db.channel.insert(
 							channel.id,
 							channel.login,
 							channel.display_name,
@@ -87,7 +86,7 @@ export default {
 			text:
 				channelsToJoin.length === 1
 					? `joined #${channelsToJoin[0].login} ${channelsToJoin[0].id}`
-					: `joined ${channelsToJoin.length} ${toPlural(channelsToJoin.length, 'channel')}`,
+					: `joined ${channelsToJoin.length} ${utils.format.plural(channelsToJoin.length, 'channel')}`,
 			mention: true,
 		};
 	},

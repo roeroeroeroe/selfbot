@@ -1,7 +1,6 @@
 import os from 'os';
 import hermes from '../services/twitch/hermes/client.js';
-import { joinResponseParts, formatBytes } from '../utils/formatters.js';
-import { formatDuration } from '../utils/duration.js';
+import utils from '../utils/index.js';
 
 export default {
 	name: 'ping',
@@ -24,9 +23,9 @@ export default {
 			const usedMem = totalMem - os.freemem();
 
 			return {
-				text: joinResponseParts([
-					`uptime: ${formatDuration(os.uptime() * 1000, 2)}`,
-					`memory: ${formatBytes(usedMem)}/${formatBytes(totalMem)}`,
+				text: utils.format.join([
+					`uptime: ${utils.duration.format(os.uptime() * 1000, 2)}`,
+					`memory: ${utils.format.bytes(usedMem)}/${utils.format.bytes(totalMem)}`,
 					`host: ${os.type()}`,
 					`kernel: ${os.release()}`,
 					`arch: ${os.machine()}`,
@@ -38,11 +37,11 @@ export default {
 		const before = performance.now();
 		await msg.client.ping();
 		return {
-			text: joinResponseParts([
+			text: utils.format.join([
 				`tmi: ${Math.floor(performance.now() - before)}ms`,
 				`handler: ${(before - msg.receivedAt).toFixed(2)}ms`,
-				`uptime: ${formatDuration(Date.now() - msg.client.connectedAt, 2)}`,
-				`memory: ${formatBytes(process.memoryUsage().heapTotal)}`,
+				`uptime: ${utils.duration.format(Date.now() - msg.client.connectedAt, 2)}`,
+				`memory: ${utils.format.bytes(process.memoryUsage().heapTotal)}`,
 				`channels: ${msg.client.joinedChannels.size}`,
 				`irc: ${msg.client.connections.length}`,
 				`hermes: ${hermes.connections.length}`,

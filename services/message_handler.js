@@ -3,20 +3,18 @@ import logger from './logger.js';
 import cooldown from './cooldown.js';
 import commands from './commands.js';
 import customCommands from './custom_commands.js';
-import regex from '../utils/regex.js';
-import { parseFlags } from './flag.js';
-import { toPlural } from '../utils/formatters.js';
-import { createPaste, fetchPaste } from './hastebin.js';
-import { getClosestString, shellSplit } from '../utils/utils.js';
+import hastebin from './hastebin.js';
+import flag from './flag.js';
+import utils from '../utils/index.js';
 
 const CUSTOM_COMMAND_COOLDOWN_KEY_PREFIX = 'handler:customcommand';
 
 export default async function handle(msg) {
-	msg.messageText = msg.messageText.replace(regex.patterns.invisChars, '');
-	msg.args = shellSplit(msg.messageText);
+	msg.messageText = msg.messageText.replace(utils.regex.patterns.invisChars, '');
+	msg.args = utils.shellSplit(msg.messageText);
 	if (msg.ircTags['reply-parent-msg-id']) {
 		msg.args.shift();
-		msg.args.push(...shellSplit(msg.ircTags['reply-parent-msg-body']));
+		msg.args.push(...utils.shellSplit(msg.ircTags['reply-parent-msg-body']));
 	}
 
 	if (msg.senderUserID === config.bot.id) {
@@ -71,7 +69,7 @@ export default async function handle(msg) {
 		logger.debug(
 			`[HANDLER] unknown command ${msg.commandName}, trying to get closest match`
 		);
-		const bestMatch = getClosestString(
+		const bestMatch = utils.getClosestString(
 			msg.commandName,
 			commands.getKnownNames()
 		);
@@ -90,7 +88,7 @@ export default async function handle(msg) {
 async function handleGlobalFlags(msg, command) {
 	if (msg.commandFlags.help) {
 		try {
-			const link = await createPaste(command.helpPage, true);
+			const link = await hastebin.create(command.helpPage, true);
 			return { text: link, mention: true };
 		} catch (err) {
 			logger.error('error creating paste:', err);
@@ -100,8 +98,8 @@ async function handleGlobalFlags(msg, command) {
 
 	if (msg.commandFlags.fromPaste) {
 		try {
-			const content = await fetchPaste(msg.commandFlags.fromPaste);
-			for (const arg of shellSplit(content)) msg.args.push(arg);
+			const content = await hastebin.get(msg.commandFlags.fromPaste);
+			for (const arg of utils.shellSplit(content)) msg.args.push(arg);
 		} catch (err) {
 			logger.error('error fetching paste:', err);
 			return { text: `error fetching paste: ${err.message}`, mention: true };
@@ -110,7 +108,7 @@ async function handleGlobalFlags(msg, command) {
 }
 
 async function handleCommand(msg, command) {
-	const { options, rest, errors } = parseFlags(msg.args, command.flagData);
+	const { options, rest, errors } = flag.parse(msg.args, command.flagData);
 	logger.debug(
 		`[HANDLER] parsed flags for command ${command.name}:`,
 		`flags: ${JSON.stringify(options)}`,
@@ -129,7 +127,7 @@ async function handleCommand(msg, command) {
 	if (errors.length) {
 		let errorString = errors[0];
 		if (errors.length > 1)
-			errorString += ` (${errors.length - 1} more ${toPlural(errors.length - 1, 'error')})`;
+			errorString += ` (${errors.length - 1} more ${utils.format.plural(errors.length - 1, 'error')})`;
 		return { text: errorString, mention: true };
 	}
 
@@ -174,7 +172,7 @@ async function executeCustomCommand(msg, customCommand) {
 			logger.debug(
 				`[HANDLER] removed trigger ${customCommand.trigger.toString()} from message, result: ${msg.messageText}`
 			);
-			msg.args = shellSplit(msg.messageText);
+			msg.args = utils.shellSplit(msg.messageText);
 			msg.commandName = command.name;
 			logger.debug(
 				`[HANDLER] custom command ${customCommand.name} -> regular command ${msg.commandName}, entering regular command handler`

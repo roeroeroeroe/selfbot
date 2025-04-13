@@ -1,11 +1,6 @@
 import logger from './logger.js';
-import regex from '../utils/regex.js';
-import {
-	query,
-	insertCustomCommand,
-	updateCustomCommand,
-	deleteCustomCommand,
-} from './db.js';
+import utils from '../utils/index.js';
+import db from './db.js';
 
 const globalCommands = [];
 const channelCommands = new Map();
@@ -13,11 +8,11 @@ const commandLookup = new Map();
 
 async function add(command, addToDB = true) {
 	if (!(command.trigger instanceof RegExp)) {
-		const match = command.trigger.match(regex.patterns.regexp);
+		const match = command.trigger.match(utils.regex.patterns.regexp);
 		command.trigger = new RegExp(match[1], match[2]);
 	}
 	if (addToDB)
-		await insertCustomCommand(
+		await db.customCommand.insert(
 			command.name,
 			command.channel_id,
 			String(command.trigger),
@@ -39,7 +34,7 @@ async function add(command, addToDB = true) {
 }
 
 async function deleteCommand(commandName, channelId, deleteFromDB = true) {
-	if (deleteFromDB) await deleteCustomCommand(commandName);
+	if (deleteFromDB) await db.customCommand.delete(commandName);
 
 	commandLookup.delete(commandName);
 	if (!channelId) {
@@ -87,7 +82,7 @@ async function edit(commandName, newValues = {}) {
 
 	const oldChannelId = command.channel_id;
 
-	await updateCustomCommand(commandName, newValues);
+	await db.customCommand.update(commandName, newValues);
 	Object.assign(command, newValues);
 	if ('name' in newValues || 'channel_id' in newValues) {
 		await deleteCommand(commandName, oldChannelId, false);
@@ -102,7 +97,7 @@ async function load() {
 	channelCommands.clear();
 	commandLookup.clear();
 
-	for (const command of await query('SELECT * FROM customcommands')) {
+	for (const command of await db.query('SELECT * FROM customcommands')) {
 		add(command, false);
 		logger.debug(`[CUSTOMCOMMANDS] loaded command ${command.name}`);
 	}

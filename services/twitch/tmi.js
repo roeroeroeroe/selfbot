@@ -3,16 +3,12 @@ import RateLimiter from '../rate_limiter.js';
 import config from '../../config.json' with { type: 'json' };
 import logger from '../logger.js';
 import handle from '../message_handler.js';
-import regex from '../../utils/regex.js';
+import db from '../db.js';
+import utils from '../../utils/index.js';
 import { getUsers } from './helix.js';
-import { query, updateChannel, queueMessageInsert, getChannel } from '../db.js';
-import { trimString, toPlural } from '../../utils/formatters.js';
-import { sleep } from '../../utils/utils.js';
 
 const MESSAGE_MAX_LENGTH = 500;
-
 const DEFAULT_SLOW_MODE_MS = 1100;
-
 const MESSAGES_WINDOW_MS = 30000;
 const REGULAR_MAX_MESSAGES_PER_WINDOW = 19;
 const REGULAR_MAX_MESSAGES_PER_WINDOW_PRIVILEGED = 99;
@@ -21,7 +17,6 @@ const JOINS_WINDOW_MS = 10000;
 const MAX_JOINS_PER_WINDOW = 999;
 const REGULAR_MAX_CONNECTIONS_POOL_SIZE = 20;
 const VERIFIED_MAX_CONNECTIONS_POOL_SIZE = 200;
-
 const LOAD_CHANNELS_INTERVAL_MS = 3600000;
 
 const GENERIC_CLIENT_OPTS = {
@@ -39,15 +34,13 @@ function registerCommonEvents(c, clientName) {
 	c.on('close', err => {
 		if (err) logger.fatal(`${clientName} closed due to error:`, err);
 	});
-	// TODO
-	c.on('NOTICE', msg => logger.warning(`${clientName} NOTICE:`, msg));
-	// TODO
+	c.on('NOTICE', msg => logger.debug(`${clientName} NOTICE:`, msg));
 	c.on('USERNOTICE', msg => logger.debug(`${clientName} USERNOTICE:`, msg));
 }
 
 async function loadChannels(client) {
 	try {
-		const channels = await query(
+		const channels = await db.query(
 			'SELECT id, login, display_name, suspended FROM channels'
 		);
 		const users = await getUsers(
@@ -59,17 +52,20 @@ async function loadChannels(client) {
 		for (const c of channels) {
 			const user = users.get(c.id);
 			if (!user) {
-				if (!c.suspended) updateChannel(c.id, 'suspended', true);
+				if (!c.suspended) db.channel.update(c.id, 'suspended', true);
 				continue;
-			} else if (c.suspended) updateChannel(c.id, 'suspended', false);
+			}
+			if (c.suspended) db.channel.update(c.id, 'suspended', false);
+
 			if (c.login !== user.login) {
-				await updateChannel(c.id, 'login', user.login);
+				await db.channel.update(c.id, 'login', user.login);
 				logger.info(
 					`[TMI] loadChannels: name change: ${c.login} => ${user.login}`
 				);
 			}
 			if (c.display_name !== user.display_name)
-				await updateChannel(c.id, 'display_name', user.display_name);
+				await db.channel.update(c.id, 'display_name', user.display_name);
+
 			channelsToJoin.push(user.login);
 		}
 
@@ -83,20 +79,42 @@ async function loadChannels(client) {
 }
 
 export default class Client {
-	// clients
 	#anon;
 	#authed;
-	// rate limiters
-	#slowModes;
-	#joinRateLimiter;
+	#slowModes = new Map();
+	#joinRateLimiter = new RateLimiter(JOINS_WINDOW_MS, MAX_JOINS_PER_WINDOW);
 	#sendRateLimiters = {};
 	#sendQueues = new Map();
 	#rateLimitSend;
+
 	constructor() {
-		if (!config.bot.login) throw new Error('missing bot login');
+		this.#validateConfig();
+		this.#initializeClients();
+		this.#initRateLimiters();
+		this.#registerEventHandlers();
+	}
+
+	// prettier-ignore
+	#validateConfig() {
+		if (!config.bot.login)
+			throw new Error('missing bot login');
 		if (!process.env.TWITCH_ANDROID_TOKEN)
 			throw new Error('missing TWITCH_ANDROID_TOKEN environment variable');
+		switch (config.rateLimits) {
+			case 'regular':
+				if (config.authedClientConnectionsPoolSize > REGULAR_MAX_CONNECTIONS_POOL_SIZE)
+					throw new Error(`authedClientConnectionsPoolSize can not be greater than ${REGULAR_MAX_CONNECTIONS_POOL_SIZE} with regular rate limits`);
+				break;
+			case 'verified':
+				if (config.authedClientConnectionsPoolSize > VERIFIED_MAX_CONNECTIONS_POOL_SIZE)
+					throw new Error(`authedClientConnectionsPoolSize can not be greater than ${VERIFIED_MAX_CONNECTIONS_POOL_SIZE} with verified rate limits`);
+				break;
+			default:
+				throw new Error(`invalid rate limits preset: ${config.rateLimits}, expected 'regular' or 'verified'`);
+		}
+	}
 
+	#initializeClients() {
 		this.#anon = new ChatClient(GENERIC_CLIENT_OPTS);
 		this.#authed = new ChatClient({
 			username: config.bot.login,
@@ -104,194 +122,191 @@ export default class Client {
 			...GENERIC_CLIENT_OPTS,
 		});
 
-		this.#slowModes = new Map();
-		this.#joinRateLimiter = new RateLimiter(
-			JOINS_WINDOW_MS,
-			MAX_JOINS_PER_WINDOW
-		);
-
-		if (config.rateLimits === 'regular') {
-			if (
-				config.authedClientConnectionsPoolSize >
-				REGULAR_MAX_CONNECTIONS_POOL_SIZE
-			)
-				throw new Error(
-					`authedClientConnectionsPoolSize can not be greater than ${REGULAR_MAX_CONNECTIONS_POOL_SIZE} with regular rate limits`
-				);
-			this.#sendRateLimiters.normal = new RateLimiter(
-				MESSAGES_WINDOW_MS,
-				REGULAR_MAX_MESSAGES_PER_WINDOW
-			);
-			this.#sendRateLimiters.privileged = new RateLimiter(
-				MESSAGES_WINDOW_MS,
-				REGULAR_MAX_MESSAGES_PER_WINDOW_PRIVILEGED
-			);
-			this.#rateLimitSend = async msg => {
-				if (msg.query.privileged) {
-					this.#sendRateLimiters.normal.add();
-					await this.#sendRateLimiters.privileged.wait();
-				} else {
-					await this.#sendRateLimiters.normal.wait();
-					await this.#waitSlowMode(msg);
-				}
-			};
-		} else if (config.rateLimits === 'verified') {
-			if (
-				config.authedClientConnectionsPoolSize >
-				VERIFIED_MAX_CONNECTIONS_POOL_SIZE
-			)
-				throw new Error(
-					`authedClientConnectionsPoolSize can not be greater than ${VERIFIED_MAX_CONNECTIONS_POOL_SIZE} with verified rate limits`
-				);
-			this.#sendRateLimiters.verified = new RateLimiter(
-				MESSAGES_WINDOW_MS,
-				VERIFIED_MAX_MESSAGES_PER_WINDOW
-			);
-			this.#rateLimitSend = async msg => {
-				await this.#sendRateLimiters.verified.wait();
-				if (!msg.query.privileged) await this.#waitSlowMode(msg);
-			};
-		} else {
-			throw new Error(
-				`invalid rate limits preset: ${config.rateLimits}, expected 'regular' or 'verified'`
-			);
-		}
-
 		if (config.authedClientConnectionsPoolSize >= 2)
 			this.#authed.use(
 				new ConnectionPool(this.#authed, {
 					poolSize: config.authedClientConnectionsPoolSize,
 				})
 			);
+	}
 
+	// prettier-ignore
+	#initRateLimiters() {
+		switch (config.rateLimits) {
+			case 'regular':
+				this.#sendRateLimiters.normal = new RateLimiter(MESSAGES_WINDOW_MS, REGULAR_MAX_MESSAGES_PER_WINDOW);
+				this.#sendRateLimiters.privileged = new RateLimiter(MESSAGES_WINDOW_MS, REGULAR_MAX_MESSAGES_PER_WINDOW_PRIVILEGED);
+				this.#rateLimitSend = async msg => {
+					if (msg.query.privileged) {
+						this.#sendRateLimiters.normal.add();
+						await this.#sendRateLimiters.privileged.wait();
+					} else {
+						await this.#sendRateLimiters.normal.wait();
+						await this.#waitSlowMode(msg);
+					}
+				};
+				break;
+			case 'verified':
+				this.#sendRateLimiters.verified = new RateLimiter(MESSAGES_WINDOW_MS, VERIFIED_MAX_MESSAGES_PER_WINDOW);
+				this.#rateLimitSend = async msg => {
+					await this.#sendRateLimiters.verified.wait();
+					if (!msg.query.privileged) await this.#waitSlowMode(msg);
+				};
+				break;
+			default:
+				throw new Error(`unhandled rate limit preset: ${config.rateLimits}`);
+		}
+	}
+
+	#registerEventHandlers() {
 		registerCommonEvents(this.#anon, '[TMI] [anon]');
 		registerCommonEvents(this.#authed, `[TMI] [${config.bot.login}]`);
 		this.#anon.on('JOIN', msg =>
 			logger.debug('[TMI] [anon] JOIN:', msg.rawSource)
 		);
-
-		this.#anon.on('ROOMSTATE', msg => {
-			const slowMode = this.#getSlowMode(msg.channelID);
-			slowMode.duration = Math.max(
-				DEFAULT_SLOW_MODE_MS,
-				(msg.slowModeDuration || 0) * 1000 + 100
-			);
-		});
-
-		this.#anon.on('PRIVMSG', async msg => {
-			// ignore shared chat
-			if (msg.sourceChannelId !== msg.channelId) return;
-			msg.receivedAt = performance.now();
-			logger.debug('[TMI] [anon] PRIVMSG:', msg.rawSource);
-			try {
-				msg.query = await getChannel(msg.channelID);
-				if (!msg.query) {
-					logger.warning('[TMI] [anon] got no channel for message:', msg);
-					return;
-				}
-			} catch (err) {
-				logger.error(`error getting channel ${msg.channelName}:`, err);
-				return;
-			}
-			if (msg.query.log)
-				try {
-					await queueMessageInsert(
-						msg.channelID,
-						msg.senderUserID,
-						msg.messageText,
-						msg.serverTimestamp.toISOString()
-					);
-				} catch (err) {
-					logger.error('failed to queue message:', err);
-				}
-			if (msg.query.login !== msg.channelName) {
-				logger.info(
-					`[TMI] [anon] name change: ${msg.query.login} => ${msg.channelName}`
-				);
-				try {
-					await updateChannel(
-						msg.channelID,
-						'login',
-						msg.channelName,
-						msg.query
-					);
-				} catch (err) {
-					logger.error('error updating channel:', err);
-				}
-			}
-			if (msg.senderUserID === config.bot.id) {
-				const isPrivileged =
-					msg.isMod || msg.badges.hasVIP || msg.badges.hasBroadcaster;
-				if (!isPrivileged) {
-					const slowMode = this.#getSlowMode(msg.channelID);
-					const now = Date.now();
-					if (slowMode.lastSend < now) slowMode.lastSend = now;
-				}
-				if (msg.query?.privileged !== isPrivileged)
-					await updateChannel(
-						msg.channelID,
-						'privileged',
-						isPrivileged,
-						msg.query
-					);
-			}
-			msg.client = this;
-			msg.send = async (message, reply, mention) => {
-				if (typeof message !== 'string') message = String(message);
-				message = trimString(
-					message,
-					MESSAGE_MAX_LENGTH -
-						((mention ? 3 + msg.senderUsername.length : 0) ||
-							(reply ? 2 + msg.senderUsername.length : 0))
-				).replace(/\n|\r/g, ' ');
-				const triggeredPattern = regex.checkMessage(message);
-				if (triggeredPattern) {
-					logger.warning(
-						`[TMI] [${config.bot.login}] caught message (pattern: ${triggeredPattern}, channel: ${msg.channelName}, invoked by: ${msg.senderUsername}): ${message}`
-					);
-					message = config.againstTOS;
-				}
-
-				let ircCommand = '';
-				if (reply)
-					ircCommand = `@reply-parent-msg-id=${msg.messageID} PRIVMSG #${msg.channelName} :${message}`;
-				else if (mention)
-					ircCommand = `PRIVMSG #${msg.channelName} :@${msg.senderUsername}, ${message}`;
-				else ircCommand = `PRIVMSG #${msg.channelName} :${message}`;
-
-				this.#sendQueues.set(
-					msg.channelID,
-					(this.#sendQueues.get(msg.channelID) || Promise.resolve()).then(
-						async () => {
-							await this.#rateLimitSend(msg);
-							logger.debug(
-								`[TMI] [${config.bot.login}] sending irc command: "${ircCommand}"`
-							);
-							this.#authed.sendRaw(ircCommand);
-						}
-					)
-				);
-			};
-			handle(msg);
-		});
-
-		this.#anon.on('ready', async () => {
-			this.connectedAt = Date.now();
-			logger.debug('[TMI] [anon] ready, loading channels...');
-			const c = await loadChannels(this);
-			logger.info(`[TMI] [anon] joining ${c} ${toPlural(c, 'channel')}...`);
-			setInterval(() => loadChannels(this), LOAD_CHANNELS_INTERVAL_MS);
-		});
+		this.#anon.on('ROOMSTATE', msg => this.#handleRoomState(msg));
+		this.#anon.on('PRIVMSG', msg => this.#handlePRIVMSG(msg));
+		this.#anon.on('ready', () => this.#onAnonReady());
 	}
 
-	#getSlowMode(channelID) {
-		if (!this.#slowModes.has(channelID))
-			this.#slowModes.set(channelID, {
+	#handleRoomState(msg) {
+		const slowMode = this.#getSlowMode(msg.channelID);
+		slowMode.duration = Math.max(
+			DEFAULT_SLOW_MODE_MS,
+			(msg.slowModeDuration || 0) * 1000 + 100
+		);
+	}
+
+	async #handlePRIVMSG(msg) {
+		// ignore shared chat
+		if (msg.sourceChannelId !== msg.channelId) return;
+
+		msg.receivedAt = performance.now();
+		logger.debug('[TMI] [anon] PRIVMSG:', msg.rawSource);
+
+		try {
+			msg.query = await db.channel.get(msg.channelID);
+			if (!msg.query) {
+				logger.warning('[TMI] [anon] got no channel for message:', msg);
+				return;
+			}
+		} catch (err) {
+			logger.error(`error getting channel ${msg.channelName}:`, err);
+			return;
+		}
+
+		if (msg.query.log)
+			try {
+				await db.message.queueInsert(
+					msg.channelID,
+					msg.senderUserID,
+					msg.messageText,
+					msg.serverTimestamp.toISOString()
+				);
+			} catch (err) {
+				logger.error('failed to queue message:', err);
+			}
+
+		if (msg.query.login !== msg.channelName) {
+			logger.info(
+				`[TMI] [anon] name change: ${msg.query.login} => ${msg.channelName}`
+			);
+			try {
+				await db.channel.update(
+					msg.channelID,
+					'login',
+					msg.channelName,
+					msg.query
+				);
+			} catch (err) {
+				logger.error('error updating channel:', err);
+			}
+		}
+
+		if (msg.senderUserID === config.bot.id) {
+			const isPrivileged =
+				msg.isMod || msg.badges.hasVIP || msg.badges.hasBroadcaster;
+			if (!isPrivileged) {
+				const slowMode = this.#getSlowMode(msg.channelID);
+				const now = Date.now();
+				if (slowMode.lastSend < now) slowMode.lastSend = now;
+			}
+			if (msg.query.privileged !== isPrivileged)
+				await db.channel.update(
+					msg.channelID,
+					'privileged',
+					isPrivileged,
+					msg.query
+				);
+		}
+
+		msg.client = this;
+		msg.send = async (text, reply, mention) =>
+			this.#sendMessage(msg, text, reply, mention);
+
+		handle(msg);
+	}
+
+	async #sendMessage(msg, text, reply, mention) {
+		if (typeof text !== 'string') text = String(text);
+		text = utils.format
+			.trim(
+				text,
+				MESSAGE_MAX_LENGTH -
+					((mention ? 3 + msg.senderUsername.length : 0) ||
+						(reply ? 2 + msg.senderUsername.length : 0))
+			)
+			.replace(/\n|\r/g, ' ');
+
+		const triggeredPattern = utils.regex.checkMessage(text);
+		if (triggeredPattern) {
+			logger.warning(
+				`[TMI] [${config.bot.login}] caught message (pattern: ${triggeredPattern}, channel: ${msg.channelName}, invoked by: ${msg.senderUsername}): ${text}`
+			);
+			text = config.againstTOS;
+		}
+
+		let ircCommand = '';
+		if (reply) {
+			ircCommand = `@reply-parent-msg-id=${msg.messageID} PRIVMSG #${msg.channelName} :${text}`;
+		} else if (mention) {
+			ircCommand = `PRIVMSG #${msg.channelName} :@${msg.senderUsername}, ${text}`;
+		} else {
+			ircCommand = `PRIVMSG #${msg.channelName} :${text}`;
+		}
+
+		this.#sendQueues.set(
+			msg.channelID,
+			(this.#sendQueues.get(msg.channelID) || Promise.resolve()).then(
+				async () => {
+					await this.#rateLimitSend(msg);
+					logger.debug(
+						`[TMI] [${config.bot.login}] sending irc command: "${ircCommand}"`
+					);
+					this.#authed.sendRaw(ircCommand);
+				}
+			)
+		);
+	}
+
+	async #onAnonReady() {
+		this.connectedAt = Date.now();
+		logger.debug('[TMI] [anon] ready, loading channels...');
+		const c = await loadChannels(this);
+		logger.info(
+			`[TMI] [anon] joining ${c} ${utils.format.plural(c, 'channel')}...`
+		);
+		setInterval(() => loadChannels(this), LOAD_CHANNELS_INTERVAL_MS);
+	}
+
+	#getSlowMode(channelId) {
+		if (!this.#slowModes.has(channelId))
+			this.#slowModes.set(channelId, {
 				duration: DEFAULT_SLOW_MODE_MS,
 				lastSend: 0,
 			});
 
-		return this.#slowModes.get(channelID);
+		return this.#slowModes.get(channelId);
 	}
 
 	async #waitSlowMode(msg) {
@@ -300,11 +315,11 @@ export default class Client {
 			slowMode.duration - (Date.now() - slowMode.lastSend),
 			0
 		);
-		if (waitTime > 0) {
+		if (waitTime) {
 			logger.debug(
 				`[TMI] [${config.bot.login}] sleeping for ${waitTime}ms due to slow mode`
 			);
-			await sleep(waitTime);
+			await utils.sleep(waitTime);
 		}
 		slowMode.lastSend = Date.now();
 	}
@@ -314,30 +329,30 @@ export default class Client {
 		this.#authed.connect();
 	}
 
-	async join(channelName) {
+	async join(channelLogin) {
 		for (let i = 0; i <= config.joinRetries; i++) {
 			await this.#joinRateLimiter.wait();
 			logger.debug(
-				`[TMI] [anon] trying to join #${channelName} (attempt ${i + 1})`
+				`[TMI] [anon] trying to join #${channelLogin} (attempt ${i + 1})`
 			);
 			try {
-				await this.#anon.join(channelName);
+				await this.#anon.join(channelLogin);
 				return;
 			} catch (err) {
 				if (i === config.joinRetries)
 					logger.error(
-						`failed to join #${channelName} after ${i + 1} attempts`
+						`failed to join #${channelLogin} after ${i + 1} attempts`
 					);
 			}
 		}
 	}
 
-	async part(channelName) {
-		logger.debug(`[TMI] [anon] trying to part #${channelName}`);
+	async part(channelLogin) {
+		logger.debug(`[TMI] [anon] trying to part #${channelLogin}`);
 		try {
-			await this.#anon.part(channelName);
+			await this.#anon.part(channelLogin);
 		} catch (err) {
-			logger.error(`error parting #${channelName}:`, err);
+			logger.error(`error parting #${channelLogin}:`, err);
 		}
 	}
 

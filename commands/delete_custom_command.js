@@ -1,7 +1,7 @@
 import logger from '../services/logger.js';
 import customCommands from '../services/custom_commands.js';
+import utils from '../utils/index.js';
 import { resolveUser } from '../services/twitch/gql.js';
-import { toPlural } from '../utils/formatters.js';
 
 export default {
 	name: 'deletecommand',
@@ -88,7 +88,7 @@ export default {
 		}
 
 		return {
-			text: `successfully deleted ${toPlural(commandsToDelete.length, 'command')}`,
+			text: `successfully deleted ${utils.format.plural(commandsToDelete.length, 'command')}`,
 			mention: true,
 		};
 	},

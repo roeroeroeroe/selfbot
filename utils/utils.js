@@ -1,3 +1,7 @@
+const shellArgPattern = /(?:[^\s"']+|"[^"]*"|'[^']*')+/g;
+const base62Charset =
+	'0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+
 export function sleep(ms) {
 	return new Promise(r => setTimeout(r, ms));
 }
@@ -11,7 +15,6 @@ export function withTimeout(promise, ms) {
 	]);
 }
 
-const shellArgPattern = /(?:[^\s"']+|"[^"]*"|'[^']*')+/g;
 export function shellSplit(str) {
 	shellArgPattern.lastIndex = 0;
 	const args = [];
@@ -77,7 +80,7 @@ export function rgbToHex({ r, g, b }) {
 	return ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
 }
 
-export function damerauLevenshteinDistance(a, b) {
+function damerauLevenshteinDistance(a, b) {
 	const aLen = a.length;
 	const bLen = b.length;
 	const INF = aLen + bLen;
@@ -136,12 +139,10 @@ export function getClosestString(str, arr) {
 	return bestMatch;
 }
 
-const charset =
-	'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 export function randomString(cset, len = 5) {
-	if (!cset) cset = charset;
-	let s = '';
-	for (; s.length < len; s += cset[Math.floor(Math.random() * cset.length)]);
+	cset ||= base62Charset;
+	const arr = new Array(len);
+	for (let i = 0; i < len; arr[i++] = cset[(Math.random() * cset.length) | 0]);
 
-	return s;
+	return arr.join('');
 }

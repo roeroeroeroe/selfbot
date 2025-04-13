@@ -1,13 +1,7 @@
 import logger from '../services/logger.js';
+import hastebin from '../services/hastebin.js';
+import utils from '../utils/index.js';
 import { getModeratedChannels } from '../services/twitch/gql.js';
-import { createPaste } from '../services/hastebin.js';
-import { getEffectiveName } from '../utils/utils.js';
-import {
-	formatDate,
-	joinResponseParts,
-	toPlural,
-	alignLines,
-} from '../utils/formatters.js';
 
 export default {
 	name: 'moderatedchannels',
@@ -32,10 +26,14 @@ export default {
 			return { text: '0 channels', mention: true };
 
 		for (const e of moderatedChannelsEdges) {
-			const lineParts = [getEffectiveName(e.node.login, e.node.displayName)];
+			const lineParts = [
+				utils.getEffectiveName(e.node.login, e.node.displayName),
+			];
 			if (e.isLive) {
 				const viewers = e.node.stream?.viewersCount || 0;
-				lineParts.push(`live (${viewers} ${toPlural(viewers, 'viewer')})`);
+				lineParts.push(
+					`live (${viewers} ${utils.format.plural(viewers, 'viewer')})`
+				);
 				counters.live.count++;
 			}
 			if (e.node.roles?.isStaff) {
@@ -54,35 +52,37 @@ export default {
 			}
 			const followers = e.node.followers?.totalCount || 0;
 			if (followers) {
-				lineParts.push(`${followers} ${toPlural(followers, 'follower')}`);
+				lineParts.push(
+					`${followers} ${utils.format.plural(followers, 'follower')}`
+				);
 				counters.totalFollowers.count += followers;
 			}
 
 			lineParts[lineParts.length - 1] +=
-				`__ALIGN__granted at: ${formatDate(e.grantedAt)}`;
+				`__ALIGN__granted at: ${utils.date.format(e.grantedAt)}`;
 
 			if (e.node.self.isEditor) {
 				lineParts.push('editor');
 				counters.editable.count++;
 			}
-			list.push(joinResponseParts(lineParts));
+			list.push(utils.format.join(lineParts));
 		}
 
 		const messageParts = [
-			`${moderatedChannelsEdges.length} ${toPlural(moderatedChannelsEdges.length, 'channel')}`,
+			`${moderatedChannelsEdges.length} ${utils.format.plural(moderatedChannelsEdges.length, 'channel')}`,
 		];
 
 		for (const counter of Object.values(counters))
 			if (counter.count) messageParts.push(`${counter.desc}: ${counter.count}`);
 
 		try {
-			const link = await createPaste(alignLines(list), true);
+			const link = await hastebin.create(utils.format.align(list), true);
 			messageParts.push(link);
-			return { text: joinResponseParts(messageParts), mention: true };
+			return { text: utils.format.join(messageParts), mention: true };
 		} catch (err) {
 			logger.error('error creating paste:', err);
 			messageParts.push('error creating paste');
-			return { text: joinResponseParts(messageParts), mention: true };
+			return { text: utils.format.join(messageParts), mention: true };
 		}
 	},
 };

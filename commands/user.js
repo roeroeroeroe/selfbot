@@ -1,13 +1,7 @@
 import logger from '../services/logger.js';
-import { createPaste } from '../services/hastebin.js';
-import { formatDuration } from '../utils/duration.js';
+import hastebin from '../services/hastebin.js';
+import utils from '../utils/index.js';
 import { getUser, getUsers } from '../services/twitch/gql.js';
-import { getEffectiveName, hexToRgb } from '../utils/utils.js';
-import {
-	joinResponseParts,
-	toPlural,
-	trimString,
-} from '../utils/formatters.js';
 
 export default {
 	name: 'user',
@@ -31,12 +25,12 @@ export default {
 		} catch (err) {
 			logger.error('error getting users:', err);
 			return {
-				text: `error getting ${toPlural(msg.args.length || 1, 'user')}`,
+				text: `error getting ${utils.format.plural(msg.args.length || 1, 'user')}`,
 				mention: true,
 			};
 		}
 
-		const response = joinResponseParts(responses, '; ');
+		const response = utils.format.join(responses, '; ');
 		if (response.length < 497 - msg.senderUsername.length)
 			return {
 				text: response,
@@ -44,7 +38,10 @@ export default {
 			};
 
 		try {
-			const link = await createPaste(joinResponseParts(responses, '\n'), true);
+			const link = await hastebin.create(
+				utils.format.join(responses, '\n'),
+				true
+			);
 			return {
 				text: link,
 				mention: true,
@@ -104,17 +101,17 @@ function buildResponses(msg, usersMap) {
 function constructUserDescription(user, banned) {
 	const parts = [];
 	const now = Date.now();
-	parts.push(`@${getEffectiveName(user.login, user.displayName)}`);
+	parts.push(`@${utils.getEffectiveName(user.login, user.displayName)}`);
 	parts.push(`id: ${user.id}`);
 	if (banned?.reason) {
 		let suspendedString = `suspended (${banned.reason}`;
 		if (banned.reason === 'DEACTIVATED' && user.deletedAt)
-			suspendedString += ` ${formatDuration(now - Date.parse(user.deletedAt))} ago`;
+			suspendedString += ` ${utils.duration.format(now - Date.parse(user.deletedAt))} ago`;
 		suspendedString += ')';
 		parts.push(suspendedString);
 	}
 	if (user.description)
-		parts.push(`description: ${trimString(user.description, 75)}`);
+		parts.push(`description: ${utils.format.trim(user.description, 75)}`);
 	if (user.channel.socialMedias?.length)
 		parts.push(`socials: ${user.channel.socialMedias.length}`);
 	if (user.panels?.length) {
@@ -135,12 +132,13 @@ function constructUserDescription(user, banned) {
 		parts.push(`followers: ${user.followers.totalCount}`);
 	if (user.follows.totalCount) {
 		let followsString = `follows: ${user.follows.totalCount}`;
-		if (user.followedGames.nodes.length)
-			followsString += ` ${toPlural(user.follows.totalCount, 'channel')}, ${user.followedGames.nodes.length} ${toPlural(user.followedGames.nodes.length, 'category', 'categories')}`;
+		const followedGamesCount = user.followedGames.nodes.length;
+		if (followedGamesCount)
+			followsString += ` ${utils.format.plural(user.follows.totalCount, 'channel')}, ${followedGamesCount} ${utils.format.plural(followedGamesCount, 'category', 'categories')}`;
 		parts.push(followsString);
 	} else if (user.followedGames.nodes.length)
 		parts.push(
-			`follows: ${user.followedGames.nodes.length} ${toPlural(user.followedGames.nodes.length, 'category', 'categories')}`
+			`follows: ${user.followedGames.nodes.length} ${utils.format.plural(user.followedGames.nodes.length, 'category', 'categories')}`
 		);
 	const roles = [];
 	if (user.roles.isStaff) roles.push('staff');
@@ -158,7 +156,7 @@ function constructUserDescription(user, banned) {
 	if (user.selectedBadge?.title)
 		parts.push(`badge: ${user.selectedBadge.title}`);
 	if (user.chatColor) {
-		const rgb = hexToRgb(user.chatColor);
+		const rgb = utils.hexToRgb(user.chatColor);
 		parts.push(`color: ${user.chatColor} (${rgb.r}, ${rgb.g}, ${rgb.b})`);
 	} else parts.push('default color (never set)');
 	if (
@@ -167,23 +165,23 @@ function constructUserDescription(user, banned) {
 	)
 		parts.push(`ui language: ${user.settings.preferredLanguageTag}`);
 	if (user.primaryTeam) {
-		let teamString = `team: ${trimString(user.primaryTeam.name, 25)}`;
+		let teamString = `team: ${utils.format.trim(user.primaryTeam.name, 25)}`;
 		if (user.primaryTeam.owner?.login === user.login) teamString += ' (owner)';
 		parts.push(teamString);
 	}
 	if (!user.stream && user.lastBroadcast?.startedAt)
 		parts.push(
-			`last live: ${formatDuration(now - Date.parse(user.lastBroadcast.startedAt))} ago`
+			`last live: ${utils.duration.format(now - Date.parse(user.lastBroadcast.startedAt))} ago`
 		);
 	parts.push(
-		`created: ${formatDuration(now - Date.parse(user.createdAt))} ago`
+		`created: ${utils.duration.format(now - Date.parse(user.createdAt))} ago`
 	);
 	if (user.updatedAt)
 		parts.push(
-			`updated: ${formatDuration(now - Date.parse(user.updatedAt))} ago`
+			`updated: ${utils.duration.format(now - Date.parse(user.updatedAt))} ago`
 		);
 	if (user.stream?.createdAt) {
-		let streamString = `live, uptime: ${formatDuration(now - Date.parse(user.stream.createdAt))}`;
+		let streamString = `live, uptime: ${utils.duration.format(now - Date.parse(user.stream.createdAt))}`;
 		if (user.stream.game?.displayName)
 			streamString += `, category: ${user.stream.game.displayName}`;
 		if (user.stream.viewersCount)
@@ -191,5 +189,5 @@ function constructUserDescription(user, banned) {
 		parts.push(streamString);
 	}
 
-	return joinResponseParts(parts);
+	return utils.format.join(parts);
 }

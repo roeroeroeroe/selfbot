@@ -1,6 +1,6 @@
 import config from '../config.json' with { type: 'json' };
 import exec from '../services/exec.js';
-import { joinResponseParts } from '../utils/formatters.js';
+import utils from '../utils/index.js';
 
 export default {
 	name: 'exec',
@@ -19,8 +19,7 @@ export default {
 		},
 	],
 	execute: async msg => {
-		if (!msg.args.length)
-			return { text: 'no command provided', mention: true };
+		if (!msg.args.length) return { text: 'no command provided', mention: true };
 		const command = msg.args.join(' ');
 		const { stdout, stderr, exitStatus, timedOut } = await exec(
 			command,
@@ -35,7 +34,7 @@ export default {
 
 		return {
 			text: responseParts.length
-				? joinResponseParts(responseParts)
+				? utils.format.join(responseParts)
 				: 'command produced no output',
 			mention: true,
 		};

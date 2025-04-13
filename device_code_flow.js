@@ -37,7 +37,7 @@ async function oauthRequest(url, urlParams) {
 			'Content-Type': 'application/x-www-form-urlencoded',
 		},
 	});
-	if (!res.ok) throw new Error(JSON.stringify(await res.json()));
+	if (!res.ok) throw new Error(await res.text());
 
 	return await res.json();
 }

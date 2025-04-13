@@ -1,6 +1,5 @@
 import logger from '../services/logger.js';
-import { formatDuration } from '../utils/duration.js';
-import { getEffectiveName } from '../utils/utils.js';
+import utils from '../utils/index.js';
 import {
 	selfFollowRelationship,
 	unfollowUser,
@@ -35,7 +34,7 @@ export default {
 				};
 			if (!res.user.self.follower?.followedAt)
 				return {
-					text: `not following ${getEffectiveName(res.user.login, res.user.displayName)}, aborting`,
+					text: `not following ${utils.getEffectiveName(res.user.login, res.user.displayName)}, aborting`,
 					mention: true,
 				};
 			user = res.user;
@@ -53,11 +52,11 @@ export default {
 		try {
 			await unfollowUser(user.id);
 
-			const followAge = formatDuration(
+			const followAge = utils.duration.format(
 				Date.now() - Date.parse(user.self.follower.followedAt)
 			);
 			return {
-				text: `unfollowed ${getEffectiveName(user.login, user.displayName)} ${user.id} (follow age: ${followAge})`,
+				text: `unfollowed ${utils.getEffectiveName(user.login, user.displayName)} ${user.id} (follow age: ${followAge})`,
 				mention: true,
 			};
 		} catch (err) {

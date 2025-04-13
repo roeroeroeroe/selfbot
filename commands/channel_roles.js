@@ -1,12 +1,6 @@
 import logger from '../services/logger.js';
-import { createPaste } from '../services/hastebin.js';
-import { getEffectiveName, withTimeout } from '../utils/utils.js';
-import {
-	joinResponseParts,
-	alignLines,
-	toPlural,
-	formatDate,
-} from '../utils/formatters.js';
+import hastebin from '../services/hastebin.js';
+import utils from '../utils/index.js';
 import {
 	resolveUser,
 	getMods,
@@ -74,13 +68,13 @@ export default {
 
 		let modsData, vipsData, foundersData, artistsData;
 		const results = await Promise.allSettled([
-			withTimeout(
+			utils.withTimeout(
 				getMods(channel.login, msg.commandFlags.maxMods),
 				msg.commandFlags.timeout
 			),
-			withTimeout(getVips(channel.login), msg.commandFlags.timeout),
-			withTimeout(getFounders(channel.login), msg.commandFlags.timeout),
-			withTimeout(getArtists(channel.id), msg.commandFlags.timeout),
+			utils.withTimeout(getVips(channel.login), msg.commandFlags.timeout),
+			utils.withTimeout(getFounders(channel.login), msg.commandFlags.timeout),
+			utils.withTimeout(getArtists(channel.id), msg.commandFlags.timeout),
 		]);
 		[modsData, vipsData, foundersData, artistsData] = results.map(res =>
 			res.status === 'fulfilled' ? res.value : undefined
@@ -89,47 +83,47 @@ export default {
 		const list = [];
 		const messageParts = [];
 
-		if (modsData?.length > 0) {
+		if (modsData?.length) {
 			const { lines: modsList, activeCount } = processRoles(modsData, {
 				prefixActive: true,
 				activeKey: 'isActive',
 			});
 			if (modsList.length) {
-				const modsInfo = `${modsList.length} ${toPlural(modsList.length, 'mod')} (${activeCount} currently in chat)`;
+				const modsInfo = `${modsList.length} ${utils.format.plural(modsList.length, 'mod')} (${activeCount} currently in chat)`;
 				list.push(`${modsInfo}:\n`);
 				messageParts.push(modsInfo);
 				for (const line of modsList) list.push(line);
 			}
 		}
 
-		if (vipsData?.length > 0) {
+		if (vipsData?.length) {
 			const { lines: vipsList } = processRoles(vipsData);
 			if (vipsList.length) {
-				const vipsInfo = `${vipsList.length} ${toPlural(vipsList.length, 'vip')}`;
+				const vipsInfo = `${vipsList.length} ${utils.format.plural(vipsList.length, 'vip')}`;
 				list.push(`${list.length ? '\n' : ''}${vipsInfo}:\n`);
 				messageParts.push(vipsInfo);
 				for (const line of vipsList) list.push(line);
 			}
 		}
 
-		if (foundersData?.length > 0) {
+		if (foundersData?.length) {
 			const { lines: foundersList, activeCount: subscribedCount } =
 				processRoles(foundersData, {
 					prefixActive: true,
 					activeKey: 'isSubscribed',
 				});
 			if (foundersList.length) {
-				const foundersInfo = `${foundersList.length} ${toPlural(foundersList.length, 'founder')} (${subscribedCount} currently subscribed)`;
+				const foundersInfo = `${foundersList.length} ${utils.format.plural(foundersList.length, 'founder')} (${subscribedCount} currently subscribed)`;
 				list.push(`${list.length ? '\n' : ''}${foundersInfo}:\n`);
 				messageParts.push(foundersInfo);
 				for (const line of foundersList) list.push(line);
 			}
 		}
 
-		if (artistsData?.artists?.edges.length > 0) {
+		if (artistsData?.artists?.edges.length) {
 			const { lines: artistsList } = processRoles(artistsData.artists.edges);
 			if (artistsList.length) {
-				const artistsInfo = `${artistsList.length} ${toPlural(artistsList.length, 'artist')}`;
+				const artistsInfo = `${artistsList.length} ${utils.format.plural(artistsList.length, 'artist')}`;
 				list.push(`${list.length ? '\n' : ''}${artistsInfo}:\n`);
 				messageParts.push(artistsInfo);
 				for (const line of artistsList) list.push(line);
@@ -143,13 +137,13 @@ export default {
 			};
 
 		try {
-			const link = await createPaste(alignLines(list), true);
+			const link = await hastebin.create(utils.format.align(list), true);
 			messageParts.push(link);
-			return { text: joinResponseParts(messageParts), mention: true };
+			return { text: utils.format.join(messageParts), mention: true };
 		} catch (err) {
 			logger.error('error creating paste:', err);
 			messageParts.push('error creating paste');
-			return { text: joinResponseParts(messageParts), mention: true };
+			return { text: utils.format.join(messageParts), mention: true };
 		}
 	},
 };
@@ -168,7 +162,7 @@ function processRoles(
 			prefix = '* ';
 		}
 		lines.push(
-			`${prefix}${getEffectiveName(edge.node.login, edge.node.displayName)}__ALIGN__granted at: ${formatDate(edge[timeKey])}`
+			`${prefix}${utils.getEffectiveName(edge.node.login, edge.node.displayName)}__ALIGN__granted at: ${utils.date.format(edge[timeKey])}`
 		);
 	}
 

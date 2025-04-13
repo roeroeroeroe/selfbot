@@ -1,7 +1,12 @@
 import config from '../config.json' with { type: 'json' };
 import logger from './logger.js';
 
-export async function createPaste(
+function constructRawUrl(url) {
+	const parts = url.split('/');
+	return `${parts.slice(0, parts.length - 1).join('/')}/raw/${parts[parts.length - 1]}`;
+}
+
+async function create(
 	content,
 	raw = false,
 	instance = config.hastebinInstance
@@ -22,23 +27,26 @@ export async function createPaste(
 	return raw ? `${instance}/raw/${body.key}` : `${instance}/${body.key}`;
 }
 
-export async function fetchPaste(url) {
+async function get(url) {
 	logger.debug(`[HASTEBIN] getting paste: ${url}`);
 	let res = await fetch(url);
 	if (!res.ok) throw new Error(`request failed (${res.status})`);
 
 	if (res.headers.get('content-type')?.includes('text/html')) {
 		if (url.includes('/raw/'))
-			throw new Error('invalid paste, expected plaintext, got html');
-		const parts = url.split('/');
-		url = `${parts.slice(0, parts.length - 1).join('/')}/raw/${parts[parts.length - 1]}`;
+			throw new Error('invalid paste: expected plaintext, got html');
+		url = constructRawUrl(url);
 		logger.debug('[HASTEBIN] got html, retrying raw url:', url);
 		res = await fetch(url);
 		if (!res.ok) throw new Error(`request failed (${res.status})`);
 		if (res.headers.get('content-type')?.includes('text/html'))
-			throw new Error('invalid paste, expected plaintext, got html');
-		return res.text();
+			throw new Error('invalid paste: expected plaintext, got html');
 	}
 
 	return res.text();
 }
+
+export default {
+	create,
+	get,
+};
