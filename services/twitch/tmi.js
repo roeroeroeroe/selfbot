@@ -141,6 +141,7 @@ export default class Client {
 						this.#sendRateLimiters.normal.add();
 						await this.#sendRateLimiters.privileged.wait();
 					} else {
+						this.#sendRateLimiters.privileged.add();
 						await this.#sendRateLimiters.normal.wait();
 						await this.#waitSlowMode(msg);
 					}
