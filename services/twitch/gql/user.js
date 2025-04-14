@@ -59,7 +59,7 @@ async function resolveUser(userLogin, userId) {
 	return res.data.user?.[key] === input ? res.data.user : null;
 }
 
-async function getOne(userLogin, userId) {
+async function getUserWithBanReason(userLogin, userId) {
 	const [lookupBy, varName, varType] = !!userId
 		? ['ID', 'id', 'ID!']
 		: ['Login', 'login', 'String!'];
@@ -481,7 +481,7 @@ async function updateDisplayName(newDisplayName) {
 
 export default {
 	resolve: resolveUser,
-	getOne,
+	getUserWithBanReason,
 	getMany,
 	getSelfBanStatus,
 	getSelfSubscriptionBenefits,

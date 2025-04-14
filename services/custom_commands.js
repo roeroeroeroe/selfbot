@@ -26,16 +26,11 @@ async function add(command, addToDB = true) {
 			command.mention
 		);
 
-	if (!command.channel_id) {
-		if (!globalCommands.find(c => c.name === command.name)) {
-			globalCommands.push(command);
-		}
-	} else {
+	if (!command.channel_id) globalCommands.push(command);
+	else {
 		const arr = channelCommands.get(command.channel_id) || [];
-		if (!arr.find(c => c.name === command.name)) {
-			arr.push(command);
-			channelCommands.set(command.channel_id, arr);
-		}
+		arr.push(command);
+		channelCommands.set(command.channel_id, arr);
 	}
 	commandLookup.set(command.name, command);
 }
@@ -63,7 +58,6 @@ async function deleteCommand(commandName, channelId, deleteFromDB = true) {
 				);
 		}
 	}
-
 	commandLookup.delete(commandName);
 }
 
@@ -93,7 +87,12 @@ async function edit(commandName, newValues = {}) {
 		throw new Error('duplicate command name');
 
 	const oldCommand = commandLookup.get(commandName);
-	if (!oldCommand) return;
+	if (!oldCommand) {
+		logger.warning(
+			`[CUSTOMCOMMANDS] not updating command ${commandName}: unknown command`
+		);
+		return;
+	}
 
 	const oldChannelId = oldCommand.channel_id;
 	const updatedCommand = {
@@ -116,7 +115,7 @@ async function edit(commandName, newValues = {}) {
 		if (i !== -1) commandsArray[i] = updatedCommand;
 		else
 			logger.warning(
-				`[CUSTOMCOMMANDS] not changing command ${commandName} in memory: failed to find command`
+				`[CUSTOMCOMMANDS] not updating command ${commandName} in memory: failed to find command`
 			);
 	}
 

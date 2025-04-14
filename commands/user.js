@@ -61,8 +61,8 @@ async function getNormalizedUsers(msg) {
 
 	const input = msg.args[0] || msg.senderUsername;
 	const result = msg.commandFlags.idLookup
-		? await gql.user.getOne(null, input)
-		: await gql.user.getOne(input);
+		? await gql.user.getUserWithBanReason(null, input)
+		: await gql.user.getUserWithBanReason(input);
 	if (!result?.user) return new Map();
 	return new Map([
 		[msg.commandFlags.idLookup ? result.user.id : result.user.login, result],
