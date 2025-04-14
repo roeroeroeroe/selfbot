@@ -75,7 +75,6 @@ export default {
 
 		switch (msg.commandName) {
 			case 'follows':
-			case 'followslist':
 			case 'listfollows':
 				result = await gql.user.getFollows(userLogin, limit, order);
 				if (
@@ -89,7 +88,6 @@ export default {
 				includeCategories = !raw && result.followedGames.length;
 				break;
 			case 'followers':
-			case 'followerslist':
 			case 'listfollowers':
 				result = await gql.user.getFollowers(userLogin, limit, order);
 				if (!result.totalCount)
