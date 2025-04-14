@@ -7,6 +7,8 @@ const channelCommands = new Map();
 const commandLookup = new Map();
 
 async function add(command, addToDB = true) {
+	if (commandLookup.has(command.name))
+		throw new Error('duplicate command name');
 	if (!(command.trigger instanceof RegExp)) {
 		const match = command.trigger.match(utils.regex.patterns.regexp);
 		command.trigger = new RegExp(match[1], match[2]);
@@ -24,19 +26,23 @@ async function add(command, addToDB = true) {
 			command.mention
 		);
 
-	commandLookup.set(command.name, command);
-	if (!command.channel_id) globalCommands.push(command);
-	else {
-		if (!channelCommands.has(command.channel_id))
-			channelCommands.set(command.channel_id, []);
-		channelCommands.get(command.channel_id).push(command);
+	if (!command.channel_id) {
+		if (!globalCommands.find(c => c.name === command.name)) {
+			globalCommands.push(command);
+		}
+	} else {
+		const arr = channelCommands.get(command.channel_id) || [];
+		if (!arr.find(c => c.name === command.name)) {
+			arr.push(command);
+			channelCommands.set(command.channel_id, arr);
+		}
 	}
+	commandLookup.set(command.name, command);
 }
 
 async function deleteCommand(commandName, channelId, deleteFromDB = true) {
 	if (deleteFromDB) await db.customCommand.delete(commandName);
 
-	commandLookup.delete(commandName);
 	if (!channelId) {
 		const i = globalCommands.findIndex(c => c.name === commandName);
 		if (i !== -1) globalCommands.splice(i, 1);
@@ -57,6 +63,8 @@ async function deleteCommand(commandName, channelId, deleteFromDB = true) {
 				);
 		}
 	}
+
+	commandLookup.delete(commandName);
 }
 
 function getCommandByName(commandName) {
@@ -77,19 +85,42 @@ function getAllCommands() {
 }
 
 async function edit(commandName, newValues = {}) {
-	const command = commandLookup.get(commandName);
-	if (!command) return;
+	if (
+		newValues.name &&
+		newValues.name !== commandName &&
+		commandLookup.has(newValues.name)
+	)
+		throw new Error('duplicate command name');
 
-	const oldChannelId = command.channel_id;
+	const oldCommand = commandLookup.get(commandName);
+	if (!oldCommand) return;
+
+	const oldChannelId = oldCommand.channel_id;
+	const updatedCommand = {
+		...oldCommand,
+		...newValues,
+	};
 
 	await db.customCommand.update(commandName, newValues);
-	Object.assign(command, newValues);
+
 	if ('name' in newValues || 'channel_id' in newValues) {
 		await deleteCommand(commandName, oldChannelId, false);
-		await add(command, false);
+		await add(updatedCommand, false);
+	} else {
+		commandLookup.set(commandName, updatedCommand);
+		const commandsArray = oldChannelId
+			? channelCommands.get(oldChannelId)
+			: globalCommands;
+
+		const i = commandsArray?.findIndex(c => c.name === commandName);
+		if (i !== -1) commandsArray[i] = updatedCommand;
+		else
+			logger.warning(
+				`[CUSTOMCOMMANDS] not changing command ${commandName} in memory: failed to find command`
+			);
 	}
 
-	return command;
+	return updatedCommand;
 }
 
 async function load() {
@@ -98,7 +129,7 @@ async function load() {
 	commandLookup.clear();
 
 	for (const command of await db.query('SELECT * FROM customcommands')) {
-		add(command, false);
+		await add(command, false);
 		logger.debug(`[CUSTOMCOMMANDS] loaded command ${command.name}`);
 	}
 

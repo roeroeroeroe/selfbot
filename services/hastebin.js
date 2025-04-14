@@ -6,11 +6,7 @@ function constructRawUrl(url) {
 	return `${parts.slice(0, parts.length - 1).join('/')}/raw/${parts[parts.length - 1]}`;
 }
 
-async function create(
-	content,
-	raw = false,
-	instance = config.hastebinInstance
-) {
+async function create(content, raw = true, instance = config.hastebinInstance) {
 	logger.debug(
 		`[HASTEBIN] creating${raw ? ' raw' : ''} ${instance} paste:`,
 		content

@@ -1,6 +1,6 @@
 import logger from '../services/logger.js';
 import utils from '../utils/index.js';
-import { subscriptionBenefits } from '../services/twitch/gql.js';
+import gql from '../services/twitch/gql/index.js';
 
 export default {
 	name: 'subscriptions',
@@ -20,7 +20,7 @@ export default {
 	execute: async msg => {
 		let res;
 		try {
-			res = await subscriptionBenefits();
+			res = await gql.user.getSelfSubscriptionBenefits();
 		} catch (err) {
 			logger.error('error getting subscription benefits:', err);
 			return { text: 'error getting subscription benefits', mention: true };

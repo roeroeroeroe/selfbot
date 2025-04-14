@@ -3,7 +3,7 @@ import cooldown from '../../cooldown.js';
 import logger from '../../logger.js';
 import db from '../../db.js';
 import utils from '../../../utils/index.js';
-import { acknowledgeChatWarning, joinRaid, resolveUser } from '../gql.js';
+import gql from '../gql/index.js';
 
 const CHANNEL_MODERATION_ACTION_COOLDOWN_MS = 2500;
 
@@ -31,7 +31,7 @@ export default {
 
 		let user;
 		try {
-			user = await resolveUser(null, msg.data.channel_id);
+			user = await gql.user.resolve(null, msg.data.channel_id);
 			if (!user) {
 				logger.warning(
 					`[Hermes] user_moderation_action: got no user for id ${msg.data.channel_id}: ${msg}`
@@ -53,7 +53,9 @@ export default {
 
 		if (action === 'warn' && config.autoAcknowledgeChatWarnings)
 			try {
-				const res = await acknowledgeChatWarning(msg.data.channel_id);
+				const res = await gql.channel.acknowledgeChatWarning(
+					msg.data.channel_id
+				);
 				const errorCode = res.acknowledgeChatWarning.error?.code;
 				if (errorCode) logger.error('error acknowledging warning:', errorCode);
 				else
@@ -92,7 +94,7 @@ export default {
 		let message = `[Hermes] raid_update_v2: raid from ${sourceChannelName} to ${targetChannelName}`;
 		if (msg.raid.creator_id && msg.raid.creator_id !== msg.raid.source_id) {
 			try {
-				const creator = await resolveUser(null, msg.raid.creator_id);
+				const creator = await gql.user.resolve(null, msg.raid.creator_id);
 				if (creator)
 					message += ` (created by ${utils.getEffectiveName(creator.login, creator.displayName)})`;
 			} catch (err) {
@@ -103,7 +105,7 @@ export default {
 
 		if (config.autoJoinRaids)
 			try {
-				const res = await joinRaid(msg.raid.id);
+				const res = await gql.channel.joinRaid(msg.raid.id);
 				if (res?.joinRaid?.raidID)
 					logger.info(
 						`[Hermes] raid_update_v2: joined raid from ${sourceChannelName} to ${targetChannelName}, raid id: ${res.joinRaid.raidID}`

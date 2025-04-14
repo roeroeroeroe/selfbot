@@ -1,37 +1,20 @@
-import utils from '../utils/index.js';
+import utils from '../../utils/index.js';
+import globalFlags from './global_flags.js';
 
-const flagTypes = ['string', 'boolean', 'number', 'duration', 'url'];
-const globalFlagsSchema = [
-	{
-		name: 'help',
-		type: 'boolean',
-		defaultValue: false,
-		aliases: [null, 'help'],
-		required: false,
-		description: 'print this help page',
-	},
-	{
-		name: 'fromPaste',
-		type: 'url',
-		defaultValue: '',
-		aliases: [null, 'from-paste'],
-		required: false,
-		description: 'populate arguments from paste',
-	},
-];
+const FLAG_TYPES = ['string', 'boolean', 'number', 'duration', 'url'];
 
 function init(schema) {
 	const flags = {};
 	const aliasesMap = {};
 
 	// prettier-ignore
-	for (const flag of [...globalFlagsSchema, ...schema]) {
+	for (const flag of [...globalFlags.GLOBAL_FLAGS_SCHEMA, ...schema]) {
 		if (flag === null || typeof flag !== 'object')
 			throw new Error('flag must be an object');
 		if (typeof flag.name !== 'string' || flag.name === '' || /\s/.test(flag.name))
 			throw new Error('flag name must be a string with no spaces');
-		if (typeof flag.type !== 'string' || !flagTypes.includes(flag.type))
-			throw new Error(`type for flag "${flag.name}" must be one of ${flagTypes.join(', ')}`);
+		if (typeof flag.type !== 'string' || !FLAG_TYPES.includes(flag.type))
+			throw new Error(`type for flag "${flag.name}" must be one of ${FLAG_TYPES.join(', ')}`);
 		if (typeof flag.required !== 'boolean')
 			throw new Error(`'required' for flag "${flag.name}" must be a boolean`);
 		if (typeof flag.description !== 'string')
@@ -203,6 +186,8 @@ function parse(argv, flagData) {
 }
 
 export default {
+	FLAG_TYPES,
+
 	init,
 	parse,
 };

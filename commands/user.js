@@ -1,7 +1,7 @@
 import logger from '../services/logger.js';
 import hastebin from '../services/hastebin.js';
 import utils from '../utils/index.js';
-import { getUser, getUsers } from '../services/twitch/gql.js';
+import gql from '../services/twitch/gql/index.js';
 
 export default {
 	name: 'user',
@@ -38,10 +38,7 @@ export default {
 			};
 
 		try {
-			const link = await hastebin.create(
-				utils.format.join(responses, '\n'),
-				true
-			);
+			const link = await hastebin.create(utils.format.join(responses, '\n'));
 			return {
 				text: link,
 				mention: true,
@@ -59,13 +56,13 @@ export default {
 async function getNormalizedUsers(msg) {
 	if (msg.args.length > 1)
 		return msg.commandFlags.idLookup
-			? await getUsers(null, msg.args)
-			: await getUsers(msg.args);
+			? await gql.user.getMany(null, msg.args)
+			: await gql.user.getMany(msg.args);
 
 	const input = msg.args[0] || msg.senderUsername;
 	const result = msg.commandFlags.idLookup
-		? await getUser(null, input)
-		: await getUser(input);
+		? await gql.user.getOne(null, input)
+		: await gql.user.getOne(input);
 	if (!result?.user) return new Map();
 	return new Map([
 		[msg.commandFlags.idLookup ? result.user.id : result.user.login, result],
@@ -85,12 +82,11 @@ function buildResponses(msg, usersMap) {
 	} else {
 		const idPrefix = msg.commandFlags.idLookup ? 'with id ' : '';
 		for (const arg of msg.args) {
-			const key = msg.commandFlags.idLookup ? arg : arg.toLowerCase();
-			const user = usersMap.get(key);
+			const user = usersMap.get(arg);
 			responses.push(
 				user
 					? constructUserDescription(user)
-					: `user ${idPrefix}${key} does not exist`
+					: `user ${idPrefix}${arg} does not exist`
 			);
 		}
 	}
@@ -140,15 +136,8 @@ function constructUserDescription(user, banned) {
 		parts.push(
 			`follows: ${user.followedGames.nodes.length} ${utils.format.plural(user.followedGames.nodes.length, 'category', 'categories')}`
 		);
-	const roles = [];
-	if (user.roles.isStaff) roles.push('staff');
-	else if (user.roles.isStaff === false) roles.push('ex-staff');
-	if (user.roles.isSiteAdmin) roles.push('site admin');
-	if (user.roles.isGlobalMod) roles.push('global mod');
-	if (user.roles.isExtensionsDeveloper) roles.push('extensions developer');
-	if (user.roles.isParticipatingDJ) roles.push('dj');
-	if (user.roles.isPartner) roles.push('partner');
-	if (user.roles.isAffiliate) roles.push('affiliate');
+
+	const roles = getRoles(user.roles);
 	if (roles.length) parts.push(`roles: ${roles.join(', ')}`);
 
 	if (user.emoticonPrefix?.name)
@@ -190,4 +179,19 @@ function constructUserDescription(user, banned) {
 	}
 
 	return utils.format.join(parts);
+}
+
+function getRoles(roles) {
+	const roleList = [];
+
+	if (roles.isStaff) roleList.push('staff');
+	else if (roles.isStaff === false) roleList.push('ex-staff');
+	if (roles.isSiteAdmin) roleList.push('site admin');
+	if (roles.isGlobalMod) roleList.push('global mod');
+	if (roles.isExtensionsDeveloper) roleList.push('extensions developer');
+	if (roles.isParticipatingDJ) roleList.push('dj');
+	if (roles.isPartner) roleList.push('partner');
+	if (roles.isAffiliate) roleList.push('affiliate');
+
+	return roleList;
 }

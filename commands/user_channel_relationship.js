@@ -1,13 +1,6 @@
 import logger from '../services/logger.js';
 import utils from '../utils/index.js';
-import {
-	resolveUser,
-	getRelationship,
-	channelViewer,
-	getVips,
-	getFounders,
-	getArtists,
-} from '../services/twitch/gql.js';
+import gql from '../services/twitch/gql/index.js';
 
 export default {
 	name: 'relationship',
@@ -39,7 +32,7 @@ export default {
 		let user;
 		if (userInput) {
 			try {
-				const res = await resolveUser(userInput);
+				const res = await gql.user.resolve(userInput);
 				if (!res)
 					return { text: `user ${userInput} does not exist`, mention: true };
 				user = { id: res.id, login: res.login };
@@ -55,7 +48,7 @@ export default {
 		let channel;
 		if (channelInput) {
 			try {
-				const res = await resolveUser(channelInput);
+				const res = await gql.user.resolve(channelInput);
 				if (!res)
 					return {
 						text: `channel ${channelInput} does not exist`,
@@ -79,11 +72,11 @@ export default {
 			foundersData,
 			artistsData;
 		const results = await Promise.allSettled([
-			getRelationship(user.login, channel.id),
-			channelViewer(user.login, channel.login),
-			getVips(channel.login),
-			getFounders(channel.login),
-			getArtists(channel.id),
+			gql.user.getRelationship(user.login, channel.id),
+			gql.channel.getChannelViewer(user.login, channel.login),
+			gql.channel.getVips(channel.login),
+			gql.channel.getFounders(channel.login),
+			gql.channel.getArtists(channel.id),
 		]);
 		[relationshipData, channelViewerData, vipsData, foundersData, artistsData] =
 			results.map(res => (res.status === 'fulfilled' ? res.value : undefined));

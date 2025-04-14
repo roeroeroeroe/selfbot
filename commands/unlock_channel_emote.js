@@ -1,11 +1,6 @@
 import logger from '../services/logger.js';
 import utils from '../utils/index.js';
-import {
-	resolveUser,
-	getUnlockableEmotes,
-	unlockChosenEmote,
-	unlockRandomEmote,
-} from '../services/twitch/gql.js';
+import gql from '../services/twitch/gql/index.js';
 
 export default {
 	name: 'unlockchannelemote',
@@ -33,14 +28,16 @@ export default {
 	execute: async msg => {
 		let channel;
 		try {
-			channel = await resolveUser(msg.commandFlags.channel || msg.channelName);
+			channel = await gql.user.resolve(
+				msg.commandFlags.channel || msg.channelName
+			);
 			if (!channel) return { text: 'channel does not exist', mention: true };
 		} catch (err) {
 			logger.error('error resolving user:', err);
 			return { text: 'error resolving channel', mention: true };
 		}
 
-		const res = await getUnlockableEmotes(channel.login);
+		const res = await gql.channel.getUnlockableEmotes(channel.login);
 
 		const rewardType = msg.commandFlags.emoteToken
 			? 'CHOSEN_SUB_EMOTE_UNLOCK'
@@ -121,7 +118,11 @@ export default {
 				};
 
 			const result = processResponse(
-				await unlockChosenEmote(channel.id, cost, matchingNode.emote.id),
+				await gql.channel.unlockChosenEmote(
+					channel.id,
+					cost,
+					matchingNode.emote.id
+				),
 				'unlockChosenSubscriberEmote'
 			);
 			if (result.error)
@@ -137,7 +138,7 @@ export default {
 		}
 
 		const result = processResponse(
-			await unlockRandomEmote(channel.id, cost),
+			await gql.channel.unlockRandomEmote(channel.id, cost),
 			'unlockRandomSubscriberEmote'
 		);
 		if (result.error)

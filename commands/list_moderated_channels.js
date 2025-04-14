@@ -1,7 +1,7 @@
 import logger from '../services/logger.js';
 import hastebin from '../services/hastebin.js';
 import utils from '../utils/index.js';
-import { getModeratedChannels } from '../services/twitch/gql.js';
+import gql from '../services/twitch/gql/index.js';
 
 export default {
 	name: 'moderatedchannels',
@@ -21,7 +21,7 @@ export default {
 			totalFollowers: { count: 0, desc: 'total followers' },
 		};
 
-		const moderatedChannelsEdges = await getModeratedChannels();
+		const moderatedChannelsEdges = await gql.channel.getSelfModeratedChannels();
 		if (!moderatedChannelsEdges.length)
 			return { text: '0 channels', mention: true };
 
@@ -76,7 +76,7 @@ export default {
 			if (counter.count) messageParts.push(`${counter.desc}: ${counter.count}`);
 
 		try {
-			const link = await hastebin.create(utils.format.align(list), true);
+			const link = await hastebin.create(utils.format.align(list));
 			messageParts.push(link);
 			return { text: utils.format.join(messageParts), mention: true };
 		} catch (err) {

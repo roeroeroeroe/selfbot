@@ -1,7 +1,7 @@
 import logger from '../services/logger.js';
 import hastebin from '../services/hastebin.js';
 import utils from '../utils/index.js';
-import { resolveUser, getChatters } from '../services/twitch/gql.js';
+import gql from '../services/twitch/gql/index.js';
 
 export default {
 	name: 'chatters',
@@ -16,6 +16,14 @@ export default {
 			required: false,
 			defaultValue: '',
 			description: 'channel to get chatters for',
+		},
+		{
+			name: 'raw',
+			aliases: ['r', 'raw'],
+			type: 'boolean',
+			required: false,
+			defaultValue: false,
+			description: 'print usernames only',
 		},
 		{
 			name: 'maxRequests',
@@ -41,7 +49,7 @@ export default {
 		const input = msg.commandFlags.channel || msg.args[0];
 		if (input) {
 			try {
-				const user = await resolveUser(input);
+				const user = await gql.user.resolve(input);
 				if (!user)
 					return { text: `channel ${input} does not exist`, mention: true };
 				channelLogin = user.login;
@@ -66,7 +74,7 @@ export default {
 				i < msg.commandFlags.batchSize && req < msg.commandFlags.maxRequests;
 				i++, req++
 			)
-				promises.push(getChatters(channelLogin));
+				promises.push(gql.channel.getChatters(channelLogin));
 
 			const responses = await Promise.all(promises);
 
@@ -93,19 +101,27 @@ export default {
 			getTotalChatters(chatters) < totalCount &&
 			req < msg.commandFlags.maxRequests
 		);
+
 		const list = [];
-		for (const t in chatters)
-			if (chatters[t].size) {
-				list.push(`${list.length ? '\n' : ''}${t} (${chatters[t].size}):`);
-				for (const c of Array.from(chatters[t]).sort()) list.push(c);
-			}
+		if (msg.commandFlags.raw) {
+			const allChatters = [];
+			for (const t in chatters)
+				for (const c of chatters[t]) allChatters.push(c);
+			for (const c of allChatters.sort()) list.push(c);
+		} else {
+			for (const t in chatters)
+				if (chatters[t].size) {
+					list.push(`${list.length ? '\n' : ''}${t} (${chatters[t].size}):`);
+					for (const c of Array.from(chatters[t]).sort()) list.push(c);
+				}
+		}
 
 		const messageParts = [totalCount];
 		try {
-			const link = await hastebin.create(list.join('\n'), true);
-			const collectedChannelsCount = getTotalChatters(chatters);
-			if (collectedChannelsCount !== totalCount)
-				messageParts.push(`collected: ${collectedChannelsCount}`);
+			const link = await hastebin.create(list.join('\n'));
+			const collectedChattersCount = getTotalChatters(chatters);
+			if (collectedChattersCount !== totalCount)
+				messageParts.push(`collected: ${collectedChattersCount}`);
 			messageParts.push(link);
 			return { text: utils.format.join(messageParts), mention: true };
 		} catch (err) {

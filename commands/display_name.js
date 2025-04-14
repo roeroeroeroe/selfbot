@@ -1,6 +1,6 @@
 import config from '../config.json' with { type: 'json' };
 import logger from '../services/logger.js';
-import { changeDisplayName } from '../services/twitch/gql.js';
+import gql from '../services/twitch/gql/index.js';
 
 export default {
 	name: 'displayname',
@@ -30,7 +30,7 @@ export default {
 				mention: true,
 			};
 		try {
-			const res = await changeDisplayName(input);
+			const res = await gql.user.updateDisplayName(input);
 			if (res.updateUser.error?.code)
 				return {
 					text: `error updating display name: ${res.updateUser.error.code}`,

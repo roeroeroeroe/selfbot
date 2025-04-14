@@ -3,7 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import config from '../config.json' with { type: 'json' };
 import logger from './logger.js';
-import flag from './flag.js';
+import flag from './flag/index.js';
 import utils from '../utils/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -22,12 +22,12 @@ function add(command) {
 	if (command.aliases.length) usage += ` (${command.aliases.join(', ')})`;
 	usage += ':';
 	const usageLines = [];
-	for (const flag of Object.values(command.flagData.flags)) {
+	for (const commandFlag of Object.values(command.flagData.flags)) {
 		const optsParts = [];
-		if (flag.aliases[0]) optsParts.push(`-${flag.aliases[0]}`);
-		if (flag.aliases[1]) optsParts.push(`--${flag.aliases[1]}`);
-		let line = `${optsParts.join(', ')} ${flag.type}${flag.required ? ' required' : ''}`;
-		if (flag.description) line += `__ALIGN__${flag.description}`;
+		if (commandFlag.aliases[0]) optsParts.push(`-${commandFlag.aliases[0]}`);
+		if (commandFlag.aliases[1]) optsParts.push(`--${commandFlag.aliases[1]}`);
+		let line = `${optsParts.join(', ')} ${commandFlag.type}${commandFlag.required ? ' required' : ''}`;
+		if (commandFlag.description) line += `__ALIGN__${commandFlag.description}`;
 		usageLines.push(`  ${line}`);
 	}
 	usage += `\n${utils.format.align(usageLines)}`;

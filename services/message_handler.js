@@ -3,14 +3,16 @@ import logger from './logger.js';
 import cooldown from './cooldown.js';
 import commands from './commands.js';
 import customCommands from './custom_commands.js';
-import hastebin from './hastebin.js';
-import flag from './flag.js';
+import flag from './flag/index.js';
 import utils from '../utils/index.js';
 
 const CUSTOM_COMMAND_COOLDOWN_KEY_PREFIX = 'handler:customcommand';
 
 export default async function handle(msg) {
-	msg.messageText = msg.messageText.replace(utils.regex.patterns.invisChars, '');
+	msg.messageText = msg.messageText.replace(
+		utils.regex.patterns.invisChars,
+		''
+	);
 	msg.args = utils.shellSplit(msg.messageText);
 	if (msg.ircTags['reply-parent-msg-id']) {
 		msg.args.shift();
@@ -85,28 +87,6 @@ export default async function handle(msg) {
 	}
 }
 
-async function handleGlobalFlags(msg, command) {
-	if (msg.commandFlags.help) {
-		try {
-			const link = await hastebin.create(command.helpPage, true);
-			return { text: link, mention: true };
-		} catch (err) {
-			logger.error('error creating paste:', err);
-			return { text: 'error creating paste', mention: true };
-		}
-	}
-
-	if (msg.commandFlags.fromPaste) {
-		try {
-			const content = await hastebin.get(msg.commandFlags.fromPaste);
-			for (const arg of utils.shellSplit(content)) msg.args.push(arg);
-		} catch (err) {
-			logger.error('error fetching paste:', err);
-			return { text: `error fetching paste: ${err.message}`, mention: true };
-		}
-	}
-}
-
 async function handleCommand(msg, command) {
 	const { options, rest, errors } = flag.parse(msg.args, command.flagData);
 	logger.debug(
@@ -118,7 +98,7 @@ async function handleCommand(msg, command) {
 	msg.commandFlags = options;
 	msg.args = rest;
 
-	const globalFlagsResult = await handleGlobalFlags(msg, command);
+	const globalFlagsResult = await flag.globalFlags.handle(msg, command);
 	if (globalFlagsResult) {
 		logger.debug('[HANDLER] got global flags result:', globalFlagsResult);
 		return globalFlagsResult;

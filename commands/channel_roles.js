@@ -1,13 +1,7 @@
 import logger from '../services/logger.js';
 import hastebin from '../services/hastebin.js';
 import utils from '../utils/index.js';
-import {
-	resolveUser,
-	getMods,
-	getVips,
-	getFounders,
-	getArtists,
-} from '../services/twitch/gql.js';
+import gql from '../services/twitch/gql/index.js';
 
 export default {
 	name: 'roles',
@@ -49,7 +43,7 @@ export default {
 		const input = msg.commandFlags.channel || msg.args[0];
 		if (input) {
 			try {
-				const user = await resolveUser(input);
+				const user = await gql.user.resolve(input);
 				if (!user)
 					return {
 						text: `channel ${input} does not exist`,
@@ -67,14 +61,12 @@ export default {
 		}
 
 		let modsData, vipsData, foundersData, artistsData;
+		// prettier-ignore
 		const results = await Promise.allSettled([
-			utils.withTimeout(
-				getMods(channel.login, msg.commandFlags.maxMods),
-				msg.commandFlags.timeout
-			),
-			utils.withTimeout(getVips(channel.login), msg.commandFlags.timeout),
-			utils.withTimeout(getFounders(channel.login), msg.commandFlags.timeout),
-			utils.withTimeout(getArtists(channel.id), msg.commandFlags.timeout),
+			utils.withTimeout(gql.channel.getMods(channel.login, msg.commandFlags.maxMods), msg.commandFlags.timeout),
+			utils.withTimeout(gql.channel.getVips(channel.login), msg.commandFlags.timeout),
+			utils.withTimeout(gql.channel.getFounders(channel.login), msg.commandFlags.timeout),
+			utils.withTimeout(gql.channel.getArtists(channel.id), msg.commandFlags.timeout),
 		]);
 		[modsData, vipsData, foundersData, artistsData] = results.map(res =>
 			res.status === 'fulfilled' ? res.value : undefined
@@ -137,7 +129,7 @@ export default {
 			};
 
 		try {
-			const link = await hastebin.create(utils.format.align(list), true);
+			const link = await hastebin.create(utils.format.align(list));
 			messageParts.push(link);
 			return { text: utils.format.join(messageParts), mention: true };
 		} catch (err) {

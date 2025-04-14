@@ -2,7 +2,7 @@ import logger from '../services/logger.js';
 import customCommands from '../services/custom_commands.js';
 import hastebin from '../services/hastebin.js';
 import utils from '../utils/index.js';
-import { resolveUser } from '../services/twitch/gql.js';
+import gql from '../services/twitch/gql/index.js';
 
 export default {
 	name: 'listcommands',
@@ -40,7 +40,7 @@ export default {
 			noCommandsMessage = '';
 		if (msg.commandFlags.channel) {
 			try {
-				const user = await resolveUser(msg.commandFlags.channel);
+				const user = await gql.user.resolve(msg.commandFlags.channel);
 				if (!user)
 					return {
 						text: `channel ${msg.commandFlags.channel} does not exist`,
@@ -74,8 +74,7 @@ export default {
 					commands.map(c => ({ ...c, trigger: String(c.trigger) })),
 					null,
 					2
-				),
-				true
+				)
 			);
 			return { text: link, mention: true };
 		} catch (err) {

@@ -5,7 +5,7 @@ import logger from '../logger.js';
 import handle from '../message_handler.js';
 import db from '../db.js';
 import utils from '../../utils/index.js';
-import { getUsers } from './helix.js';
+import helix from './helix/index.js';
 
 const MESSAGE_MAX_LENGTH = 500;
 const DEFAULT_SLOW_MODE_MS = 1100;
@@ -46,7 +46,7 @@ async function loadChannels(client) {
 		const channels = await db.query(
 			'SELECT id, login, display_name, suspended FROM channels'
 		);
-		const users = await getUsers(
+		const users = await helix.user.getMany(
 			null,
 			channels.map(c => c.id)
 		);
@@ -254,12 +254,12 @@ export default class Client {
 
 		msg.client = this;
 		msg.send = async (text, reply, mention) =>
-			this.#sendMessage(msg, text, reply, mention);
+			this.#sendResult(msg, text, reply, mention);
 
 		handle(msg);
 	}
 
-	async #sendMessage(msg, text, reply, mention) {
+	async #sendResult(msg, text, reply, mention) {
 		if (typeof text !== 'string') text = String(text);
 		text = utils.format
 			.trim(

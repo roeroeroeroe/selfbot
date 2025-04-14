@@ -2,7 +2,7 @@ import logger from '../services/logger.js';
 import hermes from '../services/twitch/hermes/client.js';
 import db from '../services/db.js';
 import utils from '../utils/index.js';
-import { getUsers } from '../services/twitch/helix.js';
+import helix from '../services/twitch/helix/index.js';
 
 export default {
 	name: 'part',
@@ -23,13 +23,22 @@ export default {
 		if (!msg.args.length)
 			return { text: 'you must provide at least one channel', mention: true };
 
+		let users;
+		try {
+			users = msg.commandFlags.id
+				? await helix.user.getMany(null, msg.args)
+				: await helix.user.getMany(msg.args);
+		} catch (err) {
+			logger.error('error getting users:', err);
+			return {
+				text: `error getting ${utils.format.plural(msg.args.length, 'user')}`,
+				mention: true,
+			};
+		}
+
 		const existingChannels = await db.query('SELECT id FROM channels');
 		const existingIds = new Set();
 		for (const c of existingChannels) existingIds.add(c.id);
-
-		const users = msg.commandFlags.id
-			? await getUsers(null, msg.args)
-			: await getUsers(msg.args);
 
 		const channelsToPart = [];
 		for (const user of users.values())

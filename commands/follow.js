@@ -1,5 +1,5 @@
 import logger from '../services/logger.js';
-import { resolveUser, followUser } from '../services/twitch/gql.js';
+import gql from '../services/twitch/gql/index.js';
 import utils from '../utils/index.js';
 
 export default {
@@ -30,7 +30,7 @@ export default {
 		const input = msg.commandFlags.channel || msg.args[0];
 		if (input) {
 			try {
-				const user = await resolveUser(input);
+				const user = await gql.user.resolve(input);
 				if (!user)
 					return {
 						text: `channel ${input} does not exist`,
@@ -49,7 +49,7 @@ export default {
 		}
 
 		try {
-			const res = await followUser(
+			const res = await gql.user.follow(
 				channelId,
 				msg.commandFlags.enableNotifications
 			);

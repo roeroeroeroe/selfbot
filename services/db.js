@@ -2,7 +2,7 @@ import pg from 'pg';
 import redis from './redis.js';
 import logger from './logger.js';
 import config from '../config.json' with { type: 'json' };
-import { resolveUser } from './twitch/gql.js';
+import gql from './twitch/gql/index.js';
 
 const REDIS_MESSAGES_QUEUE_KEY = 'sb:m:q';
 const REDIS_CHANNEL_KEY_PREFIX = 'sb:c';
@@ -90,8 +90,8 @@ async function init() {
 		[config.entry_channel.login]
 	);
 	if (!res[0].exists) {
-		const user = await resolveUser(config.entry_channel.login);
-		if (!user?.id)
+		const user = await gql.user.resolve(config.entry_channel.login);
+		if (!user)
 			throw new Error(
 				`entry channel "${config.entry_channel.login}" does not exist`
 			);

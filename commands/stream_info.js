@@ -1,6 +1,6 @@
 import logger from '../services/logger.js';
 import utils from '../utils/index.js';
-import { getStream, getVideo } from '../services/twitch/gql.js';
+import gql from '../services/twitch/gql/index.js';
 
 export default {
 	name: 'streaminfo',
@@ -26,7 +26,7 @@ export default {
 
 		let res;
 		try {
-			res = await getStream(channelLogin);
+			res = await gql.stream.get(channelLogin);
 		} catch (err) {
 			logger.error('error getting stream:', err);
 			return { text: 'error getting stream', mention: true };
@@ -52,7 +52,7 @@ export default {
 			const lastVodId = res.user.videos?.edges[0]?.node?.id;
 			if (!lastVodId) return { text: lastLiveResponsePart, mention: true };
 
-			const vodData = await getVideo(lastVodId);
+			const vodData = await gql.video.get(lastVodId);
 			if (!vodData.video) return { text: lastLiveResponsePart, mention: true };
 
 			const responseParts = [lastLiveResponsePart];

@@ -1,5 +1,5 @@
 import logger from '../services/logger.js';
-import { resolveUser, shareResubscription } from '../services/twitch/gql.js';
+import gql from '../services/twitch/gql/index.js';
 
 export default {
 	name: 'notifyresub',
@@ -28,7 +28,7 @@ export default {
 		let channelLogin = msg.channelName;
 		if (msg.commandFlags.channel) {
 			try {
-				const user = await resolveUser(msg.commandFlags.channel);
+				const user = await gql.user.resolve(msg.commandFlags.channel);
 				if (!user)
 					return {
 						text: `channel ${msg.commandFlags.channel} does not exist`,
@@ -45,7 +45,7 @@ export default {
 		}
 
 		try {
-			const res = await shareResubscription(
+			const res = await gql.channel.shareResubscription(
 				channelLogin,
 				msg.commandFlags.includeStreak,
 				msg.args.join(' ')

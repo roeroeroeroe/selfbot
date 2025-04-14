@@ -27,7 +27,7 @@ Commands:`;
 		usagePage += `\n${utils.format.align(usageLines)}\nUse "${msg.prefix} [command] --help" for help about a specific command`;
 
 		try {
-			const link = await hastebin.create(usagePage, true);
+			const link = await hastebin.create(usagePage);
 			return {
 				text: link,
 				mention: true,

@@ -1,9 +1,6 @@
 import logger from '../services/logger.js';
 import utils from '../utils/index.js';
-import {
-	selfFollowRelationship,
-	unfollowUser,
-} from '../services/twitch/gql.js';
+import gql from '../services/twitch/gql/index.js';
 
 export default {
 	name: 'unfollow',
@@ -26,7 +23,7 @@ export default {
 
 		let user;
 		try {
-			const res = await selfFollowRelationship(channelName);
+			const res = await gql.user.getSelfFollowRelationship(channelName);
 			if (!res?.user)
 				return {
 					text: `channel ${channelName} does not exist`,
@@ -50,7 +47,7 @@ export default {
 		}
 
 		try {
-			await unfollowUser(user.id);
+			await gql.user.unfollow(user.id);
 
 			const followAge = utils.duration.format(
 				Date.now() - Date.parse(user.self.follower.followedAt)
