@@ -138,6 +138,18 @@ export default {
 			}
 			if (subscriptionTenure)
 				subscriptionString += ` for a total of ${subscriptionTenure.months} ${utils.format.plural(subscriptionTenure.months, 'month')}`;
+			// subscription status is hidden - try to get the milestone from badges
+			else {
+				const subBadge = (
+					channelViewerData?.channelViewer?.earnedBadges ?? []
+				).find(b => b.setID === 'subscriber');
+				if (subBadge) {
+					const milestone = subBadge.version;
+					subscriptionString += ` (status hidden, milestone: ${milestone} ${utils.format.plural(milestone, 'month')})`;
+				}
+			}
+			if (subscriptionBenefit.platform)
+				subscriptionString += `, purchased on platform ${subscriptionBenefit.platform}`;
 			if (subscriptionBenefit.endsAt)
 				subscriptionString += `, expires in ${utils.duration.format(Date.parse(subscriptionBenefit.endsAt) - now)}`;
 			else if (subscriptionBenefit.renewsAt)
