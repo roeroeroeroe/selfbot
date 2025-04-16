@@ -102,7 +102,7 @@ export default {
 		if (edges.length > limit) edges = edges.slice(0, limit);
 
 		let header = countStr;
-		if (!raw && limit !== result.totalCount)
+		if (limit < result.totalCount)
 			header += ` (${order === 'ASC' ? 'first' : 'last'} ${limit})`;
 		header += ':\n';
 

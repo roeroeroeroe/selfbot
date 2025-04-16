@@ -279,8 +279,9 @@ async function getFollows(userLogin, limit = 1000, order = 'ASC') {
 		if (!res.data.user) break;
 		const edges = res.data.user.follows?.edges ?? [];
 		if (!edges.length) break;
+
 		for (const e of edges) if (e.node?.login) followEdges.push(e);
-		cursor = edges.length ? edges[edges.length - 1].cursor : null;
+		cursor = edges[edges.length - 1].cursor;
 	} while (cursor && followEdges.length <= limit);
 
 	const user = res.data.user;
@@ -336,8 +337,9 @@ async function getFollowers(userLogin, limit = 1000, order = 'ASC') {
 		if (!res.data.user) break;
 		const edges = res.data.user.followers?.edges ?? [];
 		if (!edges.length) break;
+
 		for (const e of edges) if (e.node?.login) followerEdges.push(e);
-		cursor = edges.length ? edges[edges.length - 1].cursor : null;
+		cursor = edges[edges.length - 1].cursor;
 	} while (cursor && followerEdges.length <= limit);
 
 	const user = res.data.user;
