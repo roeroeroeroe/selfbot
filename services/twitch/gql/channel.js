@@ -8,21 +8,21 @@ async function getMods(channelLogin, limit = 1000) {
 	do {
 		const res = await request.send({
 			query: `query ($login: String! $cursor: Cursor) {
-				user(login: $login lookupType: ALL) {
-					mods(first: 100 after: $cursor) {
-						edges {
-							cursor
-							grantedAt
-							isActive
-							node {
-								login
-								id
-								displayName
-							}
-						}
-					}
+	user(login: $login lookupType: ALL) {
+		mods(first: 100 after: $cursor) {
+			edges {
+				cursor
+				grantedAt
+				isActive
+				node {
+					login
+					id
+					displayName
 				}
-			}`,
+			}
+		}
+	}
+}`,
 			variables: { login: channelLogin, cursor },
 		});
 
@@ -38,19 +38,19 @@ async function getMods(channelLogin, limit = 1000) {
 async function getVips(channelLogin) {
 	const res = await request.send({
 		query: `query($login: String!) {
-			user(login: $login lookupType: ALL) {
-				vips(first: 100) {
-					edges {
-						grantedAt
-						node {
-							login
-							id
-							displayName
-						}
-					}
+	user(login: $login lookupType: ALL) {
+		vips(first: 100) {
+			edges {
+				grantedAt
+				node {
+					login
+					id
+					displayName
 				}
 			}
-		}`,
+		}
+	}
+}`,
 		variables: { login: channelLogin },
 	});
 
@@ -60,20 +60,20 @@ async function getVips(channelLogin) {
 async function getFounders(channelLogin) {
 	const res = await request.send({
 		query: `query($login: String!) {
-			user(login: $login lookupType: ALL) {
-				channel {
-					founders {
-						isSubscribed
-						grantedAt: entitlementStart
-						node: user {
-							login
-							id
-							displayName
-						}
-					}
+	user(login: $login lookupType: ALL) {
+		channel {
+			founders {
+				isSubscribed
+				grantedAt: entitlementStart
+				node: user {
+					login
+					id
+					displayName
 				}
 			}
-		}`,
+		}
+	}
+}`,
 		variables: { login: channelLogin },
 	});
 
@@ -105,26 +105,26 @@ async function getArtists(channelId) {
 async function getChatters(channelLogin) {
 	const res = await request.send({
 		query: `query($login: String!) {
-			user(login: $login lookupType: ALL) {
-				channel {
-					chatters {
-						count
-						broadcasters {
-							login
-						}
-						moderators {
-							login
-						}
-						vips {
-							login
-						}
-						viewers {
-							login
-						}
-					}
+	user(login: $login lookupType: ALL) {
+		channel {
+			chatters {
+				count
+				broadcasters {
+					login
+				}
+				moderators {
+					login
+				}
+				vips {
+					login
+				}
+				viewers {
+					login
 				}
 			}
-		}`,
+		}
+	}
+}`,
 		variables: { login: channelLogin },
 	});
 
@@ -137,33 +137,33 @@ async function getSelfModeratedChannels() {
 	do {
 		const res = await request.send({
 			query: `query($cursor: Cursor) {
-				moderatedChannels(first: 100 after: $cursor) {
-					edges {
-						cursor
-						grantedAt
-						isLive
-						node {
-							login
-							id
-							displayName
-							followers(first: 1) {
-								totalCount
-							}
-							stream {
-								viewersCount
-							}
-							roles {
-								isAffiliate
-								isPartner
-								isStaff
-							}
-							self {
-								isEditor
-							}
-						}
-					}
+	moderatedChannels(first: 100 after: $cursor) {
+		edges {
+			cursor
+			grantedAt
+			isLive
+			node {
+				login
+				id
+				displayName
+				followers(first: 1) {
+					totalCount
 				}
-			}`,
+				stream {
+					viewersCount
+				}
+				roles {
+					isAffiliate
+					isPartner
+					isStaff
+				}
+				self {
+					isEditor
+				}
+			}
+		}
+	}
+}`,
 			variables: { cursor },
 		});
 		const edges = res.data?.moderatedChannels?.edges;
@@ -176,17 +176,37 @@ async function getSelfModeratedChannels() {
 	return moderatedChannelEdges;
 }
 
+async function getSelfEditableChannels() {
+	const res = await request.send({
+		query: `query {
+	currentUser {
+		editableChannels {
+			edges {
+				node {
+					login
+					id
+					displayName
+				}
+			}
+		}
+	}
+}`,
+	});
+
+	return res.data;
+}
+
 async function getChannelViewer(userLogin, channelLogin) {
 	const res = await request.send({
 		query: `query($userLogin: String! $channelLogin: String!) {
-			channelViewer(userLogin: $userLogin channelLogin: $channelLogin) {
-				earnedBadges {
-					version
-					setID
-					title
-				}
-			}
-		}`,
+	channelViewer(userLogin: $userLogin channelLogin: $channelLogin) {
+		earnedBadges {
+			version
+			setID
+			title
+		}
+	}
+}`,
 		variables: { userLogin, channelLogin },
 	});
 
@@ -196,36 +216,36 @@ async function getChannelViewer(userLogin, channelLogin) {
 async function getUnlockableEmotes(channelLogin) {
 	const res = await request.send({
 		query: `query($login: String!) {
-			user(login: $login) {
-				emoticonPrefix {
-					name
+	user(login: $login) {
+		emoticonPrefix {
+			name
+		}
+		channel {
+			communityPointsSettings {
+				automaticRewards {
+					cost
+					defaultCost
+					isEnabled
+					minimumCost
+					type
 				}
-				channel {
-					communityPointsSettings {
-						automaticRewards {
-							cost
-							defaultCost
-							isEnabled
-							minimumCost
-							type
-						}
-						emoteVariants {
-							id
-							isUnlockable
-							emote {
-								id
-								token
-							}
-						}
-					}
-					self {
-						communityPoints {
-							balance
-						}
+				emoteVariants {
+					id
+					isUnlockable
+					emote {
+						id
+						token
 					}
 				}
 			}
-		}`,
+			self {
+				communityPoints {
+					balance
+				}
+			}
+		}
+	}
+}`,
 		variables: { login: channelLogin },
 	});
 
@@ -235,13 +255,13 @@ async function getUnlockableEmotes(channelLogin) {
 async function unlockChosenEmote(channelId, cost, emoteId) {
 	const res = await request.send({
 		query: `mutation ($input: UnlockChosenSubscriberEmoteInput!) {
-			unlockChosenSubscriberEmote(input: $input) {
-				balance
-				error {
-					code
-				}
-			}
-		}`,
+	unlockChosenSubscriberEmote(input: $input) {
+		balance
+		error {
+			code
+		}
+	}
+}`,
 		variables: {
 			input: {
 				channelID: channelId,
@@ -258,17 +278,17 @@ async function unlockChosenEmote(channelId, cost, emoteId) {
 async function unlockRandomEmote(channelId, cost) {
 	const res = await request.send({
 		query: `mutation ($input: UnlockRandomSubscriberEmoteInput!) {
-			unlockRandomSubscriberEmote(input: $input) {
-				balance
-				error {
-					code
-				}
-				emote {
-					token
-					id
-				}
-			}
-		}`,
+	unlockRandomSubscriberEmote(input: $input) {
+		balance
+		error {
+			code
+		}
+		emote {
+			token
+			id
+		}
+	}
+}`,
 		variables: {
 			input: {
 				channelID: channelId,
@@ -284,12 +304,12 @@ async function unlockRandomEmote(channelId, cost) {
 async function acknowledgeChatWarning(channelId) {
 	const res = await request.send({
 		query: `mutation($input: AcknowledgeChatWarningInput!) {
-			acknowledgeChatWarning(input: $input) {
-				error {
-					code
-				}
-			}
-		}`,
+	acknowledgeChatWarning(input: $input) {
+		error {
+			code
+		}
+	}
+}`,
 		variables: {
 			input: {
 				channelID: channelId,
@@ -322,13 +342,43 @@ async function shareResubscription(channelLogin, includeStreak, message) {
 	return res.data;
 }
 
+async function createRaid(sourceChannelId, targetChannelId) {
+	const res = await request.send({
+		query: `mutation($input: CreateRaidInput!) {
+	createRaid(input: $input) {
+		error {
+			code
+		}
+		raid {
+			id
+			viewerCount
+			sourceChannel {
+				login
+			}
+			targetChannel {
+				login
+			}
+		}
+	}
+}`,
+		variables: {
+			input: {
+				sourceID: sourceChannelId,
+				targetID: targetChannelId,
+			},
+		},
+	});
+
+	return res.data;
+}
+
 async function joinRaid(raidId) {
 	const res = await request.send({
 		query: `mutation($input: JoinRaidInput!) {
-			joinRaid(input: $input) {
-				raidID
-			}
-		}`,
+	joinRaid(input: $input) {
+		raidID
+	}
+}`,
 		variables: {
 			input: {
 				raidID: raidId,
@@ -346,6 +396,7 @@ export default {
 	getArtists,
 	getChatters,
 	getSelfModeratedChannels,
+	getSelfEditableChannels,
 	getChannelViewer,
 	getUnlockableEmotes,
 
@@ -353,5 +404,6 @@ export default {
 	unlockRandomEmote,
 	acknowledgeChatWarning,
 	shareResubscription,
+	createRaid,
 	joinRaid,
 };

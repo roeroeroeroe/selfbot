@@ -9,7 +9,7 @@ import utils from '../utils/index.js';
 export default {
 	name: 'help',
 	aliases: ['usage'],
-	description: "query bot's database",
+	description: '',
 	unsafe: false,
 	flags: [],
 	execute: async msg => {

@@ -45,15 +45,12 @@ export default {
 			try {
 				const user = await gql.user.resolve(input);
 				if (!user)
-					return {
-						text: `channel ${input} does not exist`,
-						mention: true,
-					};
+					return { text: `channel ${input} does not exist`, mention: true };
 				channel.id = user.id;
 				channel.login = user.login;
 			} catch (err) {
 				logger.error(`error resolving user ${input}:`, err);
-				return { text: `error resolving channel ${input}`, mention: true };
+				return { text: 'error resolving channel', mention: true };
 			}
 		} else {
 			channel.id = msg.channelID;

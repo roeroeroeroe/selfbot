@@ -38,7 +38,7 @@ export default {
 				user = { id: res.id, login: res.login };
 			} catch (err) {
 				logger.error(`error resolving user ${userInput}:`, err);
-				return { text: `error resolving user ${userInput}`, mention: true };
+				return { text: 'error resolving user', mention: true };
 			}
 		} else {
 			user = { id: msg.senderUserID, login: msg.senderUsername };
@@ -57,10 +57,7 @@ export default {
 				channel = { id: res.id, login: res.login };
 			} catch (err) {
 				logger.error(`error resolving user ${channelInput}:`, err);
-				return {
-					text: `error resolving channel ${channelInput}`,
-					mention: true,
-				};
+				return { text: 'error resolving channel', mention: true };
 			}
 		} else {
 			channel = { id: msg.channelID, login: msg.channelName };

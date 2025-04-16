@@ -55,7 +55,7 @@ export default {
 				channelLogin = user.login;
 			} catch (err) {
 				logger.error(`error resolving user ${input}:`, err);
-				return { text: `error resolving channel ${input}`, mention: true };
+				return { text: 'error resolving channel', mention: true };
 			}
 		}
 		let req = 0,

@@ -50,10 +50,7 @@ export default {
 				noCommandsMessage = `no commands found for channel ${utils.getEffectiveName(user.login, user.displayName)}`;
 			} catch (err) {
 				logger.error(`error resolving user ${msg.commandFlags.channel}:`, err);
-				return {
-					text: `error resolving channel ${msg.commandFlags.channel}`,
-					mention: true,
-				};
+				return { text: 'error resolving channel', mention: true };
 			}
 		} else if (msg.commandFlags.global) {
 			commands = customCommands.globalCommands;

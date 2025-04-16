@@ -39,10 +39,7 @@ export default {
 				channelId = user.id;
 			} catch (err) {
 				logger.error(`error resolving user ${input}:`, err);
-				return {
-					text: `error resolving channel ${input}`,
-					mention: true,
-				};
+				return { text: 'error resolving channel', mention: true };
 			}
 		} else {
 			channelId = msg.channelID;

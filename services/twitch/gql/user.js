@@ -3,56 +3,58 @@ import config from '../../../config.json' with { type: 'json' };
 import utils from '../../../utils/index.js';
 
 const baseUserQuery = `id
-login
-displayName
-description
-chatColor
-deletedAt
-createdAt
-updatedAt
-lastBroadcast { startedAt }
-settings { preferredLanguageTag }
-emoticonPrefix { name }
-followers(first: 1) { totalCount }
-follows(first: 1) { totalCount }
-selectedBadge { title version }
-panels(hideExtensions: false) { id type }
-roles {
-	isParticipatingDJ
-	isAffiliate
-	isExtensionsDeveloper
-	isGlobalMod
-	isPartner
-	isSiteAdmin
-	isStaff
-}
-followedGames(first: 100 type: ALL) {
-	nodes { displayName }
-}
-primaryTeam {
-	name
-	owner { login }
-}
-channel {
-	chatters { count }
-	socialMedias { name url }
-}
-stream {
-	createdAt
-	viewersCount
-	game { displayName }
-}`;
+		login
+		displayName
+		description
+		chatColor
+		deletedAt
+		createdAt
+		updatedAt
+		lastBroadcast { startedAt }
+		settings { preferredLanguageTag }
+		emoticonPrefix { name }
+		followers(first: 1) { totalCount }
+		follows(first: 1) { totalCount }
+		selectedBadge { title version }
+		panels(hideExtensions: false) { id type }
+		roles {
+			isParticipatingDJ
+			isAffiliate
+			isExtensionsDeveloper
+			isGlobalMod
+			isPartner
+			isSiteAdmin
+			isStaff
+		}
+		followedGames(first: 100 type: ALL) {
+			nodes { displayName }
+		}
+		primaryTeam {
+			name
+			owner { login }
+		}
+		channel {
+			chatters { count }
+			socialMedias { name url }
+		}
+		stream {
+			createdAt
+			viewersCount
+			game { displayName }
+		}`;
 
 async function resolveUser(userLogin, userId) {
-	const [key, input] = userLogin ? ['login', userLogin] : ['id', userId];
+	const [key, input] = userLogin
+		? ['login', userLogin.toLowerCase()]
+		: ['id', userId];
 	const res = await request.send({
 		query: `query($login: String $id: ID) {
-			user(login: $login id: $id) {
-				login
-				id
-				displayName
-			}
-		}`,
+	user(login: $login id: $id) {
+		login
+		id
+		displayName
+	}
+}`,
 		variables: { login: userLogin, id: userId },
 	});
 
@@ -65,15 +67,15 @@ async function getUserWithBanReason(userLogin, userId) {
 		: ['Login', 'login', 'String!'];
 	const res = await request.send({
 		query: `query User($${varName}: ${varType}) {
-			user(${varName}: $${varName} lookupType: ALL) {
-				${baseUserQuery}
-			}
-			banned: userResultBy${lookupBy}(${varName}: $${varName}) {
-				... on UserDoesNotExist {
-					reason
-				}
-			}
-		}`,
+	user(${varName}: $${varName} lookupType: ALL) {
+		${baseUserQuery}
+	}
+	banned: userResultBy${lookupBy}(${varName}: $${varName}) {
+		... on UserDoesNotExist {
+			reason
+		}
+	}
+}`,
 		variables: { login: userLogin, id: userId },
 	});
 
@@ -88,10 +90,10 @@ async function getMany(userLogins, userIds) {
 		? ['ids', '[ID!]', 'id']
 		: ['logins', '[String!]', 'login'];
 	const query = `query Users($${varName}: ${varType}) {
-		users(${varName}: $${varName}) {
-			${baseUserQuery}
-		}
-	}`;
+	users(${varName}: $${varName}) {
+		${baseUserQuery}
+	}
+}`;
 	const chunks = utils.splitArray(inputArray, 105);
 	const userMap = new Map();
 	for (const chunk of chunks) {
@@ -122,13 +124,25 @@ async function getSelfBanStatus(channelIds) {
 				bannedMap.set(channelId, null);
 				return {
 					query: `query ($channelId: ID! $userId: ID!) {
-						chatModeratorStrikeStatus(channelID: $channelId userID: $userId) {
-							roomOwner { id }
-							banDetails { id createdAt }
-							timeoutDetails { id createdAt expiresAt }
-							warningDetails { id createdAt }
-						}
-					}`,
+	chatModeratorStrikeStatus(channelID: $channelId userID: $userId) {
+		roomOwner {
+			id
+		}
+		banDetails {
+			id
+			createdAt
+		}
+		timeoutDetails {
+			id
+			createdAt
+			expiresAt
+		}
+		warningDetails {
+			id
+			createdAt
+		}
+	}
+}`,
 					variables: { channelId, userId: config.bot.id },
 				};
 			})
@@ -150,40 +164,40 @@ async function getSelfSubscriptionBenefits() {
 	do {
 		const res = await request.send({
 			query: `query($cursor: Cursor) {
-				currentUser {
-					subscriptionBenefits(
-						first: 100
-						after: $cursor
-						criteria: {}
-					) {
-						edges {
-							node {
-								tier
-								gift {
-									isGift
-								}
-								user {
-									login
-									id
-									displayName
-									subscriptionProducts {
-										emotes {
-											token
-										}
-									}
-									channel {
-										localEmoteSets {
-											emotes {
-												token
-											}
-										}
-									}
+	currentUser {
+		subscriptionBenefits(
+			first: 100
+			after: $cursor
+			criteria: {}
+		) {
+			edges {
+				node {
+					tier
+					gift {
+						isGift
+					}
+					user {
+						login
+						id
+						displayName
+						subscriptionProducts {
+							emotes {
+								token
+							}
+						}
+						channel {
+							localEmoteSets {
+								emotes {
+									token
 								}
 							}
 						}
 					}
 				}
-			}`,
+			}
+		}
+	}
+}`,
 			variables: { cursor },
 		});
 
@@ -201,17 +215,17 @@ async function getSelfSubscriptionBenefits() {
 async function getSelfFollowRelationship(channelLogin, channelId) {
 	const res = await request.send({
 		query: `query($login: String $id: ID) {
-			user(login: $login id: $id) {
-				login
-				id
-				displayName
-				self {
-					follower {
-						followedAt
-					}
-				}
+	user(login: $login id: $id) {
+		login
+		id
+		displayName
+		self {
+			follower {
+				followedAt
 			}
-		}`,
+		}
+	}
+}`,
 		variables: { login: channelLogin, id: channelId },
 	});
 
@@ -226,39 +240,39 @@ async function getFollows(userLogin, limit = 1000, order = 'ASC') {
 	do {
 		res = await request.send({
 			query: `query follows(
-				$login: String!
-				$cursor: Cursor
-				$order: SortOrder
-			) {
-				user(login: $login) {
-					followedGames(first: 100 type: ALL) {
-						nodes {
-							displayName
-						}
-					}
-					follows(first: 100 after: $cursor order: $order) {
+	$login: String!
+	$cursor: Cursor
+	$order: SortOrder
+) {
+	user(login: $login) {
+		followedGames(first: 100 type: ALL) {
+			nodes {
+				displayName
+			}
+		}
+		follows(first: 100 after: $cursor order: $order) {
+			totalCount
+			edges {
+				cursor
+				followedAt
+				notificationSettings {
+					isEnabled
+				}
+				node {
+					login
+					id
+					displayName
+					followers(first: 1) {
 						totalCount
-						edges {
-							cursor
-							followedAt
-							notificationSettings {
-								isEnabled
-							}
-							node {
-								login
-								id
-								displayName
-								followers(first: 1) {
-									totalCount
-								}
-								stream {
-									viewersCount
-								}
-							}
-						}
+					}
+					stream {
+						viewersCount
 					}
 				}
-			}`,
+			}
+		}
+	}
+}`,
 			variables: { login: userLogin, cursor, order },
 		});
 
@@ -288,34 +302,34 @@ async function getFollowers(userLogin, limit = 1000, order = 'ASC') {
 	do {
 		res = await request.send({
 			query: `query followers(
-				$login: String!
-				$cursor: Cursor
-				$order: SortOrder
-			) {
-				user(login: $login) {
-					followers(first: 100 after: $cursor order: $order) {
+	$login: String!
+	$cursor: Cursor
+	$order: SortOrder
+) {
+	user(login: $login) {
+		followers(first: 100 after: $cursor order: $order) {
+			totalCount
+			edges {
+				cursor
+				followedAt
+				notificationSettings {
+					isEnabled
+				}
+				node {
+					login
+					id
+					displayName
+					followers(first: 1) {
 						totalCount
-						edges {
-							cursor
-							followedAt
-							notificationSettings {
-								isEnabled
-							}
-							node {
-								login
-								id
-								displayName
-								followers(first: 1) {
-									totalCount
-								}
-								stream {
-									viewersCount
-								}
-							}
-						}
+					}
+					stream {
+						viewersCount
 					}
 				}
-			}`,
+			}
+		}
+	}
+}`,
 			variables: { login: userLogin, cursor, order },
 		});
 
@@ -336,41 +350,41 @@ async function getFollowers(userLogin, limit = 1000, order = 'ASC') {
 async function getRelationship(userLogin, channelId) {
 	const res = await request.send({
 		query: `query(
-			$userLogin: String!
-			$channelId: ID!
-			$channelIdString: String!
-		) {
-			user(login: $userLogin lookupType: ALL) {
-				login
+	$userLogin: String!
+	$channelId: ID!
+	$channelIdString: String!
+) {
+	user(login: $userLogin lookupType: ALL) {
+		login
+		id
+		displayName
+		isModerator(channelID: $channelIdString)
+		relationship(targetUserID: $channelId) {
+			followedAt
+			subscriptionTenure(tenureMethod: CUMULATIVE) {
+				end
+				months
+			}
+			subscriptionBenefit {
 				id
-				displayName
-				isModerator(channelID: $channelIdString)
-				relationship(targetUserID: $channelId) {
-					followedAt
-					subscriptionTenure(tenureMethod: CUMULATIVE) {
-						end
-						months
-					}
-					subscriptionBenefit {
+				endsAt
+				renewsAt
+				platform
+				purchasedWithPrime
+				tier
+				thirdPartySKU
+				gift {
+					isGift
+					gifter {
+						login
 						id
-						endsAt
-						renewsAt
-						platform
-						purchasedWithPrime
-						tier
-						thirdPartySKU
-						gift {
-							isGift
-							gifter {
-								login
-								id
-								displayName
-							}
-						}
+						displayName
 					}
 				}
 			}
-		}`,
+		}
+	}
+}`,
 		variables: {
 			userLogin,
 			channelId,
@@ -385,23 +399,23 @@ async function getBanStatus(userId, channelId) {
 	const res = await request.send({
 		json: {
 			query: `query($userId: ID! $channelId: ID!) {
-				chatRoomBanStatus(userID: $userId channelID: $channelId) {
-					createdAt
-					expiresInMs
-					isPermanent
-					reason
-					moderator {
-						login
-						id
-						displayName
-					}
-					roomOwner {
-						login
-						id
-						displayName
-					}
-				}
-			}`,
+	chatRoomBanStatus(userID: $userId channelID: $channelId) {
+		createdAt
+		expiresInMs
+		isPermanent
+		reason
+		moderator {
+			login
+			id
+			displayName
+		}
+		roomOwner {
+			login
+			id
+			displayName
+		}
+	}
+}`,
 			variables: { userId, channelId },
 		},
 	});
@@ -412,19 +426,19 @@ async function getBanStatus(userId, channelId) {
 async function followUser(userId, enableNotifications = false) {
 	const res = await request.send({
 		query: `mutation($input: FollowUserInput!) {
-			followUser(input: $input) {
-				follow {
-					user {
-						login
-						id
-						displayName
-					}
-				}
-				error {
-					code
-				}
+	followUser(input: $input) {
+		follow {
+			user {
+				login
+				id
+				displayName
 			}
-		}`,
+		}
+		error {
+			code
+		}
+	}
+}`,
 		variables: {
 			input: {
 				disableNotifications: !enableNotifications,
@@ -439,16 +453,16 @@ async function followUser(userId, enableNotifications = false) {
 async function unfollowUser(userId) {
 	const res = await request.send({
 		query: `mutation($input: UnfollowUserInput!) {
-			unfollowUser(input: $input) {
-				follow {
-					user {
-						login
-						id
-						displayName
-					}
-				}
+	unfollowUser(input: $input) {
+		follow {
+			user {
+				login
+				id
+				displayName
 			}
-		}`,
+		}
+	}
+}`,
 		variables: {
 			input: {
 				targetID: userId,
@@ -462,12 +476,12 @@ async function unfollowUser(userId) {
 async function updateDisplayName(newDisplayName) {
 	const res = await request.send({
 		query: `mutation($input: UpdateUserInput!) {
-			updateUser(input: $input) {
-				error {
-					code
-				}
-			}
-		}`,
+	updateUser(input: $input) {
+		error {
+			code
+		}
+	}
+}`,
 		variables: {
 			input: {
 				displayName: newDisplayName,

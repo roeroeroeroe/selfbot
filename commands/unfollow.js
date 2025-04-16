@@ -40,10 +40,7 @@ export default {
 				`error getting follow relationship with user ${channelName}:`,
 				err
 			);
-			return {
-				text: `error resolving channel ${channelName}`,
-				mention: true,
-			};
+			return { text: 'error getting follow relationship', mention: true };
 		}
 
 		try {

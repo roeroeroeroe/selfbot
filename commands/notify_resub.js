@@ -25,23 +25,18 @@ export default {
 		},
 	],
 	execute: async msg => {
-		let channelLogin = msg.channelName;
-		if (msg.commandFlags.channel) {
-			try {
-				const user = await gql.user.resolve(msg.commandFlags.channel);
-				if (!user)
-					return {
-						text: `channel ${msg.commandFlags.channel} does not exist`,
-						mention: true,
-					};
-				channelLogin = user.login;
-			} catch (err) {
-				logger.error(`error resolving user ${msg.commandFlags.channel}:`, err);
+		let channelLogin;
+		try {
+			const user = await gql.user.resolve(msg.commandFlags.channel);
+			if (!user)
 				return {
-					text: `error resolving channel ${msg.commandFlags.channel}`,
+					text: `channel ${msg.commandFlags.channel} does not exist`,
 					mention: true,
 				};
-			}
+			channelLogin = user.login;
+		} catch (err) {
+			logger.error(`error resolving user ${msg.commandFlags.channel}:`, err);
+			return { text: 'error resolving channel', mention: true };
 		}
 
 		try {

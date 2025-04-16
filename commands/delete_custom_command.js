@@ -58,10 +58,7 @@ export default {
 					commandsToDelete.push(c);
 			} catch (err) {
 				logger.error(`error resolving user ${msg.commandFlags.channel}:`, err);
-				return {
-					text: `error resolving channel ${msg.commandFlags.channel}`,
-					mention: true,
-				};
+				return { text: 'error resolving channel', mention: true };
 			}
 		} else if (msg.commandFlags.global) {
 			for (const c of customCommands.globalCommands) commandsToDelete.push(c);

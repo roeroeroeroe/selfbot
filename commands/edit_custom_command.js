@@ -125,10 +125,7 @@ export default {
 				if (command.channel_id !== user.id) newValues.channel_id = user.id;
 			} catch (err) {
 				logger.error(`error resolving user ${msg.commandFlags.channel}:`, err);
-				return {
-					text: `error resolving channel ${msg.commandFlags.channel}`,
-					mention: true,
-				};
+				return { text: 'error resolving channel', mention: true };
 			}
 		}
 
@@ -172,7 +169,7 @@ export default {
 						whitelist.push(user.id);
 					}
 				} catch (err) {
-					logger.error('error getting whitelist users:', err);
+					logger.error('error getting users:', err);
 					return { text: 'error getting whitelist users', mention: true };
 				}
 			newValues.whitelist = whitelist;

@@ -39,7 +39,7 @@ export default {
 				return;
 			}
 		} catch (err) {
-			logger.error('error resolving user:', err);
+			logger.error(`error resolving user id ${msg.data.channel_id}:`, err);
 			return;
 		}
 
@@ -78,7 +78,7 @@ export default {
 		const channel = await db.channel.get(msg.raid.source_id);
 		if (!channel) {
 			logger.warning(
-				`[Hermes] raid_update_v2: unknown channel: id:${msg.raid.source_id}`
+				`[Hermes] raid_update_v2: unknown channel ${msg.raid.source_id}`
 			);
 			return;
 		}
@@ -98,7 +98,7 @@ export default {
 				if (creator)
 					message += ` (created by ${utils.getEffectiveName(creator.login, creator.displayName)})`;
 			} catch (err) {
-				logger.error('error resolving user:', err);
+				logger.error(`error resolving user id ${msg.raid.creator_id}:`, err);
 			}
 		}
 		logger.info(message);
