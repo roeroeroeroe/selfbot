@@ -1,4 +1,3 @@
-import WebSocket from 'ws';
 import events from './events.js';
 import config from '../../../config.json' with { type: 'json' };
 import logger from '../../logger.js';
@@ -88,7 +87,7 @@ function validateConfig() {
 }
 
 function connect(c) {
-	c.ws.on('open', () => {
+	c.ws.addEventListener('open', () => {
 		logger.debug(`[Hermes] [connection ${c.id}] connected`);
 		c.pendingTopics = c.topics;
 		c.isAuthenticated = false;
@@ -104,7 +103,7 @@ function connect(c) {
 		);
 	});
 
-	c.ws.on('message', data => {
+	c.ws.addEventListener('message', ({ data }) => {
 		let msg;
 		try {
 			msg = JSON.parse(data);
@@ -118,12 +117,14 @@ function connect(c) {
 		handleWSMessage(c, msg);
 	});
 
-	c.ws.on('error', err =>
+	c.ws.addEventListener('error', err =>
 		logger.error(`[Hermes] [connection ${c.id}] error:`, err)
 	);
 
-	c.ws.on('close', () => {
-		logger.debug(`[Hermes] [connection ${c.id}] disconnected`);
+	c.ws.addEventListener('close', ({ code, reason }) => {
+		logger.debug(
+			`[Hermes] [connection ${c.id}] disconnected: code: ${code}, reason: ${reason}`
+		);
 		if (c.healthCheckInterval) clearInterval(c.healthCheckInterval);
 
 		const index = connections.indexOf(c);
@@ -161,7 +162,7 @@ function handleWSMessage(c, msg) {
 						`[Hermes] [connection ${c.id}] missed keepalive, reconnecting...`
 					);
 					clearInterval(c.healthCheckInterval);
-					if (c.ws.readyState === c.ws.OPEN) c.ws.terminate();
+					if (c.ws.readyState === WebSocket.OPEN) c.ws.close();
 				}
 			}, HEALTH_CHECK_INTERVAL_MS);
 			logger.debug(
@@ -184,7 +185,7 @@ function handleWSMessage(c, msg) {
 				logger.error(
 					`[Hermes] [connection ${c.id}] authentication failed: ${msg.authenticateResponse?.error}`
 				);
-				if (c.ws.readyState === c.ws.OPEN) c.ws.terminate();
+				if (c.ws.readyState === WebSocket.OPEN) c.ws.close();
 			}
 			break;
 
@@ -266,7 +267,7 @@ function handleWSMessage(c, msg) {
 
 		case 'reconnect':
 			logger.debug(`[Hermes] [connection ${c.id}] server requested reconnect`);
-			if (c.ws.readyState === c.ws.OPEN) c.ws.terminate();
+			if (c.ws.readyState === WebSocket.OPEN) c.ws.close();
 			break;
 
 		default:

@@ -5,13 +5,17 @@ import logger from './logger.js';
 
 const execAsync = promisify(exec);
 
-export default async function executeCommand(command, timeout = 5000) {
+async function shell(command, timeout = 5000) {
+	logger.debug(
+		`[EXEC] shell: executing "${command}" with ${config.shell}, timeout: ${timeout}ms`
+	);
 	try {
 		const result = await execAsync(command, {
 			encoding: 'utf-8',
 			shell: config.shell,
 			timeout,
 		});
+		logger.debug('[EXEC] shell: got result:', result);
 
 		return {
 			stdout: result.stdout.trim(),
@@ -33,3 +37,41 @@ export default async function executeCommand(command, timeout = 5000) {
 		};
 	}
 }
+
+const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+
+async function js(input, context = {}) {
+	const contextKeys = [],
+		contextValues = [];
+	for (const k in context) {
+		contextKeys.push(k);
+		contextValues.push(context[k]);
+	}
+	logger.debug(
+		`[EXEC] js: executing "${input}" with context ${contextKeys.join(',')}`
+	);
+
+	const func = new AsyncFunction(
+		...contextKeys,
+		`return await (async () => {
+			${input}
+		})();`
+	);
+
+	try {
+		const result = await func(...contextValues);
+		logger.debug('[EXEC] js: got result:', result);
+		return result;
+	} catch (err) {
+		logger.error(
+			`failed to run "${input}" with context ${contextKeys.join(',')}:`,
+			err
+		);
+		throw err;
+	}
+}
+
+export default {
+	shell,
+	js,
+};

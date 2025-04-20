@@ -5,7 +5,7 @@ import utils from '../utils/index.js';
 export default {
 	name: 'exec',
 	aliases: ['shell'],
-	description: `executes command using ${config.shell}; to avoid conflicts with the bot's flag parser, use -- early`,
+	description: `execute command using ${config.shell}; to avoid conflicts with the bot's flag parser, use -- early`,
 	unsafe: true,
 	flags: [
 		{
@@ -21,7 +21,7 @@ export default {
 	execute: async msg => {
 		if (!msg.args.length) return { text: 'no command provided', mention: true };
 		const command = msg.args.join(' ');
-		const { stdout, stderr, exitStatus, timedOut } = await exec(
+		const { stdout, stderr, exitStatus, timedOut } = await exec.shell(
 			command,
 			msg.commandFlags.timeout
 		);

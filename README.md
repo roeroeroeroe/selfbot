@@ -1,4 +1,5 @@
 # selfbot
+> Requires Node.js version >= v22  
 > Make sure **Redis** and **PostgreSQL** are installed and configured on your system before proceeding with the steps below.
 ## install dependencies
 ```bash
