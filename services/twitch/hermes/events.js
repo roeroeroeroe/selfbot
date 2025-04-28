@@ -4,6 +4,12 @@ import logger from '../../logger.js';
 import db from '../../db.js';
 import utils from '../../../utils/index.js';
 import gql from '../gql/index.js';
+import metrics from '../../metrics.js';
+
+const JOINED_RAIDS_METRICS_COUNTER = 'hermes_joined_raids';
+const ACKNOWLEDGED_WARNINGS_METRICS_COUNTER = 'hermes_acknowledged_warnings';
+metrics.counter.create(JOINED_RAIDS_METRICS_COUNTER);
+metrics.counter.create(ACKNOWLEDGED_WARNINGS_METRICS_COUNTER);
 
 const CHANNEL_MODERATION_ACTION_COOLDOWN_MS = 2500;
 
@@ -58,10 +64,12 @@ export default {
 				);
 				const errorCode = res.acknowledgeChatWarning.error?.code;
 				if (errorCode) logger.error('error acknowledging warning:', errorCode);
-				else
+				else {
+					metrics.counter.increment(ACKNOWLEDGED_WARNINGS_METRICS_COUNTER);
 					logger.info(
 						`[Hermes] user_moderation_action: acknowledged warning in ${channel}`
 					);
+				}
 			} catch (err) {
 				logger.error('error acknowledging warning:', err);
 			}
@@ -106,10 +114,12 @@ export default {
 		if (config.autoJoinRaids)
 			try {
 				const res = await gql.channel.joinRaid(msg.raid.id);
-				if (res?.joinRaid?.raidID)
+				if (res?.joinRaid?.raidID) {
+					metrics.counter.increment(JOINED_RAIDS_METRICS_COUNTER);
 					logger.info(
 						`[Hermes] raid_update_v2: joined raid from ${sourceChannelName} to ${targetChannelName}, raid id: ${res.joinRaid.raidID}`
 					);
+				}
 			} catch (err) {
 				logger.error('error joining raid:', err);
 			}

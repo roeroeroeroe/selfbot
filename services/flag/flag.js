@@ -6,7 +6,6 @@ const FLAG_TYPES = ['string', 'boolean', 'number', 'duration', 'url'];
 function init(schema) {
 	const flags = {};
 	const aliasesMap = {};
-
 	// prettier-ignore
 	for (const flag of [...globalFlags.GLOBAL_FLAGS_SCHEMA, ...schema]) {
 		if (flag === null || typeof flag !== 'object')

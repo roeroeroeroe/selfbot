@@ -3,12 +3,16 @@ import redis from './redis.js';
 import logger from './logger.js';
 import config from '../config.json' with { type: 'json' };
 import gql from './twitch/gql/index.js';
+import metrics from './metrics.js';
 
-const REDIS_MESSAGES_QUEUE_KEY = 'sb:m:q';
-const REDIS_CHANNEL_KEY_PREFIX = 'sb:c';
+const MESSAGES_QUEUE_REDIS_KEY = 'sb:m:q';
+const CHANNEL_REDIS_KEY_PREFIX = 'sb:c';
 
-const MAX_MESSAGE_BATCH_INSERT_INTERVAL_MS = 10000;
-const MAX_MESSAGE_BATCH_SIZE = 1000;
+const QUERIES_METRICS_COUNTER = 'postgres_queries';
+metrics.counter.create(QUERIES_METRICS_COUNTER);
+
+const MAX_MESSAGES_BATCH_INSERT_INTERVAL_MS = 10000;
+const MAX_MESSAGES_BATCH_SIZE = 1000;
 
 const pool = new pg.Pool({
 	user: process.env.DB_USER,
@@ -24,7 +28,8 @@ const pool = new pg.Pool({
 async function query(query, values = []) {
 	const c = await pool.connect();
 	logger.debug(`[DB] running query "${query}" with values:`, values);
-	const before = performance.now();
+	metrics.counter.increment(QUERIES_METRICS_COUNTER);
+	const t0 = performance.now();
 	try {
 		const res = await c.query(query, values);
 		return res.rows;
@@ -32,16 +37,13 @@ async function query(query, values = []) {
 		logger.error('[DB] query failed:', err);
 		throw err;
 	} finally {
+		const t1 = performance.now();
 		c.release();
-		logger.debug(
-			'[DB] query took:',
-			(performance.now() - before).toFixed(3) + 'ms'
-		);
+		logger.debug('[DB] query took', (t1 - t0).toFixed(3) + 'ms');
 	}
 }
 
 async function init() {
-	validateConfig();
 	await query(
 		`CREATE TABLE IF NOT EXISTS channels (
 			id VARCHAR(15) PRIMARY KEY,
@@ -106,16 +108,8 @@ async function init() {
 
 	setInterval(
 		async () => await flushMessages(),
-		config.messageBatchInsertIntervalMs
+		config.messagesBatchInsertIntervalMs
 	);
-}
-
-// prettier-ignore
-function validateConfig() {
-	if (config.messageBatchInsertIntervalMs > MAX_MESSAGE_BATCH_INSERT_INTERVAL_MS)
-		throw new Error(`messageBatchInsertIntervalMs can not be greater than ${MAX_MESSAGE_BATCH_INSERT_INTERVAL_MS}`);
-	if (config.maxMessageBatchInsertSize > MAX_MESSAGE_BATCH_SIZE)
-		throw new Error(`maxMessageBatchInsertSize can not be greater than ${MAX_MESSAGE_BATCH_SIZE}`);
 }
 
 async function insertChannel(
@@ -145,7 +139,7 @@ async function updateChannel(channelId, key, value, channelData) {
 	await Promise.all([
 		query(`UPDATE channels SET ${key} = $1 WHERE id = $2`, [value, channelId]),
 		redis.set(
-			`${REDIS_CHANNEL_KEY_PREFIX}:${channelId}`,
+			`${CHANNEL_REDIS_KEY_PREFIX}:${channelId}`,
 			JSON.stringify(channelData)
 		),
 	]);
@@ -155,13 +149,13 @@ async function deleteChannel(channelId) {
 	logger.debug(`[DB] deleting channel ${channelId}`);
 	await Promise.all([
 		query('DELETE FROM channels WHERE id = $1', [channelId]),
-		redis.del(`${REDIS_CHANNEL_KEY_PREFIX}:${channelId}`),
+		redis.del(`${CHANNEL_REDIS_KEY_PREFIX}:${channelId}`),
 	]);
 }
 
 async function getChannel(channelId) {
 	logger.debug(`[DB] getting channel ${channelId}`);
-	const cache = await redis.get(`${REDIS_CHANNEL_KEY_PREFIX}:${channelId}`);
+	const cache = await redis.get(`${CHANNEL_REDIS_KEY_PREFIX}:${channelId}`);
 	if (cache) {
 		logger.debug(`[REDIS] found channel ${channelId}:`, cache);
 		return JSON.parse(cache);
@@ -177,7 +171,7 @@ async function getChannel(channelId) {
 		const channelDataString = JSON.stringify(channel);
 		logger.debug(`[DB] found channel ${channelId}: ${channelDataString}`);
 		await redis.set(
-			`${REDIS_CHANNEL_KEY_PREFIX}:${channelId}`,
+			`${CHANNEL_REDIS_KEY_PREFIX}:${channelId}`,
 			channelDataString
 		);
 		return channel;
@@ -243,25 +237,25 @@ async function queueMessageInsert(channelId, userId, text, timestamp) {
 	}
 
 	const record = `${channelId}\t${userId}\t${text}\t${timestamp}`;
-	await redis.rpush(REDIS_MESSAGES_QUEUE_KEY, record);
+	await redis.rpush(MESSAGES_QUEUE_REDIS_KEY, record);
 	logger.debug(`[DB] queued message: ${record}`);
 }
 
 async function flushMessages() {
 	try {
-		const queueLength = await redis.llen(REDIS_MESSAGES_QUEUE_KEY);
-		if (queueLength > config.maxMessageBatchInsertSize)
+		const queueLength = await redis.llen(MESSAGES_QUEUE_REDIS_KEY);
+		if (queueLength > config.maxMessagesBatchInsertSize)
 			logger.warning(
-				`[REDIS] message queue length (${queueLength}) exceeds max batch size: ${config.maxMessageBatchInsertSize}, consider decreasing 'messageBatchInsertIntervalMs' or increasing 'maxMessageBatchInsertSize'`
+				`[REDIS] message queue length (${queueLength}) exceeds max batch size: ${config.maxMessagesBatchInsertSize}, consider decreasing 'messagesBatchInsertIntervalMs' or increasing 'maxMessagesBatchInsertSize'`
 			);
 		const messages = await redis.lrange(
-			REDIS_MESSAGES_QUEUE_KEY,
+			MESSAGES_QUEUE_REDIS_KEY,
 			0,
-			config.maxMessageBatchInsertSize - 1
+			config.maxMessagesBatchInsertSize - 1
 		);
 		if (!messages.length) return;
 
-		await redis.ltrim(REDIS_MESSAGES_QUEUE_KEY, messages.length, -1);
+		await redis.ltrim(MESSAGES_QUEUE_REDIS_KEY, messages.length, -1);
 
 		let queryText =
 			'INSERT INTO messages (channel_id, user_id, text, timestamp) VALUES ';
@@ -293,6 +287,9 @@ async function flushMessages() {
 }
 
 export default {
+	MAX_MESSAGES_BATCH_INSERT_INTERVAL_MS,
+	MAX_MESSAGES_BATCH_SIZE,
+
 	init,
 	query,
 	channel: {

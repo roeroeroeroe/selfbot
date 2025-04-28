@@ -1,4 +1,8 @@
 import logger from '../../logger.js';
+import metrics from '../../metrics.js';
+
+const REQUESTS_METRICS_COUNTER = 'helix_requests_sent';
+metrics.counter.create(REQUESTS_METRICS_COUNTER);
 
 const HELIX_BASE_URL = 'https://api.twitch.tv/helix';
 const HEADERS = {
@@ -28,6 +32,7 @@ async function helix({ endpoint, method = 'GET', query = {}, body = null }) {
 	logger.debug(
 		`[HELIX] sending request: ${method} ${url}${bodyString ? `, body: ${bodyString}` : ''}`
 	);
+	metrics.counter.increment(REQUESTS_METRICS_COUNTER);
 	const res = await fetch(url, options);
 	if (!res.ok)
 		throw new Error(`request failed (${res.status}): ${await res.text()}`);

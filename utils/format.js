@@ -1,16 +1,6 @@
 import config from '../config.json' with { type: 'json' };
-
-const iecByteUnits = [
-	'B',
-	'KiB',
-	'MiB',
-	'GiB',
-	'TiB',
-	'PiB',
-	'EiB',
-	'ZiB',
-	'YiB',
-];
+// prettier-ignore
+const iecByteUnits = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB'];
 
 function trimString(str, lim = 485) {
 	return str.length > lim ? str.slice(0, lim - 1) + '…' : str;

@@ -145,8 +145,13 @@ function constructUserDescription(user, banned) {
 	if (user.selectedBadge?.title)
 		parts.push(`badge: ${user.selectedBadge.title}`);
 	if (user.chatColor) {
-		const rgb = utils.hexToRgb(user.chatColor);
-		parts.push(`color: ${user.chatColor} (${rgb.r}, ${rgb.g}, ${rgb.b})`);
+		const color = utils.color.get(user.chatColor);
+		if (color) {
+			const { rgb, name: colorName } = color;
+			parts.push(
+				`color: ${user.chatColor} ${colorName} rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`
+			);
+		} else parts.push(`color: ${user.chatColor}`);
 	} else parts.push('default color (never set)');
 	if (
 		user.settings.preferredLanguageTag &&

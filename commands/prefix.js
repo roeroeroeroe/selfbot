@@ -1,15 +1,8 @@
-import { dirname, join } from 'path';
-import { writeFile } from 'fs/promises';
-import { fileURLToPath } from 'url';
 import config from '../config.json' with { type: 'json' };
+import configuration from '../services/configuration.js';
 import logger from '../services/logger.js';
 import db from '../services/db.js';
 import utils from '../utils/index.js';
-
-const configPath = join(
-	dirname(fileURLToPath(import.meta.url)),
-	'../config.json'
-);
 
 export default {
 	name: 'prefix',
@@ -59,8 +52,7 @@ export default {
 				}
 
 				if (config.defaultPrefix !== msg.commandFlags.prefix) {
-					config.defaultPrefix = msg.commandFlags.prefix;
-					await writeFile(configPath, JSON.stringify(config, null, 2));
+					await configuration.update('defaultPrefix', msg.commandFlags.prefix);
 					await db.query(
 						`ALTER TABLE channels ALTER COLUMN prefix SET DEFAULT '${config.defaultPrefix}'`
 					);
@@ -71,7 +63,7 @@ export default {
 					mention: true,
 				};
 			} catch (err) {
-				logger.error('error changing prefix:', err);
+				logger.error('error updating prefix:', err);
 				return {
 					text: 'error updating prefix',
 					mention: true,
@@ -101,7 +93,7 @@ export default {
 				mention: true,
 			};
 		} catch (err) {
-			logger.error(`error changing prefix for ${input}:`, err);
+			logger.error(`error updating prefix for ${input}:`, err);
 			return {
 				text: 'error updating prefix',
 				mention: true,

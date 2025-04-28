@@ -1,11 +1,18 @@
 import { ChatClient, ConnectionPool } from '@mastondzn/dank-twitch-irc';
-import RateLimiter from '../rate_limiter.js';
+import SlidingWindowRateLimiter from '../sliding_window_rate_limiter.js';
+import AsyncQueue from '../async_queue.js';
 import config from '../../config.json' with { type: 'json' };
 import logger from '../logger.js';
 import handle from '../message_handler.js';
 import db from '../db.js';
 import utils from '../../utils/index.js';
 import helix from './helix/index.js';
+import metrics from '../metrics.js';
+
+const MESSAGES_RX_METRICS_COUNTER = 'tmi_messages_received';
+const MESSAGES_TX_METRICS_COUNTER = 'tmi_messages_sent';
+metrics.counter.create(MESSAGES_RX_METRICS_COUNTER);
+metrics.counter.create(MESSAGES_TX_METRICS_COUNTER);
 
 const MESSAGE_MAX_LENGTH = 500;
 const DEFAULT_SLOW_MODE_MS = 1100;
@@ -81,41 +88,25 @@ async function loadChannels(client) {
 	}
 }
 
-export default class Client {
+class Client {
 	#anon;
 	#authed;
 	#slowModes = new Map();
-	#joinRateLimiter = new RateLimiter(JOINS_WINDOW_MS, MAX_JOINS_PER_WINDOW);
+	#joinRateLimiter = new SlidingWindowRateLimiter(
+		JOINS_WINDOW_MS,
+		MAX_JOINS_PER_WINDOW
+	);
 	#sendRateLimiters = {};
 	#sendQueues = new Map();
 	#rateLimitSend;
 	#addToSendRateLimit;
 
 	constructor() {
-		this.#validateConfig();
+		if (!process.env.TWITCH_ANDROID_TOKEN)
+			throw new Error('missing TWITCH_ANDROID_TOKEN environment variable');
 		this.#initializeClients();
 		this.#initRateLimiters();
 		this.#registerEventHandlers();
-	}
-
-	// prettier-ignore
-	#validateConfig() {
-		if (!config.bot.login)
-			throw new Error('missing bot login');
-		if (!process.env.TWITCH_ANDROID_TOKEN)
-			throw new Error('missing TWITCH_ANDROID_TOKEN environment variable');
-		switch (config.rateLimits) {
-			case 'regular':
-				if (config.authedClientConnectionsPoolSize > REGULAR_MAX_CONNECTIONS_POOL_SIZE)
-					throw new Error(`authedClientConnectionsPoolSize can not be greater than ${REGULAR_MAX_CONNECTIONS_POOL_SIZE} with regular rate limits`);
-				break;
-			case 'verified':
-				if (config.authedClientConnectionsPoolSize > VERIFIED_MAX_CONNECTIONS_POOL_SIZE)
-					throw new Error(`authedClientConnectionsPoolSize can not be greater than ${VERIFIED_MAX_CONNECTIONS_POOL_SIZE} with verified rate limits`);
-				break;
-			default:
-				throw new Error(`invalid rate limits preset: ${config.rateLimits}, expected 'regular' or 'verified'`);
-		}
 	}
 
 	#initializeClients() {
@@ -134,12 +125,17 @@ export default class Client {
 			);
 	}
 
-	// prettier-ignore
 	#initRateLimiters() {
 		switch (config.rateLimits) {
 			case 'regular':
-				this.#sendRateLimiters.normal = new RateLimiter(MESSAGES_WINDOW_MS, REGULAR_MAX_MESSAGES_PER_WINDOW);
-				this.#sendRateLimiters.privileged = new RateLimiter(MESSAGES_WINDOW_MS, REGULAR_MAX_MESSAGES_PER_WINDOW_PRIVILEGED);
+				this.#sendRateLimiters.normal = new SlidingWindowRateLimiter(
+					MESSAGES_WINDOW_MS,
+					REGULAR_MAX_MESSAGES_PER_WINDOW
+				);
+				this.#sendRateLimiters.privileged = new SlidingWindowRateLimiter(
+					MESSAGES_WINDOW_MS,
+					REGULAR_MAX_MESSAGES_PER_WINDOW_PRIVILEGED
+				);
 				this.#rateLimitSend = async msg => {
 					if (msg.query.privileged) {
 						this.#sendRateLimiters.normal.add();
@@ -153,10 +149,13 @@ export default class Client {
 				this.#addToSendRateLimit = () => {
 					this.#sendRateLimiters.normal.add();
 					this.#sendRateLimiters.privileged.add();
-				}
+				};
 				break;
 			case 'verified':
-				this.#sendRateLimiters.verified = new RateLimiter(MESSAGES_WINDOW_MS, VERIFIED_MAX_MESSAGES_PER_WINDOW);
+				this.#sendRateLimiters.verified = new SlidingWindowRateLimiter(
+					MESSAGES_WINDOW_MS,
+					VERIFIED_MAX_MESSAGES_PER_WINDOW
+				);
 				this.#rateLimitSend = async msg => {
 					await this.#sendRateLimiters.verified.wait();
 					if (!msg.query.privileged) await this.#waitSlowMode(msg);
@@ -193,11 +192,12 @@ export default class Client {
 
 		msg.receivedAt = performance.now();
 		logger.debug('[TMI] [anon] PRIVMSG:', msg.rawSource);
+		metrics.counter.increment(MESSAGES_RX_METRICS_COUNTER);
 
 		try {
 			msg.query = await db.channel.get(msg.channelID);
 			if (!msg.query) {
-				logger.warning('[TMI] [anon] got no channel for message:', msg);
+				logger.warning('[TMI] [anon] unknown channel:', msg.channelName);
 				return;
 			}
 		} catch (err) {
@@ -287,18 +287,20 @@ export default class Client {
 			ircCommand = `@client-nonce=${BOT_MESSAGES_NONCE} PRIVMSG #${msg.channelName} :${text}`;
 		}
 
-		this.#sendQueues.set(
-			msg.channelID,
-			(this.#sendQueues.get(msg.channelID) || Promise.resolve()).then(
-				async () => {
-					await this.#rateLimitSend(msg);
-					logger.debug(
-						`[TMI] [${config.bot.login}] sending irc command: "${ircCommand}"`
-					);
-					this.#authed.sendRaw(ircCommand);
-				}
-			)
-		);
+		let queue = this.#sendQueues.get(msg.channelID);
+		if (!queue) {
+			queue = new AsyncQueue(async ({ msg, ircCommand }) => {
+				await this.#rateLimitSend(msg);
+				logger.debug(
+					`[TMI] [${config.bot.login}] sending irc command: "${ircCommand}"`
+				);
+				metrics.counter.increment(MESSAGES_TX_METRICS_COUNTER);
+				this.#authed.sendRaw(ircCommand);
+			});
+			this.#sendQueues.set(msg.channelID, queue);
+		}
+
+		queue.enqueue({ msg, ircCommand });
 	}
 
 	async #onAnonReady() {
@@ -380,3 +382,10 @@ export default class Client {
 		return this.#anon.connections;
 	}
 }
+
+export default {
+	REGULAR_MAX_CONNECTIONS_POOL_SIZE,
+	VERIFIED_MAX_CONNECTIONS_POOL_SIZE,
+
+	Client,
+};

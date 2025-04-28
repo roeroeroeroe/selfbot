@@ -1,4 +1,8 @@
 import logger from '../../logger.js';
+import metrics from '../../metrics.js';
+
+const REQUESTS_METRICS_COUNTER = 'gql_requests_sent';
+metrics.counter.create(REQUESTS_METRICS_COUNTER);
 
 const GQL_URL = 'https://gql.twitch.tv/gql';
 const METHOD = 'POST';
@@ -14,6 +18,7 @@ async function gql(body = {}) {
 	logger.debug(
 		`[GQL] sending request: ${METHOD} ${GQL_URL}, body: ${bodyString}`
 	);
+	metrics.counter.increment(REQUESTS_METRICS_COUNTER);
 	const res = await fetch(GQL_URL, {
 		method: METHOD,
 		headers: HEADERS,

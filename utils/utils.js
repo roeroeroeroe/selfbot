@@ -62,24 +62,6 @@ export function getEffectiveName(login, displayName) {
 	return displayName.toLowerCase() === login ? displayName : login;
 }
 
-export function hexToRgb(hex) {
-	hex = hex.replace(/^#/, '');
-	if (hex.length === 3)
-		hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
-
-	const n = parseInt(hex, 16);
-
-	return {
-		r: (n >> 16) & 0xff,
-		g: (n >> 8) & 0xff,
-		b: n & 0xff,
-	};
-}
-
-export function rgbToHex({ r, g, b }) {
-	return ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
-}
-
 function damerauLevenshteinDistance(a, b) {
 	const aLen = a.length;
 	const bLen = b.length;

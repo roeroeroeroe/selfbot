@@ -15,8 +15,8 @@
 	"authedClientConnectionsPoolSize": 10,
 	"maxHermesConnections": 10,
 	"maxHermesTopicsPerConnection": 50,
-	"messageBatchInsertIntervalMs": 2500,
-	"maxMessageBatchInsertSize": 500,
+	"messagesBatchInsertIntervalMs": 2500,
+	"maxMessagesBatchInsertSize": 500,
 	"bot": {
 		"login": "",
 		"id": "0"
@@ -27,5 +27,16 @@
 	"logger": {
 		"level": "info",
 		"colorize": true
+	},
+	"metrics": {
+		"sampleIntervalMs": 5000,
+		"logIntervalMs": 1800000,
+		"prometheus": {
+			"enabled": false,
+			"host": "127.0.0.1",
+			"port": 9091,
+			"endpoint": "/metrics",
+			"prefix": "selfbot_"
+		}
 	}
 }

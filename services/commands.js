@@ -14,9 +14,8 @@ let knownCommands = [],
 	dirty = false;
 
 function add(command) {
-	command.aliases ??= [];
-	validateCommandModule(command);
-	command.flagData = flag.init(command.flags ?? []);
+	validateCommand(command);
+	command.flagData = flag.init(command.flags);
 
 	let usage = `Usage of ${command.name}`;
 	if (command.aliases.length) usage += ` (${command.aliases.join(', ')})`;
@@ -63,8 +62,8 @@ function getCommandsMap() {
 function has(commandName) {
 	return commands.has(commandName) || aliases.has(commandName);
 }
-
-function validateCommandModule(command) {
+// prettier-ignore
+function validateCommand(command) {
 	if (typeof command.name !== 'string' || /\s/.test(command.name))
 		throw new Error('command name must be a string with no spaces');
 
@@ -76,21 +75,15 @@ function validateCommandModule(command) {
 
 	for (const alias of command.aliases) {
 		if (typeof alias !== 'string' || /\s/.test(alias))
-			throw new Error(
-				`aliases for command "${command.name}" must be an array of strings with no spaces`
-			);
+			throw new Error(`aliases for command "${command.name}" must be an array of strings with no spaces`);
 
 		const duplicate = getCommandByName(alias);
 		if (duplicate)
-			throw new Error(
-				`alias "${alias}" for command "${command.name}" conflicts with command "${duplicate.name}"`
-			);
+			throw new Error(`alias "${alias}" for command "${command.name}" conflicts with command "${duplicate.name}"`);
 	}
 
 	if (typeof command.description !== 'string')
-		throw new Error(
-			`description for command "${command.name}" must be a string`
-		);
+		throw new Error(`description for command "${command.name}" must be a string`);
 
 	if (typeof command.unsafe !== 'boolean')
 		throw new Error(`'unsafe' for command "${command.name}" must be a boolean`);
@@ -99,9 +92,7 @@ function validateCommandModule(command) {
 		throw new Error(`flags for command "${command.name}" must be an array`);
 
 	if (typeof command.execute !== 'function')
-		throw new Error(
-			`'execute' for command "${command.name}" must be a function`
-		);
+		throw new Error(`'execute' for command "${command.name}" must be a function`);
 }
 
 async function load() {
@@ -115,17 +106,18 @@ async function load() {
 	let i = 0;
 	for (const f of commandFiles)
 		try {
-			const commandModule = (
-				await import(path.join(__dirname, `../commands/${f}`))
-			).default;
-			if (!config.loadUnsafeCommands && commandModule.unsafe) {
+			const command = (await import(path.join(__dirname, `../commands/${f}`)))
+				.default;
+			if (!config.loadUnsafeCommands && command.unsafe) {
 				logger.debug(
-					`[COMMANDS] skipping unsafe command ${f}: ${commandModule.name}`
+					`[COMMANDS] skipping unsafe command ${f}: ${command.name}`
 				);
 				continue;
 			}
-			add(commandModule);
-			logger.debug(`[COMMANDS] loaded ${f}: ${commandModule.name}`);
+			add(command);
+			logger.debug(
+				`[COMMANDS] loaded ${f}: ${command.name}${command.aliases.length ? ', ' + command.aliases.join(', ') : ''}`
+			);
 			i++;
 		} catch (err) {
 			logger.error(`error loading command ${f}:`, err);

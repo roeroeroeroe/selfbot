@@ -1,5 +1,5 @@
-function format(dateString) {
-	const iso = new Date(dateString).toISOString();
+function format(dateInput) {
+	const iso = new Date(dateInput).toISOString();
 	return `${iso.substring(0, 10)} ${iso.substring(11, 19)} UTC`;
 }
 

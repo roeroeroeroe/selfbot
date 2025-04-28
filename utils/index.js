@@ -3,6 +3,7 @@ import duration from './duration.js';
 import date from './date.js';
 import format from './format.js';
 import regex from './regex.js';
+import color from './color.js';
 
 export default {
 	...core,
@@ -10,4 +11,5 @@ export default {
 	date,
 	format,
 	regex,
+	color,
 };

@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import config from './config.json' with { type: 'json' };
-import Client from './services/twitch/tmi.js';
+import configuration from './services/configuration.js';
+import tmi from './services/twitch/tmi.js';
 import logger from './services/logger.js';
 import db from './services/db.js';
 import commands from './services/commands.js';
@@ -8,11 +9,11 @@ import customCommands from './services/custom_commands.js';
 import hermes from './services/twitch/hermes/client.js';
 import utils from './utils/index.js';
 import { validateToken } from './services/twitch/oauth.js';
-
 // prettier-ignore
 (async () => {
 	try {
-		logger.debug('[INIT] configuration object:', config);
+		logger.debug('[INIT] validating configuration object:', config);
+		configuration.validate();
 
 		logger.debug('[INIT] validating token...');
 		await validateToken(
@@ -39,7 +40,7 @@ import { validateToken } from './services/twitch/oauth.js';
 		logger.info(`[INIT] loaded ${c} ${utils.format.plural(c, 'custom command')}`);
 
 		logger.debug('[INIT] creating tmi client');
-		new Client().connect();
+		new tmi.Client().connect();
 	} catch (err) {
 		logger.fatal('init error:', err);
 	}

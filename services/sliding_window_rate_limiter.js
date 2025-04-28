@@ -1,7 +1,11 @@
 import utils from '../utils/index.js';
 
-export default class RateLimiter {
+export default class SlidingWindowRateLimiter {
 	constructor(windowMs, maxPerWindow) {
+		if (!Number.isInteger(windowMs) || windowMs <= 1)
+			throw new Error('windowMs must be a > 1 integer');
+		if (!Number.isInteger(maxPerWindow) || maxPerWindow < 1)
+			throw new Error('maxPerWindow must be a positive integer');
 		this.windowMs = windowMs;
 		this.maxPerWindow = maxPerWindow;
 		this.timestamps = [];
@@ -13,7 +17,7 @@ export default class RateLimiter {
 	}
 
 	async wait() {
-		while (true) {
+		for (;;) {
 			const now = Date.now();
 			this.#pruneOld(now);
 
@@ -34,9 +38,7 @@ export default class RateLimiter {
 	}
 
 	canProceed() {
-		const now = Date.now();
-		this.#pruneOld(now);
-
+		this.#pruneOld(Date.now());
 		return this.timestamps.length < this.maxPerWindow;
 	}
 }

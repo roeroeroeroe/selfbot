@@ -28,8 +28,8 @@ vi config.json
   "authedClientConnectionsPoolSize": 10, // create N authenticated tmi connections
   "maxHermesConnections": 10,            // maximum amount of WS hermes connections to create
   "maxHermesTopicsPerConnection": 50,    // maximum amount of topics a single connection can be subscribed to
-  "messageBatchInsertIntervalMs": 2500,  // how often to flush queued messages
-  "maxMessageBatchInsertSize": 500,      // max number of messages to flush per batch
+  "messagesBatchInsertIntervalMs": 2500, // how often to flush queued messages
+  "maxMessagesBatchInsertSize": 500,     // max number of messages to flush per batch
   "bot": {
     "login": "",
     "id": "0"
@@ -40,6 +40,17 @@ vi config.json
   "logger": {
     "level": "info",                     // "debug" | "info" | "warning" | "error" | "none"
     "colorize": true                     // enable colored terminal output
+  },
+  "metrics": {
+    "sampleIntervalMs": 5000,            // how often to sample and compute rates
+    "logIntervalMs": 1800000,            // how often to log the latest snapshot (0 to disable)
+    "prometheus": {
+      "enabled": false,
+      "host": "127.0.0.1",
+      "port": 9091,
+      "endpoint": "/metrics",
+      "prefix": "selfbot_"
+    }
   }
 }
 ```

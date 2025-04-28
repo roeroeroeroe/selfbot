@@ -14,11 +14,12 @@ const nonMsDurationUnits = { ...durationUnits };
 delete nonMsDurationUnits.ms;
 
 function format(ms, largest = 3, separator = ' ') {
-	if (typeof ms !== 'number' || isNaN(ms)) return `0${separator}s`;
+	if (typeof ms !== 'number' || isNaN(ms) || ms <= 0) return `0${separator}s`;
 
 	const resultParts = [];
-	for (const [k, v] of Object.entries(nonMsDurationUnits)) {
+	for (const k in nonMsDurationUnits) {
 		if (resultParts.length >= largest) break;
+		const v = nonMsDurationUnits[k];
 		if (ms < v) continue;
 
 		resultParts.push(Math.floor(ms / v) + k);
@@ -34,9 +35,9 @@ function parse(str) {
 	let ms = 0,
 		match;
 
-	while ((match = unitPattern.exec(str)) !== null) {
-		if (!durationUnits[match[2]]) throw new Error('unknown time unit');
-		ms += parseFloat(match[1]) * durationUnits[match[2]];
+	while ((match = unitPattern.exec(str))) {
+		if (!match[2]) throw new Error('unknown time unit');
+		ms += +match[1] * durationUnits[match[2]];
 	}
 
 	return ms;

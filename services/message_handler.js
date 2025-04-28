@@ -5,6 +5,12 @@ import commands from './commands.js';
 import customCommands from './custom_commands.js';
 import flag from './flag/index.js';
 import utils from '../utils/index.js';
+import metrics from './metrics.js';
+
+const COMMANDS_EXECUTED_METRICS_COUNTER = 'commands_executed';
+const CUSTOM_COMMANDS_EXECUTED_METRICS_COUNTER = 'custom_commands_executed';
+metrics.counter.create(COMMANDS_EXECUTED_METRICS_COUNTER);
+metrics.counter.create(CUSTOM_COMMANDS_EXECUTED_METRICS_COUNTER);
 
 const CUSTOM_COMMAND_COOLDOWN_KEY_PREFIX = 'handler:customcommand';
 
@@ -32,6 +38,7 @@ export default async function handle(msg) {
 				logger.debug(
 					`[HANDLER] got valid command: ${msg.commandName}, entering regular command handler`
 				);
+				metrics.counter.increment(COMMANDS_EXECUTED_METRICS_COUNTER);
 				const commandResult = await handleCommand(msg, command);
 				logger.debug(
 					`[HANDLER] executed command ${msg.commandName}, result:`,
@@ -63,6 +70,7 @@ export default async function handle(msg) {
 			logger.debug(
 				`[HANDLER] cooldown and permissions checks passed for custom command ${customCommand.name} invoked by ${msg.senderUsername}, executing`
 			);
+			metrics.counter.increment(CUSTOM_COMMANDS_EXECUTED_METRICS_COUNTER);
 			sendResult(msg, await executeCustomCommand(msg, customCommand));
 			return;
 		}
@@ -179,7 +187,7 @@ async function executeCustomCommand(msg, customCommand) {
 }
 
 function sendResult(msg, result) {
-	if (!result?.text) return;
+	if (result?.text === undefined || result?.text === null) return;
 	logger.debug(
 		`[HANDLER] sending result: text: ${result.text}, reply: ${result.reply}, mention: ${result.mention}`
 	);

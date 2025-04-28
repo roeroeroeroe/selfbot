@@ -1,5 +1,6 @@
 import { inspect } from 'util';
 import exec from '../services/exec.js';
+import config from '../config.json' with { type: 'json' };
 import logger from '../services/logger.js';
 import hermes from '../services/twitch/hermes/client.js';
 import gql from '../services/twitch/gql/index.js';
@@ -13,6 +14,7 @@ import commands from '../services/commands.js';
 import customCommands from '../services/custom_commands.js';
 
 const context = {
+	config,
 	logger,
 	hermes,
 	gql,
