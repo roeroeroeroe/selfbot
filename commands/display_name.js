@@ -1,6 +1,6 @@
 import config from '../config.json' with { type: 'json' };
 import logger from '../services/logger.js';
-import gql from '../services/twitch/gql/index.js';
+import twitch from '../services/twitch/index.js';
 
 export default {
 	name: 'displayname',
@@ -19,33 +19,22 @@ export default {
 	],
 	execute: async msg => {
 		const input = msg.commandFlags.displayName || msg.args[0];
-		if (!input)
-			return {
-				text: 'you must specify new name',
-				mention: true,
-			};
+		if (!input) return { text: 'you must specify new name', mention: true };
 		if (input.toLowerCase() !== config.bot.login)
-			return {
-				text: 'new display name does not match login',
-				mention: true,
-			};
+			return { text: 'new display name does not match login', mention: true };
+
 		try {
-			const res = await gql.user.updateDisplayName(input);
-			if (res.updateUser.error?.code)
-				return {
-					text: `error updating display name: ${res.updateUser.error.code}`,
-					mention: true,
-				};
+			const res = await twitch.gql.user.updateDisplayName(input);
+			const err = res.updateUser.error?.code;
 			return {
-				text: `changed display name to ${input}`,
+				text: err
+					? `error updating display name: ${err}`
+					: `changed display name to ${input}`,
 				mention: true,
 			};
 		} catch (err) {
 			logger.error('error updating display name:', err);
-			return {
-				text: 'error updating dispay name',
-				mention: true,
-			};
+			return { text: 'error updating dispay name', mention: true };
 		}
 	},
 };

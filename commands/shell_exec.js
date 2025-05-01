@@ -14,7 +14,7 @@ export default {
 			type: 'duration',
 			required: false,
 			defaultValue: 5000,
-			description: 'command timeout (default: 5s, min: 1s, max: 30s)',
+			description: 'execution timeout (default: 5s, min: 1s, max: 30s)',
 			validator: v => v >= 1000 && v <= 30000,
 		},
 	],

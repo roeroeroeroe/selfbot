@@ -1,14 +1,13 @@
 import 'dotenv/config';
 import config from './config.json' with { type: 'json' };
 import configuration from './services/configuration.js';
-import tmi from './services/twitch/tmi.js';
+import twitch from './services/twitch/index.js';
+import metrics from './services/metrics.js';
 import logger from './services/logger.js';
 import db from './services/db.js';
 import commands from './services/commands.js';
 import customCommands from './services/custom_commands.js';
-import hermes from './services/twitch/hermes/client.js';
 import utils from './utils/index.js';
-import { validateToken } from './services/twitch/oauth.js';
 // prettier-ignore
 (async () => {
 	try {
@@ -16,7 +15,7 @@ import { validateToken } from './services/twitch/oauth.js';
 		configuration.validate();
 
 		logger.debug('[INIT] validating token...');
-		await validateToken(
+		await twitch.oauth.validateToken(
 			process.env.TWITCH_ANDROID_TOKEN,
 			process.env.TWITCH_ANDROID_CLIENT_ID,
 			config.bot.login,
@@ -24,11 +23,14 @@ import { validateToken } from './services/twitch/oauth.js';
 		);
 		logger.info('[INIT] validated token');
 
+		logger.info('[INIT] initializing metrics');
+		metrics.init();
+
 		logger.debug('[INIT] initializing db');
 		await db.init();
 
 		logger.debug('[INIT] initializing hermes');
-		let c = await hermes.init();
+		let c = await twitch.hermes.init();
 		logger.info(`[INIT] subscribing to ${c} hermes ${utils.format.plural(c, 'topic')}...`);
 
 		logger.debug('[INIT] loading commands');
@@ -40,7 +42,7 @@ import { validateToken } from './services/twitch/oauth.js';
 		logger.info(`[INIT] loaded ${c} ${utils.format.plural(c, 'custom command')}`);
 
 		logger.debug('[INIT] creating tmi client');
-		new tmi.Client().connect();
+		twitch.getTMIClient().connect();
 	} catch (err) {
 		logger.fatal('init error:', err);
 	}

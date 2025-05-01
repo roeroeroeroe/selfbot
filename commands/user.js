@@ -1,7 +1,10 @@
 import logger from '../services/logger.js';
 import hastebin from '../services/hastebin.js';
 import utils from '../utils/index.js';
-import gql from '../services/twitch/gql/index.js';
+import twitch from '../services/twitch/index.js';
+
+const MAX_DESCRIPTION_LENGTH = 75;
+const MAX_TEAM_NAME_LENGTH = 25;
 
 export default {
 	name: 'user',
@@ -19,9 +22,33 @@ export default {
 		},
 	],
 	execute: async msg => {
-		let responses;
+		const summaries = [];
 		try {
-			responses = buildResponses(msg, await getNormalizedUsers(msg));
+			if (msg.args.length > 1) {
+				const usersMap = msg.commandFlags.idLookup
+					? await twitch.gql.user.getMany(null, msg.args)
+					: await twitch.gql.user.getMany(msg.args);
+
+				const idPrefix = msg.commandFlags.idLookup ? 'with id ' : '';
+				for (const arg of msg.args) {
+					const user = usersMap.get(arg);
+					summaries.push(
+						user
+							? constructUserSummary(user)
+							: `user ${idPrefix}${arg} does not exist`
+					);
+				}
+			} else {
+				const input = msg.args[0] || msg.senderUsername;
+				const result = msg.commandFlags.idLookup
+					? await twitch.gql.user.getUserWithBanReason(null, input)
+					: await twitch.gql.user.getUserWithBanReason(input);
+				summaries.push(
+					result?.user
+						? constructUserSummary(result.user, result.banned)
+						: 'user does not exist'
+				);
+			}
 		} catch (err) {
 			logger.error('error getting users:', err);
 			return {
@@ -30,84 +57,37 @@ export default {
 			};
 		}
 
-		const response = utils.format.join(responses, '; ');
-		if (response.length < 497 - msg.senderUsername.length)
-			return {
-				text: response,
-				mention: true,
-			};
+		if (utils.canFitAll(summaries, 497 - msg.senderUsername.length, 2))
+			return { text: utils.format.join(summaries, '; '), mention: true };
 
 		try {
-			const link = await hastebin.create(utils.format.join(responses, '\n'));
-			return {
-				text: link,
-				mention: true,
-			};
+			const link = await hastebin.create(utils.format.join(summaries, '\n'));
+			return { text: link, mention: true };
 		} catch (err) {
 			logger.error('error creating paste:', err);
-			return {
-				text: 'error creating paste',
-				mention: true,
-			};
+			return { text: 'error creating paste', mention: true };
 		}
 	},
 };
 
-async function getNormalizedUsers(msg) {
-	if (msg.args.length > 1)
-		return msg.commandFlags.idLookup
-			? await gql.user.getMany(null, msg.args)
-			: await gql.user.getMany(msg.args);
-
-	const input = msg.args[0] || msg.senderUsername;
-	const result = msg.commandFlags.idLookup
-		? await gql.user.getUserWithBanReason(null, input)
-		: await gql.user.getUserWithBanReason(input);
-	if (!result?.user) return new Map();
-	return new Map([
-		[msg.commandFlags.idLookup ? result.user.id : result.user.login, result],
-	]);
-}
-
-function buildResponses(msg, usersMap) {
-	const responses = [];
-
-	if (msg.args.length < 2) {
-		const [result] = usersMap.values();
-		responses.push(
-			result?.user
-				? constructUserDescription(result.user, result.banned)
-				: 'user does not exist'
-		);
-	} else {
-		const idPrefix = msg.commandFlags.idLookup ? 'with id ' : '';
-		for (const arg of msg.args) {
-			const user = usersMap.get(arg);
-			responses.push(
-				user
-					? constructUserDescription(user)
-					: `user ${idPrefix}${arg} does not exist`
-			);
-		}
-	}
-
-	return responses;
-}
-
-function constructUserDescription(user, banned) {
+function constructUserSummary(user, banned) {
 	const parts = [];
 	const now = Date.now();
+	function age(date) {
+		return utils.duration.format(now - Date.parse(date));
+	}
 	parts.push(`@${utils.getEffectiveName(user.login, user.displayName)}`);
 	parts.push(`id: ${user.id}`);
 	if (banned?.reason) {
-		let suspendedString = `suspended (${banned.reason}`;
+		let suspendedSummary = `suspended (${banned.reason}`;
 		if (banned.reason === 'DEACTIVATED' && user.deletedAt)
-			suspendedString += ` ${utils.duration.format(now - Date.parse(user.deletedAt))} ago`;
-		suspendedString += ')';
-		parts.push(suspendedString);
+			suspendedSummary += ` ${age(user.deletedAt)} ago`;
+		parts.push(suspendedSummary + ')');
 	}
 	if (user.description)
-		parts.push(`description: ${utils.format.trim(user.description, 75)}`);
+		parts.push(
+			`description: ${utils.format.trim(user.description, MAX_DESCRIPTION_LENGTH)}`
+		);
 	if (user.channel.socialMedias?.length)
 		parts.push(`socials: ${user.channel.socialMedias.length}`);
 	if (user.panels?.length) {
@@ -126,20 +106,19 @@ function constructUserDescription(user, banned) {
 		parts.push(`chatters: ${user.channel.chatters.count}`);
 	if (user.followers.totalCount)
 		parts.push(`followers: ${user.followers.totalCount}`);
+	const followedCategories = user.followedGames.nodes.length;
 	if (user.follows.totalCount) {
-		let followsString = `follows: ${user.follows.totalCount}`;
-		const followedGamesCount = user.followedGames.nodes.length;
-		if (followedGamesCount)
-			followsString += ` ${utils.format.plural(user.follows.totalCount, 'channel')}, ${followedGamesCount} ${utils.format.plural(followedGamesCount, 'category', 'categories')}`;
-		parts.push(followsString);
-	} else if (user.followedGames.nodes.length)
+		const channels = user.follows.totalCount;
+		let followsSummary = `follows: ${channels}`;
+		if (followedCategories)
+			followsSummary += ` ${utils.format.plural(channels, 'channel')}, ${followedCategories} ${utils.format.plural(followedCategories, 'category', 'categories')}`;
+		parts.push(followsSummary);
+	} else if (followedCategories)
 		parts.push(
-			`follows: ${user.followedGames.nodes.length} ${utils.format.plural(user.followedGames.nodes.length, 'category', 'categories')}`
+			`follows: ${followedCategories} ${utils.format.plural(followedCategories, 'category', 'categories')}`
 		);
-
 	const roles = getRoles(user.roles);
 	if (roles.length) parts.push(`roles: ${roles.join(', ')}`);
-
 	if (user.emoticonPrefix?.name)
 		parts.push(`prefix: ${user.emoticonPrefix.name}`);
 	if (user.selectedBadge?.title)
@@ -153,34 +132,25 @@ function constructUserDescription(user, banned) {
 			);
 		} else parts.push(`color: ${user.chatColor}`);
 	} else parts.push('default color (never set)');
-	if (
-		user.settings.preferredLanguageTag &&
-		user.settings.preferredLanguageTag !== 'EN'
-	)
+	const language = user.settings.preferredLanguageTag;
+	if (language && language !== 'EN')
 		parts.push(`ui language: ${user.settings.preferredLanguageTag}`);
 	if (user.primaryTeam) {
-		let teamString = `team: ${utils.format.trim(user.primaryTeam.name, 25)}`;
-		if (user.primaryTeam.owner?.login === user.login) teamString += ' (owner)';
-		parts.push(teamString);
+		let teamSummary = `team: ${utils.format.trim(user.primaryTeam.name, MAX_TEAM_NAME_LENGTH)}`;
+		if (user.primaryTeam.owner?.login === user.login) teamSummary += ' (owner)';
+		parts.push(teamSummary);
 	}
 	if (!user.stream && user.lastBroadcast?.startedAt)
-		parts.push(
-			`last live: ${utils.duration.format(now - Date.parse(user.lastBroadcast.startedAt))} ago`
-		);
-	parts.push(
-		`created: ${utils.duration.format(now - Date.parse(user.createdAt))} ago`
-	);
-	if (user.updatedAt)
-		parts.push(
-			`updated: ${utils.duration.format(now - Date.parse(user.updatedAt))} ago`
-		);
+		parts.push(`last live: ${age(user.lastBroadcast.startedAt)} ago`);
+	parts.push(`created: ${age(user.createdAt)} ago`);
+	if (user.updatedAt) parts.push(`updated: ${age(user.updatedAt)} ago`);
 	if (user.stream?.createdAt) {
-		let streamString = `live, uptime: ${utils.duration.format(now - Date.parse(user.stream.createdAt))}`;
+		let streamSummary = `live, uptime: ${age(user.stream.createdAt)}`;
 		if (user.stream.game?.displayName)
-			streamString += `, category: ${user.stream.game.displayName}`;
+			streamSummary += `, category: ${user.stream.game.displayName}`;
 		if (user.stream.viewersCount)
-			streamString += `, viewers: ${user.stream.viewersCount}`;
-		parts.push(streamString);
+			streamSummary += `, viewers: ${user.stream.viewersCount}`;
+		parts.push(streamSummary);
 	}
 
 	return utils.format.join(parts);

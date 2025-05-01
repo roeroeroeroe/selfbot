@@ -3,8 +3,7 @@ import db from '../services/db.js';
 import commands from '../services/commands.js';
 import customCommands from '../services/custom_commands.js';
 import utils from '../utils/index.js';
-import gql from '../services/twitch/gql/index.js';
-import helix from '../services/twitch/helix/index.js';
+import twitch from '../services/twitch/index.js';
 
 export default {
 	name: 'createcommand',
@@ -112,7 +111,7 @@ export default {
 				channel.login = msg.channelName;
 			} else {
 				try {
-					const user = await gql.user.resolve(msg.commandFlags.channel);
+					const user = await twitch.gql.user.resolve(msg.commandFlags.channel);
 					if (!user)
 						return {
 							text: `channel ${msg.commandFlags.channel} does not exist`,
@@ -156,7 +155,7 @@ export default {
 		if (msg.commandFlags.whitelist) {
 			try {
 				const whitelistInput = msg.commandFlags.whitelist.split(/\s+/);
-				const users = await helix.user.getMany(whitelistInput);
+				const users = await twitch.helix.user.getMany(whitelistInput);
 				whitelist = [];
 				for (const login of whitelistInput) {
 					const user = users.get(login);

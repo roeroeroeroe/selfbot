@@ -1,7 +1,7 @@
 import logger from '../services/logger.js';
 import hastebin from '../services/hastebin.js';
 import utils from '../utils/index.js';
-import gql from '../services/twitch/gql/index.js';
+import twitch from '../services/twitch/index.js';
 
 export default {
 	name: 'roles',
@@ -43,7 +43,7 @@ export default {
 		const input = msg.commandFlags.channel || msg.args[0];
 		if (input) {
 			try {
-				const user = await gql.user.resolve(input);
+				const user = await twitch.gql.user.resolve(input);
 				if (!user)
 					return { text: `channel ${input} does not exist`, mention: true };
 				channel.id = user.id;
@@ -60,10 +60,10 @@ export default {
 		let modsData, vipsData, foundersData, artistsData;
 		// prettier-ignore
 		const results = await Promise.allSettled([
-			utils.withTimeout(gql.channel.getMods(channel.login, msg.commandFlags.maxMods), msg.commandFlags.timeout),
-			utils.withTimeout(gql.channel.getVips(channel.login), msg.commandFlags.timeout),
-			utils.withTimeout(gql.channel.getFounders(channel.login), msg.commandFlags.timeout),
-			utils.withTimeout(gql.channel.getArtists(channel.id), msg.commandFlags.timeout),
+			utils.withTimeout(twitch.gql.channel.getMods(channel.login, msg.commandFlags.maxMods), msg.commandFlags.timeout),
+			utils.withTimeout(twitch.gql.channel.getVips(channel.login), msg.commandFlags.timeout),
+			utils.withTimeout(twitch.gql.channel.getFounders(channel.login), msg.commandFlags.timeout),
+			utils.withTimeout(twitch.gql.channel.getArtists(channel.id), msg.commandFlags.timeout),
 		]);
 		[modsData, vipsData, foundersData, artistsData] = results.map(res =>
 			res.status === 'fulfilled' ? res.value : undefined

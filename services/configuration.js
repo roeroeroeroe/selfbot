@@ -2,8 +2,7 @@ import { writeFile } from 'fs/promises';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import config from '../config.json' with { type: 'json' };
-import tmi from './twitch/tmi.js';
-import hermes from './twitch/hermes/client.js';
+import twitch from './twitch/index.js';
 import db from './db.js';
 import utils from '../utils/index.js';
 import logger from './logger.js';
@@ -23,6 +22,7 @@ const validators = {
 	'getClosestCommand': v => assert(typeof v === 'boolean', 'getClosestCommand must be a boolean'),
 	'autoJoinRaids': v => assert(typeof v === 'boolean', 'autoJoinRaids must be a boolean'),
 	'autoAcknowledgeChatWarnings': v => assert(typeof v === 'boolean', 'autoAcknowledgeChatWarnings must be a boolean'),
+	'autoJoinWatching': v => assert(typeof v === 'boolean', 'autoJoinWatching must be a boolean'),
 	'shell': v => assert(typeof v === 'string' && v.trim(), 'shell must be a non-empty string'),
 	'ircClientTransport': v => assert(['tcp', 'websocket'].includes(v), 'ircClientTransport must be "tcp" or "websocket"'),
 	'joinRetries': v => assert(Number.isInteger(v) && v >= 0, 'joinRetries must be a non-negative integer'),
@@ -34,17 +34,17 @@ const validators = {
 	'authedClientConnectionsPoolSize': v => {
 		assert(Number.isInteger(v) && v >= 0, 'authedClientConnectionsPoolSize must be a non-negative number');
 		const max = config.rateLimits === 'verified'
-			? tmi.VERIFIED_MAX_CONNECTIONS_POOL_SIZE
-			: tmi.REGULAR_MAX_CONNECTIONS_POOL_SIZE;
+			? twitch.tmi.VERIFIED_MAX_CONNECTIONS_POOL_SIZE
+			: twitch.tmi.REGULAR_MAX_CONNECTIONS_POOL_SIZE;
 		assert(v <= max, `authedClientConnectionsPoolSize cannot exceed ${max} with ${config.rateLimits} rateLimits`);
 	},
 	'maxHermesConnections': v => {
-		assert(Number.isInteger(v) && v >= 1 && v <= hermes.MAX_CONNECTIONS,
-			`maxHermesConnections must be an integer between 1 and ${hermes.MAX_CONNECTIONS}`);
+		assert(Number.isInteger(v) && v >= 1 && v <= twitch.hermes.MAX_CONNECTIONS,
+			`maxHermesConnections must be an integer between 1 and ${twitch.hermes.MAX_CONNECTIONS}`);
 	},
 	'maxHermesTopicsPerConnection': v => {
-		assert(Number.isInteger(v) && v >= 1 && v <= hermes.MAX_TOPICS_PER_CONNECTION,
-			`maxHermesTopicsPerConnection must be an integer between 1 and ${hermes.MAX_TOPICS_PER_CONNECTION}`);
+		assert(Number.isInteger(v) && v >= 1 && v <= twitch.hermes.MAX_TOPICS_PER_CONNECTION,
+			`maxHermesTopicsPerConnection must be an integer between 1 and ${twitch.hermes.MAX_TOPICS_PER_CONNECTION}`);
 	},
 	'messagesBatchInsertIntervalMs': v => {
 		assert(Number.isInteger(v) && v >= 0 && v <= db.MAX_MESSAGES_BATCH_INSERT_INTERVAL_MS,

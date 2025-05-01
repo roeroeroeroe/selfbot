@@ -1,6 +1,6 @@
 import config from '../config.json' with { type: 'json' };
 import os from 'os';
-import hermes from '../services/twitch/hermes/client.js';
+import twitch from '../services/twitch/index.js';
 import utils from '../utils/index.js';
 import metrics from '../services/metrics.js';
 import hastebin from '../services/hastebin.js';
@@ -60,9 +60,8 @@ async function getMetricsResponse() {
 	const gauges = formatMetrics(snapshot.gauges);
 
 	const lines = [];
-	if (counters.length) lines.push('counters:', ...counters);
-	if (gauges.length)
-		lines.push(`${lines.length ? '\n' : ''}gauges:`, ...gauges);
+	if (counters.length) lines.push('counters:', counters);
+	if (gauges.length) lines.push(`${lines.length ? '\n' : ''}gauges:`, gauges);
 	if (!lines.length) return { text: 'no metrics available', mention: true };
 
 	try {
@@ -85,8 +84,8 @@ async function getGenericResponse(msg) {
 	await msg.client.ping();
 	const t1 = performance.now();
 	let topics = 0;
-	for (const topic of hermes.topics.values())
-		if (topic.state === hermes.TopicState.SUBSCRIBED) topics++;
+	for (const topic of twitch.hermes.topics.values())
+		if (topic.state === twitch.hermes.TopicState.SUBSCRIBED) topics++;
 	return {
 		text: utils.format.join([
 			`tmi: ${(t1 - t0) | 0}ms`,
@@ -95,7 +94,7 @@ async function getGenericResponse(msg) {
 			`memory: ${utils.format.bytes(process.memoryUsage().heapTotal)}`,
 			`channels: ${msg.client.joinedChannels.size}`,
 			`irc: ${msg.client.connections.length}`,
-			`hermes: ${hermes.connections.size} (${topics} ${utils.format.plural(topics, 'topic')})`,
+			`hermes: ${twitch.hermes.connections.size} (${topics} ${utils.format.plural(topics, 'topic')})`,
 			`node: ${process.version}`,
 		]),
 		mention: true,
@@ -103,9 +102,14 @@ async function getGenericResponse(msg) {
 }
 
 function formatMetrics(obj, sampleInterval) {
-	return sampleInterval
-		? Object.entries(obj).map(
-				([k, v]) => `${k}: ${v.value} (${v.rate.toFixed(1)}/${sampleInterval})`
+	if (sampleInterval)
+		return utils.format.align(
+			Object.entries(obj).map(
+				([k, v]) =>
+					`${k}:__ALIGN__${v.value} (${v.rate.toFixed(1)}/${sampleInterval})`
 			)
-		: Object.entries(obj).map(([k, v]) => `${k}: ${v}`);
+		);
+	return utils.format.align(
+		Object.entries(obj).map(([k, v]) => `${k}:__ALIGN__${v}`)
+	);
 }

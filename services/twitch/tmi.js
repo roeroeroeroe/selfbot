@@ -6,7 +6,7 @@ import logger from '../logger.js';
 import handle from '../message_handler.js';
 import db from '../db.js';
 import utils from '../../utils/index.js';
-import helix from './helix/index.js';
+import twitch from './index.js';
 import metrics from '../metrics.js';
 
 const MESSAGES_RX_METRICS_COUNTER = 'tmi_messages_received';
@@ -53,7 +53,7 @@ async function loadChannels(client) {
 		const channels = await db.query(
 			'SELECT id, login, display_name, suspended FROM channels'
 		);
-		const users = await helix.user.getMany(
+		const users = await twitch.helix.user.getMany(
 			null,
 			channels.map(c => c.id)
 		);

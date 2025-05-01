@@ -1,5 +1,6 @@
 import request from './request.js';
 import utils from '../../../utils/index.js';
+import config from '../../../config.json' with { type: 'json' };
 
 async function getMods(channelLogin, limit = 1000) {
 	const modEdges = [];
@@ -194,6 +195,25 @@ async function getSelfEditableChannels() {
 	});
 
 	return res.data;
+}
+
+async function isSelfPrivileged(channelLogin) {
+	if (channelLogin === config.bot.login) return true;
+	const res = await request.send({
+		query: `query($login: String) {
+	user(login: $login) {
+		self {
+			isModerator
+			isVIP
+		}
+	}
+}`,
+		variables: { login: channelLogin },
+	});
+
+	if (!res.data?.user?.self) return false;
+	const { isModerator, isVIP } = res.data.user.self;
+	return isModerator || isVIP;
 }
 
 async function getChannelViewer(userLogin, channelLogin) {
@@ -397,6 +417,7 @@ export default {
 	getChatters,
 	getSelfModeratedChannels,
 	getSelfEditableChannels,
+	isSelfPrivileged,
 	getChannelViewer,
 	getUnlockableEmotes,
 

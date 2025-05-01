@@ -75,9 +75,17 @@ function kdNearest(node, target, best = { distance: Infinity, node: null }) {
 	}
 
 	const diff = target[node.axis] - node.point[node.axis];
-	best = kdNearest(diff < 0 ? node.left : node.right, target, best);
-	if (diff ** 2 < best.distance)
-		best = kdNearest(diff < 0 ? node.right : node.left, target, best);
+	let nearerNode, fartherNode;
+	if (diff < 0) {
+		nearerNode = node.left;
+		fartherNode = node.right;
+	} else {
+		nearerNode = node.right;
+		fartherNode = node.left;
+	}
+
+	best = kdNearest(nearerNode, target, best);
+	if (diff ** 2 < best.distance) best = kdNearest(fartherNode, target, best);
 
 	return best;
 }

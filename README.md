@@ -15,8 +15,9 @@ vi config.json
   "logMessagesByDefault": true,          // applies to newly joined channels at runtime
   "loadUnsafeCommands": true,            // enable insecure commands
   "getClosestCommand": true,             // suggest closest valid command on typo
-  "autoJoinRaids": true,                 // automatically join raids
+  "autoJoinRaids": true,                 // auto-join raids
   "autoAcknowledgeChatWarnings": true,   // auto-acknowledge chat warnings
+  "autoJoinWatching": true,              // auto-join watched channels detected via presence
   "shell": "/bin/bash",                  // shell used by the `shell` command
   "ircClientTransport": "websocket",     // "tcp" | "websocket"
   "joinRetries": 3,                      // retry joining a channel N times before failing
@@ -47,7 +48,7 @@ vi config.json
     "prometheus": {
       "enabled": false,
       "host": "127.0.0.1",
-      "port": 9091,
+      "port": 9101,
       "endpoint": "/metrics",
       "prefix": "selfbot_"
     }

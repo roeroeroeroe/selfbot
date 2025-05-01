@@ -2,9 +2,7 @@ import { inspect } from 'util';
 import exec from '../services/exec.js';
 import config from '../config.json' with { type: 'json' };
 import logger from '../services/logger.js';
-import hermes from '../services/twitch/hermes/client.js';
-import gql from '../services/twitch/gql/index.js';
-import helix from '../services/twitch/helix/index.js';
+import twitch from '../services/twitch/index.js';
 import hastebin from '../services/hastebin.js';
 import db from '../services/db.js';
 import utils from '../utils/index.js';
@@ -14,11 +12,11 @@ import commands from '../services/commands.js';
 import customCommands from '../services/custom_commands.js';
 
 const context = {
+	process,
+
 	config,
 	logger,
-	hermes,
-	gql,
-	helix,
+	twitch,
 	hastebin,
 	db,
 	utils,

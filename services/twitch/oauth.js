@@ -1,6 +1,6 @@
 import logger from '../logger.js';
 
-export async function validateToken(token, clientId, login, id) {
+async function validateToken(token, clientId, login, id) {
 	const res = await fetch('https://id.twitch.tv/oauth2/validate', {
 		headers: {
 			Authorization: `OAuth ${token}`,
@@ -21,3 +21,7 @@ export async function validateToken(token, clientId, login, id) {
 
 	logger.debug('[OAUTH] scopes:', body.scopes);
 }
+
+export default {
+	validateToken,
+};

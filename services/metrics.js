@@ -2,8 +2,6 @@ import http from 'http';
 import config from '../config.json' with { type: 'json' };
 import logger from './logger.js';
 
-const DEFAULT_SAMPLE_INTERVAL_MS = 5000;
-
 const counters = new Map();
 const gauges = new Map();
 
@@ -16,46 +14,81 @@ let latestSnapshot = {
 	gauges: {},
 };
 
-if (config.metrics.prometheus.enabled) {
+let server = null,
+	initialized = false;
+
+function init() {
+	if (initialized) return;
+	initialized = true;
+	setInterval(() => {
+		const now = Date.now();
+		let deltaMs = now - lastSampleTs || 1;
+
+		const ctrs = {};
+		for (const [k, v] of counters) {
+			ctrs[k] = {
+				value: v,
+				rate:
+					Math.max(0, v - (lastCounterValues.get(k) || 0)) / (deltaMs / 1000),
+			};
+			lastCounterValues.set(k, v);
+		}
+
+		const gs = {};
+		for (const [k, v] of gauges) gs[k] = v;
+
+		latestSnapshot = { timestamp: now, counters: ctrs, gauges: gs };
+		lastSampleTs = now;
+	}, config.metrics.sampleIntervalMs);
+
+	if (config.metrics.logIntervalMs)
+		setInterval(
+			() => logger.info('[METRICS]', latestSnapshot),
+			config.metrics.logIntervalMs
+		);
+
 	const {
+		enabled,
 		host = '127.0.0.1',
-		port = 9091,
+		port = 9101,
 		endpoint = '/metrics',
 		prefix = 'selfbot_',
 	} = config.metrics.prometheus;
 
-	http
-		.createServer((req, res) => {
-			const requestSummary = `${req.method} ${req.url} (${req.socket.remoteAddress}:${req.socket.remotePort})`;
-			if (req.url !== endpoint) {
-				res.writeHead(404);
-				logger.debug('[PROMETHEUS] 404', requestSummary);
-				return res.end();
-			}
-			if (req.method !== 'GET') {
-				res.writeHead(405, { Allow: 'GET' });
-				logger.debug('[PROMETHEUS] 405', requestSummary);
-				return res.end();
-			}
+	if (!enabled) return;
 
-			res.writeHead(200, {
-				'Content-Type': 'text/plain; version=0.0.4; charset=utf-8',
-			});
-			const lines = [];
-			for (const [name, value] of counters.entries()) {
-				const m = `${prefix}${name}_total`;
-				lines.push(`# TYPE ${m} counter\n${m} ${value}`);
-			}
-			for (const [name, value] of gauges.entries()) {
-				const m = `${prefix}${name}`;
-				lines.push(`# TYPE ${m} gauge\n${m} ${value}`);
-			}
-			logger.debug('[PROMETHEUS] 200', requestSummary);
-			res.end(`${lines.join('\n')}\n`);
-		})
-		.listen(port, host, () =>
-			logger.info(`[PROMETHEUS] serving at http://${host}:${port}${endpoint}`)
-		);
+	server = http.createServer((req, res) => {
+		const summary = `${req.method} ${req.url}`;
+		if (req.url !== endpoint) {
+			res.writeHead(404);
+			logger.debug('[PROMETHEUS] 404', summary);
+			return res.end();
+		}
+		if (req.method !== 'GET') {
+			res.writeHead(405, { Allow: 'GET' });
+			logger.debug('[PROMETHEUS] 405', summary);
+			return res.end();
+		}
+		res.writeHead(200, {
+			'Content-Type': 'text/plain; version=0.0.4; charset=utf-8',
+		});
+		const lines = [];
+		for (const [name, value] of counters) {
+			const m = `${prefix}${name}_total`;
+			lines.push(`# TYPE ${m} counter\n${m} ${value}`);
+		}
+		for (const [name, value] of gauges) {
+			const m = `${prefix}${name}`;
+			lines.push(`# TYPE ${m} gauge\n${m} ${value}`);
+		}
+		res.end(lines.join('\n') + '\n');
+		logger.debug('[PROMETHEUS] 200', summary);
+	});
+
+	server.on('error', err => logger.fatal('[PROMETHEUS] error:', err));
+	server.listen(port, host, () =>
+		logger.info(`[PROMETHEUS] listening on http://${host}:${port}${endpoint}`)
+	);
 }
 
 function createCounter(name) {
@@ -105,34 +138,8 @@ function getMetrics() {
 	return latestSnapshot;
 }
 
-setInterval(() => {
-	const now = Date.now();
-	let deltaMs = now - lastSampleTs;
-	if (deltaMs <= 0) deltaMs = 1;
-
-	const ctrs = {};
-	for (const [k, v] of counters.entries()) {
-		ctrs[k] = {
-			value: v,
-			rate: Math.max(0, v - (lastCounterValues.get(k) || 0)) / (deltaMs / 1000),
-		};
-		lastCounterValues.set(k, v);
-	}
-
-	const gs = {};
-	for (const [k, v] of gauges.entries()) gs[k] = v;
-
-	latestSnapshot = { timestamp: now, counters: ctrs, gauges: gs };
-	lastSampleTs = now;
-}, config.metrics.sampleIntervalMs ?? DEFAULT_SAMPLE_INTERVAL_MS);
-
-if (config.metrics.logIntervalMs)
-	setInterval(
-		() => logger.info('[METRICS]', latestSnapshot),
-		config.metrics.logIntervalMs
-	);
-
 export default {
+	init,
 	counter: {
 		create: createCounter,
 		increment: incCounter,

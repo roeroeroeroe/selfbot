@@ -1,7 +1,7 @@
 import logger from '../services/logger.js';
 import hastebin from '../services/hastebin.js';
 import utils from '../utils/index.js';
-import gql from '../services/twitch/gql/index.js';
+import twitch from '../services/twitch/index.js';
 
 export default {
 	name: 'moderatedchannels',
@@ -21,7 +21,8 @@ export default {
 			totalFollowers: { count: 0, desc: 'total followers' },
 		};
 
-		const moderatedChannelsEdges = await gql.channel.getSelfModeratedChannels();
+		const moderatedChannelsEdges =
+			await twitch.gql.channel.getSelfModeratedChannels();
 		if (!moderatedChannelsEdges.length)
 			return { text: '0 channels', mention: true };
 
@@ -68,21 +69,21 @@ export default {
 			list.push(utils.format.join(lineParts));
 		}
 
-		const messageParts = [
+		const responseParts = [
 			`${moderatedChannelsEdges.length} ${utils.format.plural(moderatedChannelsEdges.length, 'channel')}`,
 		];
 
-		for (const counter of Object.values(counters))
-			if (counter.count) messageParts.push(`${counter.desc}: ${counter.count}`);
+		for (const c of Object.values(counters))
+			if (c.count) responseParts.push(`${c.desc}: ${c.count}`);
 
 		try {
 			const link = await hastebin.create(utils.format.align(list));
-			messageParts.push(link);
-			return { text: utils.format.join(messageParts), mention: true };
+			responseParts.push(link);
+			return { text: utils.format.join(responseParts), mention: true };
 		} catch (err) {
 			logger.error('error creating paste:', err);
-			messageParts.push('error creating paste');
-			return { text: utils.format.join(messageParts), mention: true };
+			responseParts.push('error creating paste');
+			return { text: utils.format.join(responseParts), mention: true };
 		}
 	},
 };

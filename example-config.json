@@ -4,6 +4,7 @@
 	"getClosestCommand": true,
 	"autoJoinRaids": true,
 	"autoAcknowledgeChatWarnings": true,
+	"autoJoinWatching": true,
 	"shell": "/bin/bash",
 	"ircClientTransport": "websocket",
 	"joinRetries": 3,
@@ -34,7 +35,7 @@
 		"prometheus": {
 			"enabled": false,
 			"host": "127.0.0.1",
-			"port": 9091,
+			"port": 9101,
 			"endpoint": "/metrics",
 			"prefix": "selfbot_"
 		}

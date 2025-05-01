@@ -1,7 +1,7 @@
 import logger from '../services/logger.js';
 import hastebin from '../services/hastebin.js';
 import utils from '../utils/index.js';
-import gql from '../services/twitch/gql/index.js';
+import twitch from '../services/twitch/index.js';
 
 export default {
 	name: 'follows',
@@ -59,13 +59,24 @@ export default {
 		},
 	],
 	execute: async msg => {
+		let action;
+		switch (msg.commandName) {
+			case 'follows':
+			case 'listfollows':
+				action = 'follows';
+				break;
+			case 'followers':
+			case 'listfollowers':
+				action = 'followers';
+				break;
+		}
+
+		const { limit, order, sort, raw } = msg.commandFlags;
 		const userLogin = (
 			msg.commandFlags.user ||
 			msg.args[0] ||
 			msg.senderUsername
 		).toLowerCase();
-
-		const { limit, order, sort, raw } = msg.commandFlags;
 
 		let result,
 			countStr,
@@ -73,10 +84,9 @@ export default {
 			includeCategories = false;
 		const messageParts = [];
 
-		switch (msg.commandName) {
+		switch (action) {
 			case 'follows':
-			case 'listfollows':
-				result = await gql.user.getFollows(userLogin, limit, order);
+				result = await twitch.gql.user.getFollows(userLogin, limit, order);
 				if (
 					(raw && !result.followEdges.length) ||
 					(!raw && !result.totalCount && !result.followedGames.length)
@@ -88,8 +98,7 @@ export default {
 				includeCategories = !raw && result.followedGames.length;
 				break;
 			case 'followers':
-			case 'listfollowers':
-				result = await gql.user.getFollowers(userLogin, limit, order);
+				result = await twitch.gql.user.getFollowers(userLogin, limit, order);
 				if (!result.totalCount)
 					return { text: `${userLogin} has 0 followers`, mention: true };
 
@@ -108,7 +117,7 @@ export default {
 
 		const list = [];
 		if (!raw && edges.length) list.push(header);
-		for (const line of processEdges(sort ? applySort(edges, sort) : edges, raw))
+		for (const line of processEdges(applySort(edges, sort), raw))
 			list.push(line);
 
 		if (includeCategories) {

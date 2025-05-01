@@ -44,9 +44,14 @@ const baseUserQuery = `id
 		}`;
 
 async function resolveUser(userLogin, userId) {
-	const [key, input] = userLogin
-		? ['login', userLogin.toLowerCase()]
-		: ['id', userId];
+	let key, input;
+	if (userLogin) {
+		key = 'login';
+		input = userLogin.toLowerCase();
+	} else {
+		key = 'id';
+		input = userId;
+	}
 	const res = await request.send({
 		query: `query($login: String $id: ID) {
 	user(login: $login id: $id) {
@@ -62,9 +67,16 @@ async function resolveUser(userLogin, userId) {
 }
 
 async function getUserWithBanReason(userLogin, userId) {
-	const [lookupBy, varName, varType] = !!userId
-		? ['ID', 'id', 'ID!']
-		: ['Login', 'login', 'String!'];
+	let lookupBy, varName, varType;
+	if (userId) {
+		lookupBy = 'ID';
+		varName = 'id';
+		varType = 'ID!';
+	} else {
+		lookupBy = 'Login';
+		varName = 'login';
+		varType = 'String!';
+	}
 	const res = await request.send({
 		query: `query User($${varName}: ${varType}) {
 	user(${varName}: $${varName} lookupType: ALL) {
@@ -86,9 +98,16 @@ async function getMany(userLogins, userIds) {
 	const isIdLookup = userIds && userIds.length;
 	let inputArray = isIdLookup ? userIds : userLogins;
 	if (!Array.isArray(inputArray)) inputArray = [inputArray];
-	const [varName, varType, mapKey] = isIdLookup
-		? ['ids', '[ID!]', 'id']
-		: ['logins', '[String!]', 'login'];
+	let varName, varType, mapKey;
+	if (isIdLookup) {
+		varName = 'ids';
+		varType = '[ID!]';
+		mapKey = 'id';
+	} else {
+		varName = 'logins';
+		varType = '[String!]';
+		mapKey = 'login';
+	}
 	const query = `query Users($${varName}: ${varType}) {
 	users(${varName}: $${varName}) {
 		${baseUserQuery}

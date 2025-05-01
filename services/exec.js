@@ -1,3 +1,4 @@
+import vm from 'vm';
 import { promisify } from 'util';
 import { exec } from 'child_process';
 import config from '../config.json' with { type: 'json' };
@@ -38,33 +39,22 @@ async function shell(command, timeout = 5000) {
 	}
 }
 
-const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+async function js(input, context = {}, timeout = 1000) {
+	const script = new vm.Script(`(async () => { ${input} })()`);
+	const contextKeysString = Object.keys(context).join(',');
 
-async function js(input, context = {}) {
-	const contextKeys = [],
-		contextValues = [];
-	for (const k in context) {
-		contextKeys.push(k);
-		contextValues.push(context[k]);
-	}
 	logger.debug(
-		`[EXEC] js: executing "${input}" with context ${contextKeys.join(',')}`
+		`[EXEC] js: executing "${input}" with context: ${contextKeysString}`
 	);
-
-	const func = new AsyncFunction(
-		...contextKeys,
-		`return await (async () => {
-			${input}
-		})();`
-	);
-
 	try {
-		const result = await func(...contextValues);
+		const result = await script.runInContext(vm.createContext(context), {
+			timeout,
+		});
 		logger.debug('[EXEC] js: got result:', result);
 		return result;
 	} catch (err) {
 		logger.error(
-			`failed to run "${input}" with context ${contextKeys.join(',')}:`,
+			`failed to run "${input}" with context ${contextKeysString}:`,
 			err
 		);
 		throw err;

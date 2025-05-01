@@ -1,7 +1,7 @@
 import logger from '../services/logger.js';
 import customCommands from '../services/custom_commands.js';
 import utils from '../utils/index.js';
-import gql from '../services/twitch/gql/index.js';
+import twitch from '../services/twitch/index.js';
 
 export default {
 	name: 'deletecommand',
@@ -48,7 +48,7 @@ export default {
 			if (c) commandsToDelete.push(c);
 		} else if (msg.commandFlags.channel) {
 			try {
-				const user = await gql.user.resolve(msg.commandFlags.channel);
+				const user = await twitch.gql.user.resolve(msg.commandFlags.channel);
 				if (!user)
 					return {
 						text: `channel ${msg.commandFlags.channel} does not exist`,

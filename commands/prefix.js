@@ -33,7 +33,8 @@ export default {
 			defaultValue: '',
 			required: true,
 			description: 'new prefix',
-			validator: v => v.length && !v.startsWith('.') && !v.startsWith('/'),
+			validator: v =>
+				v.length && v.length <= 15 && !v.startsWith('.') && !v.startsWith('/'),
 		},
 	],
 	execute: async msg => {
@@ -64,29 +65,18 @@ export default {
 				};
 			} catch (err) {
 				logger.error('error updating prefix:', err);
-				return {
-					text: 'error updating prefix',
-					mention: true,
-				};
+				return { text: 'error updating prefix', mention: true };
 			}
 		}
 		const input = (msg.commandFlags.channel || msg.channelName).toLowerCase();
 		try {
-			const channel = (
-				await db.query('SELECT id, prefix FROM channels WHERE login = $1', [
-					input,
-				])
-			)[0];
-			if (!channel)
-				return {
-					text: `not in ${input}, aborting`,
-					mention: true,
-				};
+			// prettier-ignore
+			const channel = (await db.query('SELECT id, prefix FROM channels WHERE login = $1', [input]))[0];
+			if (!channel) return { text: `not in ${input}, aborting`, mention: true };
+
 			if (channel.prefix === msg.commandFlags.prefix)
-				return {
-					text: 'prefix did not change, aborting',
-					mention: true,
-				};
+				return { text: 'prefix did not change, aborting', mention: true };
+
 			await db.channel.update(channel.id, 'prefix', msg.commandFlags.prefix);
 			return {
 				text: `changed prefix from "${channel.prefix}" to "${msg.commandFlags.prefix}" in #${input}`,
@@ -94,10 +84,7 @@ export default {
 			};
 		} catch (err) {
 			logger.error(`error updating prefix for ${input}:`, err);
-			return {
-				text: 'error updating prefix',
-				mention: true,
-			};
+			return { text: 'error updating prefix', mention: true };
 		}
 	},
 };

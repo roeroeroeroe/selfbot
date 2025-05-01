@@ -1,7 +1,7 @@
 import logger from '../services/logger.js';
 import hastebin from '../services/hastebin.js';
 import utils from '../utils/index.js';
-import gql from '../services/twitch/gql/index.js';
+import twitch from '../services/twitch/index.js';
 
 export default {
 	name: 'chatters',
@@ -43,13 +43,23 @@ export default {
 			description: 'run N requests concurrently (default: 10, min: 1, max: 50)',
 			validator: v => v >= 1 && v <= 50,
 		},
+		{
+			name: 'minPercent',
+			aliases: ['p', 'min-percent'],
+			type: 'number',
+			required: false,
+			defaultValue: 100,
+			description:
+				'stop fetching after collecting at least N% of total chatters (default: 100, min: 1, max: 100)',
+			validator: v => v >= 1 && v <= 100,
+		},
 	],
 	execute: async msg => {
 		let channelLogin = msg.channelName;
 		const input = msg.commandFlags.channel || msg.args[0];
 		if (input) {
 			try {
-				const user = await gql.user.resolve(input);
+				const user = await twitch.gql.user.resolve(input);
 				if (!user)
 					return { text: `channel ${input} does not exist`, mention: true };
 				channelLogin = user.login;
@@ -74,32 +84,31 @@ export default {
 				i < msg.commandFlags.batchSize && req < msg.commandFlags.maxRequests;
 				i++, req++
 			)
-				promises.push(gql.channel.getChatters(channelLogin));
+				promises.push(twitch.gql.channel.getChatters(channelLogin));
 
 			const responses = await Promise.all(promises);
 
 			for (const data of responses) {
-				if (!data.user) {
+				if (!data.user)
 					return {
 						text: `channel ${channelLogin} does not exist`,
 						mention: true,
 					};
-				}
 
 				const chattersData = data.user.channel?.chatters || {};
-				if (!chattersData?.count) {
+				if (!chattersData?.count)
 					return {
 						text: `there are 0 chatters in #${channelLogin}`,
 						mention: true,
 					};
-				}
 
 				totalCount = chattersData.count;
 				addChatters(chatters, chattersData);
 			}
 		} while (
-			getTotalChatters(chatters) < totalCount &&
-			req < msg.commandFlags.maxRequests
+			req < msg.commandFlags.maxRequests &&
+			(getTotalChatters(chatters) / totalCount) * 100 <
+				msg.commandFlags.minPercent
 		);
 
 		const list = [];

@@ -1,3 +1,5 @@
+import config from '../config.json' with { type: 'json' };
+
 const shellArgPattern = /(?:[^\s"']+|"[^"]*"|'[^']*')+/g;
 const base62Charset =
 	'0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
@@ -7,12 +9,13 @@ export function sleep(ms) {
 }
 
 export function withTimeout(promise, ms) {
+	let id;
 	return Promise.race([
 		promise,
-		new Promise((_, rej) =>
-			setTimeout(() => rej(new Error(`timed out after ${ms}ms`)), ms)
-		),
-	]);
+		new Promise((_, rej) => {
+			id = setTimeout(() => rej(new Error(`timed out after ${ms}ms`)), ms);
+		}),
+	]).finally(() => clearTimeout(id));
 }
 
 export function shellSplit(str) {
@@ -30,7 +33,7 @@ export function shellSplit(str) {
 }
 
 export function splitArray(arr, len) {
-	if (arr.length <= len) return [arr];
+	if (arr.length <= len || len <= 0) return [arr];
 	const chunks = new Array(Math.ceil(arr.length / len));
 	for (
 		let i = 0, chunkIndex = 0;
@@ -42,12 +45,12 @@ export function splitArray(arr, len) {
 }
 
 export function splitString(str, len) {
-	if (!str) return [];
+	if (!str) return [''];
 	if (str.length <= len) return [str];
 	const words = str.split(' ');
 	const chunks = [];
 	for (
-		let i = 0, j = 0, curr = words[0].length;
+		let i = 0, j = 0, curr = words[0]?.length || 0;
 		i < words.length;
 		chunks.push(words.slice(j, i).join(' ')),
 			j = i,
@@ -127,4 +130,13 @@ export function randomString(cset, len = 5) {
 	for (let i = 0; i < len; arr[i++] = cset[(Math.random() * cset.length) | 0]);
 
 	return arr.join('');
+}
+
+export function canFitAll(arr, limit, separatorLength) {
+	const N = arr.length;
+	let total = -separatorLength,
+		i = 0;
+	for (; i < N && (total += arr[i++].length + separatorLength) <= limit; );
+
+	return i === N && total <= limit;
 }

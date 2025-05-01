@@ -4,18 +4,21 @@ import utils from '../../../utils/index.js';
 const MAX_USERS_PER_REQUEST = 100;
 
 async function getMany(userLogins, userIds) {
-	const isIdLookup = userIds && userIds.length;
-	const key = isIdLookup ? 'id' : 'login';
-	let inputArray = isIdLookup ? userIds : userLogins;
+	let key, inputArray;
+	if (userLogins?.length) {
+		key = 'login';
+		inputArray = userLogins;
+	} else {
+		key = 'id';
+		inputArray = userIds;
+	}
 	if (!Array.isArray(inputArray)) inputArray = [inputArray];
 
 	const userMap = new Map();
-	const batches = utils.splitArray(inputArray, MAX_USERS_PER_REQUEST);
-
-	for (let i = 0; i < batches.length; i++) {
+	for (const batch of utils.splitArray(inputArray, MAX_USERS_PER_REQUEST)) {
 		const res = await request.send({
 			endpoint: '/users',
-			query: { [key]: batches[i] },
+			query: { [key]: batch },
 		});
 
 		for (const user of res.data) userMap.set(user[key], user);
