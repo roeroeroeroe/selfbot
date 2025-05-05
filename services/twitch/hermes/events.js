@@ -151,7 +151,7 @@ export default {
 				activity.channel_login,
 				activity.channel_display_name
 			);
-			await twitch.getTMIClient().join(activity.channel_login);
+			await twitch.chat.join(activity.channel_login);
 			for (const sub of twitch.hermes.CHANNEL_SUBS)
 				twitch.hermes.subscribe(sub, activity.channel_id);
 			logger.info(`[Hermes] presence: joined ${channelName}`);

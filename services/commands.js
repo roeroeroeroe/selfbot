@@ -55,10 +55,6 @@ function getKnownNames() {
 	return knownCommands;
 }
 
-function getCommandsMap() {
-	return commands;
-}
-
 function has(commandName) {
 	return commands.has(commandName) || aliases.has(commandName);
 }
@@ -131,7 +127,9 @@ export default {
 	delete: deleteCommand,
 	getCommandByName,
 	getKnownNames,
-	getCommandsMap,
+	get commandsMap() {
+		return commands;
+	},
 	has,
 	load,
 };

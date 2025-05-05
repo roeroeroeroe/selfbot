@@ -5,6 +5,7 @@ import logger from '../services/logger.js';
 import twitch from '../services/twitch/index.js';
 import hastebin from '../services/hastebin.js';
 import db from '../services/db.js';
+import metrics from '../services/metrics.js';
 import utils from '../utils/index.js';
 import cooldown from '../services/cooldown.js';
 import redis from '../services/redis.js';
@@ -19,6 +20,7 @@ const context = {
 	twitch,
 	hastebin,
 	db,
+	metrics,
 	utils,
 	cooldown,
 	redis,

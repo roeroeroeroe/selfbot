@@ -106,10 +106,10 @@ async function handleCommand(msg, command) {
 	msg.commandFlags = options;
 	msg.args = rest;
 
-	const globalFlagsResult = await flag.globalFlags.handle(msg, command);
-	if (globalFlagsResult) {
-		logger.debug('[HANDLER] got global flags result:', globalFlagsResult);
-		return globalFlagsResult;
+	const pre = await flag.globalFlags.preHandle(msg, command);
+	if (pre) {
+		logger.debug('[HANDLER] got global flags pre result:', pre);
+		return pre;
 	}
 
 	if (errors.length) {
@@ -121,7 +121,7 @@ async function handleCommand(msg, command) {
 
 	try {
 		logger.debug(`[HANDLER] trying to execute command ${msg.commandName}`);
-		return await command.execute(msg);
+		return await flag.globalFlags.postHandle(msg, await command.execute(msg));
 	} catch (err) {
 		logger.error(
 			`regular command ${command.name} invoked by ${msg.senderUsername} in #${msg.channelName} execution error:`,

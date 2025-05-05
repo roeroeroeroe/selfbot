@@ -53,7 +53,7 @@ export default {
 				return { text: 'error resolving channel', mention: true };
 			}
 		} else if (msg.commandFlags.global) {
-			commands = customCommands.globalCommands;
+			commands = customCommands.getGlobalCommands();
 			noCommandsMessage = 'no global commands found';
 		} else if (msg.commandFlags.all) {
 			commands = customCommands.getAllCommands();

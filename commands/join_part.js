@@ -4,6 +4,8 @@ import db from '../services/db.js';
 import twitch from '../services/twitch/index.js';
 import utils from '../utils/index.js';
 
+const JOIN_OP_BATCH_SIZE = 500;
+
 export default {
 	name: 'join',
 	aliases: ['part'],
@@ -54,31 +56,42 @@ export default {
 				mention: true,
 			};
 
-		let users;
-		try {
-			users = msg.commandFlags.id
-				? await twitch.helix.user.getMany(null, msg.args)
-				: await twitch.helix.user.getMany(msg.args);
-		} catch (err) {
-			logger.error('error getting users:', err);
-			return {
-				text: `error getting ${utils.format.plural(msg.args.length, 'user')}`,
-				mention: true,
-			};
-		}
-
-		const existingChannels = await db.query('SELECT id FROM channels');
-		const existingIds = new Set(existingChannels.map(c => c.id));
+		const existingChannels = await db.query('SELECT id, login FROM channels');
 
 		const targetChannels = [];
 		switch (action) {
 			case 'join':
-				for (const user of users.values())
-					if (!existingIds.has(user.id)) targetChannels.push(user);
+				let usersMap;
+				try {
+					usersMap = msg.commandFlags.id
+						? await twitch.helix.user.getMany(null, msg.args)
+						: await twitch.helix.user.getMany(msg.args);
+				} catch (err) {
+					logger.error('error getting users:', err);
+					return {
+						text: `error getting ${utils.format.plural(msg.args.length, 'user')}`,
+						mention: true,
+					};
+				}
+				const idsMap = new Map(existingChannels.map(c => [c.id, c.login]));
+				for (const user of usersMap.values())
+					if (!idsMap.has(user.id)) targetChannels.push(user);
 				break;
 			case 'part':
-				for (const user of users.values())
-					if (existingIds.has(user.id)) targetChannels.push(user);
+				if (msg.commandFlags.id) {
+					const idsMap = new Map(existingChannels.map(c => [c.id, c.login]));
+					for (const arg of msg.args) {
+						const login = idsMap.get(arg);
+						if (login) targetChannels.push({ id: arg, login });
+					}
+				} else {
+					const loginsMap = new Map(existingChannels.map(c => [c.login, c.id]));
+					for (const arg of msg.args) {
+						const login = arg.toLowerCase();
+						const id = loginsMap.get(login);
+						if (id) targetChannels.push({ id, login });
+					}
+				}
 				break;
 		}
 
@@ -88,11 +101,14 @@ export default {
 		try {
 			switch (action) {
 				case 'join':
-					for (const batch of utils.splitArray(targetChannels, 500))
+					for (const batch of utils.splitArray(
+						targetChannels,
+						JOIN_OP_BATCH_SIZE
+					))
 						await Promise.all(batch.map(c => join(msg, c)));
 					break;
 				case 'part':
-					for (const c of targetChannels) await part(msg, c);
+					for (const c of targetChannels) await part(c);
 					break;
 			}
 		} catch (err) {
@@ -125,10 +141,10 @@ async function join(msg, c) {
 
 	for (const sub of twitch.hermes.CHANNEL_SUBS)
 		twitch.hermes.subscribe(sub, c.id);
-	msg.client.join(c.login);
+	twitch.chat.join(c.login);
 }
 
-async function part(msg, c) {
+async function part(c) {
 	try {
 		await db.channel.delete(c.id);
 	} catch (err) {
@@ -138,5 +154,5 @@ async function part(msg, c) {
 
 	for (const sub of twitch.hermes.CHANNEL_SUBS)
 		twitch.hermes.unsubscribe(sub, c.id);
-	msg.client.part(c.login);
+	twitch.chat.part(c.login);
 }

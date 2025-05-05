@@ -2,7 +2,8 @@ import config from '../config.json' with { type: 'json' };
 // prettier-ignore
 const iecByteUnits = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB'];
 
-function trimString(str, lim = 485) {
+function trimString(str, lim = 500) {
+	str ??= '';
 	return str.length > lim ? str.slice(0, lim - 1) + '…' : str;
 }
 

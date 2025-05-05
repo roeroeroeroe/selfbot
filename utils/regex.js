@@ -9,6 +9,8 @@ const patterns = {
 	homophobia: /(\s|^)f\s*[ag@а]\s*(g|8)(o|0)*t*/i,
 	url: /[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/,
 	regexp: /\/(.*?)\/([gimsuy]*)/,
+	username: /^(?!_)\w{1,25}$/,
+	id: /^[1-9]\d*$/,
 };
 
 function checkMessage(str) {

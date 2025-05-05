@@ -170,7 +170,7 @@ function subscribe(sub, channelId) {
 		topicsById.size >=
 		config.maxHermesConnections * config.maxHermesTopicsPerConnection
 	)
-		return logger.warning(
+		return logger.debug(
 			'[Hermes] subscribe: max connections reached, not subscribing to',
 			topicString
 		);
@@ -238,7 +238,7 @@ async function processTask({ type, topic }) {
 				}
 			if (!c) {
 				if (connections.size >= config.maxHermesConnections) {
-					logger.warning(
+					logger.debug(
 						`[Hermes] max connections reached, not subscribing to ${topic.topicString}`
 					);
 					cleanupTopic(topic);

@@ -27,13 +27,12 @@ export default {
 	unsafe: false,
 	flags: [],
 	execute: async msg => {
-		const commandsMap = commands.getCommandsMap();
 		let usagePage = `Usage of ${packageName}:
   <prefix> <command> [options ...] [arguments ...]
 Prefix: ${msg.prefix}
 Commands:`;
 		const usageLines = [];
-		for (const command of commandsMap.values()) {
+		for (const command of commands.commandsMap.values()) {
 			let line = `  ${[command.name, ...command.aliases].join(', ')}`;
 			if (command.description) line += `__ALIGN__${command.description}`;
 			usageLines.push(line);
@@ -42,16 +41,10 @@ Commands:`;
 
 		try {
 			const link = await hastebin.create(usagePage);
-			return {
-				text: link,
-				mention: true,
-			};
+			return { text: link, mention: true };
 		} catch (err) {
 			logger.error('error creating paste:', err);
-			return {
-				text: 'error creating paste',
-				mention: true,
-			};
+			return { text: 'error creating paste', mention: true };
 		}
 	},
 };

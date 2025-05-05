@@ -98,6 +98,11 @@ const pool = new pg.Pool({
 	connectionTimeoutMillis: 2000,
 });
 
+pool.on('connect', ({ processID }) =>
+	logger.debug(`[DB] client connected (pid=${processID})`)
+);
+pool.on('error', err => logger.error('db error:', err));
+
 async function query(query, values = []) {
 	const c = await pool.connect();
 	logger.debug(`[DB] running query "${query}" with values:`, values);
@@ -286,13 +291,13 @@ async function deleteCustomCommand(commandName) {
 
 async function queueMessageInsert(channelId, userId, text, timestamp) {
 	if (text.includes('\t')) {
-		logger.warning('[DB] not queuing message: \\t not allowed:', text);
+		logger.warning('[REDIS] not queuing message: \\t not allowed:', text);
 		return;
 	}
 
 	const record = `${channelId}\t${userId}\t${text}\t${timestamp}`;
 	await redis.rpush(MESSAGES_QUEUE_REDIS_KEY, record);
-	logger.debug('[DB] queued message:', record);
+	logger.debug('[REDIS] queued message:', record);
 }
 
 async function flushMessages() {
@@ -319,7 +324,7 @@ async function flushMessages() {
 			const record = messages[i];
 			const parts = record.split('\t');
 			if (parts.length !== 4) {
-				logger.warning(`[DB] invalid message format skipped: ${record}`);
+				logger.warning(`[REDIS] invalid message format skipped: ${record}`);
 				continue;
 			}
 			const base = placeholders.length * 4;

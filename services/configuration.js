@@ -25,18 +25,20 @@ const validators = {
 	'autoJoinWatching': v => assert(typeof v === 'boolean', 'autoJoinWatching must be a boolean'),
 	'shell': v => assert(typeof v === 'string' && v.trim(), 'shell must be a non-empty string'),
 	'ircClientTransport': v => assert(['tcp', 'websocket'].includes(v), 'ircClientTransport must be "tcp" or "websocket"'),
-	'joinRetries': v => assert(Number.isInteger(v) && v >= 0, 'joinRetries must be a non-negative integer'),
+	'chatServiceTransport': v => assert(['irc', 'gql'].includes(v), 'chatServiceTransport must be "irc" or "gql"'),
+	'retries': v => assert(Number.isInteger(v) && v >= 0, 'retries must be a non-negative integer'),
 	'defaultPrefix': v => assert(typeof v === 'string' && v.trim(), 'defaultPrefix must be a non-empty string'),
 	'responsePartsSeparator': v => assert(typeof v === 'string', 'responsePartsSeparator must be a string'),
 	'againstTOS': v => assert(typeof v === 'string', 'againstTOS must be a string'),
 	'hastebinInstance': v => assert(typeof v === 'string' && utils.regex.patterns.url.test(v), 'hastebinInstance must be a valid URL'),
 	'rateLimits': v => assert(['regular', 'verified'].includes(v), 'rateLimits must be "regular" or "verified"'),
-	'authedClientConnectionsPoolSize': v => {
-		assert(Number.isInteger(v) && v >= 0, 'authedClientConnectionsPoolSize must be a non-negative number');
+	'authedTmiClientConnectionsPoolSize': v => {
+		if (config.chatServiceTransport !== 'irc') return;
+		assert(Number.isInteger(v) && v >= 0, 'authedTmiClientConnectionsPoolSize must be a non-negative integer');
 		const max = config.rateLimits === 'verified'
-			? twitch.tmi.VERIFIED_MAX_CONNECTIONS_POOL_SIZE
-			: twitch.tmi.REGULAR_MAX_CONNECTIONS_POOL_SIZE;
-		assert(v <= max, `authedClientConnectionsPoolSize cannot exceed ${max} with ${config.rateLimits} rateLimits`);
+			? twitch.chat.VERIFIED_MAX_CONNECTIONS_POOL_SIZE
+			: twitch.chat.REGULAR_MAX_CONNECTIONS_POOL_SIZE;
+		assert(v <= max, `authedTmiClientConnectionsPoolSize cannot exceed ${max} with ${config.rateLimits} rateLimits`);
 	},
 	'maxHermesConnections': v => {
 		assert(Number.isInteger(v) && v >= 1 && v <= twitch.hermes.MAX_CONNECTIONS,

@@ -61,7 +61,8 @@ export default {
 				return { text: 'error resolving channel', mention: true };
 			}
 		} else if (msg.commandFlags.global) {
-			for (const c of customCommands.globalCommands) commandsToDelete.push(c);
+			for (const c of customCommands.getGlobalCommands())
+				commandsToDelete.push(c);
 		} else {
 			for (const arg of msg.args) {
 				const c = customCommands.getCommandByName(arg);

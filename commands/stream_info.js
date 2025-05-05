@@ -2,6 +2,8 @@ import logger from '../services/logger.js';
 import utils from '../utils/index.js';
 import twitch from '../services/twitch/index.js';
 
+const MAX_STREAM_TITLE_LENGTH = 50;
+
 export default {
 	name: 'streaminfo',
 	aliases: ['si'],
@@ -96,21 +98,22 @@ export default {
 		];
 
 		if (res.user.broadcastSettings.title)
-			parts.push(
-				`title: ${utils.format.trim(res.user.broadcastSettings.title, 50)}`
+			responseParts.push(
+				`title: ${utils.format.trim(res.user.broadcastSettings.title, MAX_STREAM_TITLE_LENGTH)}`
 			);
 		if (stream.game?.displayName)
-			parts.push(`category: ${stream.game.displayName}`);
-		if (stream.language) parts.push(`language: ${stream.language}`);
+			responseParts.push(`category: ${stream.game.displayName}`);
+		if (stream.language) responseParts.push(`language: ${stream.language}`);
 		responseParts.push(`viewers: ${stream.viewersCount ?? 0}`);
-		if (stream.averageFPS) parts.push(`fps: ${stream.averageFPS}`);
-		if (stream.bitrate) parts.push(`bitrate: ${stream.bitrate} kbit/s`);
-		if (stream.codec) parts.push(`codec: ${stream.codec}`);
+		if (stream.averageFPS) responseParts.push(`fps: ${stream.averageFPS}`);
+		if (stream.bitrate) responseParts.push(`bitrate: ${stream.bitrate} kbit/s`);
+		if (stream.codec) responseParts.push(`codec: ${stream.codec}`);
 		if (stream.width && stream.height)
-			parts.push(`resolution: ${stream.width}x${stream.height}`);
-		if (stream.clipCount) parts.push(`clips created: ${stream.clipCount}`);
+			responseParts.push(`resolution: ${stream.width}x${stream.height}`);
+		if (stream.clipCount)
+			responseParts.push(`clips created: ${stream.clipCount}`);
 		if (res.user.broadcastSettings.isMature)
-			parts.push('flagged as mature content');
+			responseParts.push('flagged as mature content');
 		if (res.user.stream.previewImageURL)
 			responseParts.push(
 				res.user.stream.previewImageURL + utils.randomString()

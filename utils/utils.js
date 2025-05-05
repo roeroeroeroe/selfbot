@@ -1,4 +1,6 @@
 import config from '../config.json' with { type: 'json' };
+import logger from '../services/logger.js';
+import metrics from '../services/metrics.js';
 
 const shellArgPattern = /(?:[^\s"']+|"[^"]*"|'[^']*')+/g;
 const base62Charset =
@@ -139,4 +141,57 @@ export function canFitAll(arr, limit, separatorLength) {
 	for (; i < N && (total += arr[i++].length + separatorLength) <= limit; );
 
 	return i === N && total <= limit;
+}
+
+export function getMaxMessageLength(login, reply, mention) {
+	// reply:   '@login '
+	// mention: '@login, '
+	if (!login) return 500;
+	if (reply) return 498 - login.length;
+	if (mention) return 497 - login.length;
+	return 500;
+}
+
+export async function retry(
+	fn,
+	{
+		maxRetries = config.retries,
+		baseDelay = 200,
+		requestsCounter,
+		retriesCounter,
+		logLabel = '',
+		canRetry = () => true,
+	} = {}
+) {
+	if (requestsCounter) metrics.counter.create(requestsCounter);
+	if (retriesCounter) metrics.counter.create(retriesCounter);
+	const logPrefix = logLabel ? `[${logLabel}] ` : '';
+
+	let lastError;
+	for (let i = 0; i <= maxRetries; i++) {
+		const attempt = i + 1;
+		if (i > 0) {
+			const backoff = baseDelay * 2 ** (i - 1) * (1 + Math.random() * 0.5);
+			logger.debug(
+				`${logPrefix}retry ${i}, backing off ${Math.round(backoff)}ms`
+			);
+			await sleep(backoff);
+			if (retriesCounter) metrics.counter.increment(retriesCounter);
+		}
+
+		logger.debug(`${logPrefix}attempt ${attempt}`);
+		if (requestsCounter) metrics.counter.increment(requestsCounter);
+		try {
+			const result = await fn(i);
+			logger.debug(`${logPrefix}succeeded on attempt ${attempt}`);
+			return result;
+		} catch (err) {
+			lastError = err;
+			logger.warning(`${logPrefix}error on attempt ${attempt}:`, err);
+			if (i === maxRetries || !canRetry(err)) {
+				logger.error(`${logPrefix}giving up after ${attempt} attempts`);
+				throw lastError;
+			}
+		}
+	}
 }

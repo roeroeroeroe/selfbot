@@ -46,9 +46,11 @@ const baseUserQuery = `id
 async function resolveUser(userLogin, userId) {
 	let key, input;
 	if (userLogin) {
+		if (!utils.regex.patterns.username.test(userLogin)) return null;
 		key = 'login';
 		input = userLogin.toLowerCase();
 	} else {
+		if (!utils.regex.patterns.id.test(userId)) return null;
 		key = 'id';
 		input = userId;
 	}
@@ -114,7 +116,7 @@ async function getMany(userLogins, userIds) {
 	}
 }`;
 	const chunks = utils.splitArray(inputArray, 105);
-	const userMap = new Map();
+	const usersMap = new Map();
 	for (const chunk of chunks) {
 		const responses = await request.send(
 			utils.splitArray(chunk, request.MAX_OPERATIONS_PER_REQUEST).map(b => ({
@@ -124,10 +126,10 @@ async function getMany(userLogins, userIds) {
 		);
 		for (const response of responses)
 			for (const user of response.data?.users)
-				if (user?.[mapKey]) userMap.set(user[mapKey], user);
+				if (user?.[mapKey]) usersMap.set(user[mapKey], user);
 	}
 
-	return userMap;
+	return usersMap;
 }
 
 async function getSelfBanStatus(channelIds) {

@@ -156,10 +156,10 @@ export default {
 			if (msg.commandFlags.whitelist !== '')
 				try {
 					const whitelistInput = msg.commandFlags.whitelist.split(/\s+/);
-					const users = await twitch.helix.user.getMany(whitelistInput);
+					const usersMap = await twitch.helix.user.getMany(whitelistInput);
 					whitelist = [];
 					for (const login of whitelistInput) {
-						const user = users.get(login);
+						const user = usersMap.get(login);
 						if (!user)
 							return {
 								text: `user ${login} does not exist`,
@@ -184,13 +184,13 @@ export default {
 		} catch (err) {
 			logger.error(`error editing command ${command.name}:`, err);
 			return {
-				text: `error editing command ${command.name}: ${err.message}`,
+				text: `error updating command ${command.name}: ${err.message}`,
 				mention: true,
 			};
 		}
 
 		return {
-			text: `successfully edited ${Object.keys(newValues).join(', ')}`,
+			text: `successfully updated ${Object.keys(newValues).join(', ')}`,
 			mention: true,
 		};
 	},

@@ -118,10 +118,7 @@ export default {
 							mention: true,
 						};
 					if (!(await db.channel.get(user.id)))
-						return {
-							text: `unknown channel: ${user.login}`,
-							mention: true,
-						};
+						return { text: `unknown channel: ${user.login}`, mention: true };
 					channel.id = user.id;
 					channel.login = user.login;
 				} catch (err) {
@@ -143,42 +140,30 @@ export default {
 			msg.commandFlags.name || `${channel.login || 'global'}_${Date.now()}`;
 
 		if (customCommands.getCommandByName(commandName))
-			return {
-				text: `command ${commandName} already exists`,
-				mention: true,
-			};
-
-		const match = msg.commandFlags.trigger.match(utils.regex.patterns.regexp);
-		const trigger = new RegExp(match[1], match[2]);
+			return { text: `command ${commandName} already exists`, mention: true };
 
 		let whitelist = null;
 		if (msg.commandFlags.whitelist) {
 			try {
 				const whitelistInput = msg.commandFlags.whitelist.split(/\s+/);
-				const users = await twitch.helix.user.getMany(whitelistInput);
+				const usersMap = await twitch.helix.user.getMany(whitelistInput);
 				whitelist = [];
 				for (const login of whitelistInput) {
-					const user = users.get(login);
+					const user = usersMap.get(login);
 					if (!user)
-						return {
-							text: `user ${login} does not exist`,
-							mention: true,
-						};
+						return { text: `user ${login} does not exist`, mention: true };
 					whitelist.push(user.id);
 				}
 			} catch (err) {
 				logger.error('error getting whitelist users:', err);
-				return {
-					text: 'error getting whitelist users',
-					mention: true,
-				};
+				return { text: 'error getting whitelist users', mention: true };
 			}
 		}
 		try {
 			await customCommands.add({
 				name: commandName,
 				channel_id: channel.id,
-				trigger,
+				trigger: msg.commandFlags.trigger,
 				response: msg.commandFlags.response,
 				runcmd: msg.commandFlags.runcmd,
 				whitelist,

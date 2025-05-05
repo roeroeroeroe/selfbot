@@ -23,7 +23,7 @@ import utils from './utils/index.js';
 		);
 		logger.info('[INIT] validated token');
 
-		logger.info('[INIT] initializing metrics');
+		logger.debug('[INIT] initializing metrics');
 		metrics.init();
 
 		logger.debug('[INIT] initializing db');
@@ -40,9 +40,6 @@ import utils from './utils/index.js';
 		logger.debug('[INIT] loading custom commands');
 		c = await customCommands.load();
 		logger.info(`[INIT] loaded ${c} ${utils.format.plural(c, 'custom command')}`);
-
-		logger.debug('[INIT] creating tmi client');
-		twitch.getTMIClient().connect();
 	} catch (err) {
 		logger.fatal('init error:', err);
 	}

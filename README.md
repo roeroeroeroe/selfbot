@@ -20,13 +20,14 @@ vi config.json
   "autoJoinWatching": true,              // auto-join watched channels detected via presence
   "shell": "/bin/bash",                  // shell used by the `shell` command
   "ircClientTransport": "websocket",     // "tcp" | "websocket"
-  "joinRetries": 3,                      // retry joining a channel N times before failing
+  "chatServiceTransport": "irc",         // "irc" | "gql" - sender
+  "retries": 3,                          // max retry attempts on failure
   "defaultPrefix": "!",                  // command prefix
   "responsePartsSeparator": " · ",       // separator for parts of command output
   "againstTOS": "message goes against twitch TOS", // message shown if content triggered internal banphrase
-  "hastebinInstance": "https://paste.ivr.fi",
+  "hastebinInstance": "https://paste.ivr.fi", // base URL of the hastebin server (POST to /documents, GET from /{key}, /raw/{key})
   "rateLimits": "regular",               // "regular" | "verified" - https://dev.twitch.tv/docs/chat/#verified-bots
-  "authedClientConnectionsPoolSize": 10, // create N authenticated tmi connections
+  "authedTmiClientConnectionsPoolSize": 10, // create N authenticated tmi connections (irc transport only)
   "maxHermesConnections": 10,            // maximum amount of WS hermes connections to create
   "maxHermesTopicsPerConnection": 50,    // maximum amount of topics a single connection can be subscribed to
   "messagesBatchInsertIntervalMs": 2500, // how often to flush queued messages

@@ -81,7 +81,7 @@ async function getMetricsResponse() {
 
 async function getGenericResponse(msg) {
 	const t0 = performance.now();
-	await msg.client.ping();
+	await twitch.chat.ping();
 	const t1 = performance.now();
 	let topics = 0;
 	for (const topic of twitch.hermes.topics.values())
@@ -90,10 +90,10 @@ async function getGenericResponse(msg) {
 		text: utils.format.join([
 			`tmi: ${(t1 - t0) | 0}ms`,
 			`handler: ${(t0 - msg.receivedAt).toFixed(2)}ms`,
-			`uptime: ${utils.duration.format(Date.now() - msg.client.connectedAt, 2)}`,
+			`uptime: ${utils.duration.format(Date.now() - twitch.chat.connectedAt, 2)}`,
 			`memory: ${utils.format.bytes(process.memoryUsage().heapTotal)}`,
-			`channels: ${msg.client.joinedChannels.size}`,
-			`irc: ${msg.client.connections.length}`,
+			`channels: ${twitch.chat.joinedChannels.size}`,
+			`irc: ${twitch.chat.connections.length}`,
 			`hermes: ${twitch.hermes.connections.size} (${topics} ${utils.format.plural(topics, 'topic')})`,
 			`node: ${process.version}`,
 		]),
