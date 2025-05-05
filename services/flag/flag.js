@@ -69,7 +69,8 @@ const converters = {
 	boolean: v => (v === 'false' ? false : true),
 	number: v => {
 		const n = parseFloat(v);
-		return Number.isNaN(n) ? flag.defaultValue : n;
+		if (Number.isNaN(n)) throw new Error('not a number');
+		return n;
 	},
 	duration: v => {
 		try {
