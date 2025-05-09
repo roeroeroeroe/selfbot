@@ -28,7 +28,7 @@ export default class SlidingWindowRateLimiter {
 
 	add(now = performance.now()) {
 		this.#prune(now);
-		if (this.#buffer.isFull())
+		if (this.#buffer.size >= this.#maxPerWindow)
 			throw new Error(
 				`rate limit hit: ${this.#maxPerWindow} in ${this.#windowMs}ms`
 			);

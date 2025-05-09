@@ -54,6 +54,7 @@ export default class ChatService {
 		if (!channelId) throw new Error('missing channelId');
 		if (!channelLogin) throw new Error('missing channelLogin');
 		if (typeof text !== 'string') text = String(text);
+		if (parentId && !userLogin) parentId = '';
 
 		const maxLength = utils.getMaxMessageLength(userLogin, !!parentId, mention);
 		text = utils.format.trim(text, maxLength).replace(/[\r\n]/g, ' ');
@@ -101,7 +102,7 @@ export default class ChatService {
 				state.lastDuplicateKey === key &&
 				now - state.lastSend < DUPLICATE_MESSAGE_THRESHOLD_MS
 			) {
-				const maxLen = 500 - reply ? (userLogin?.length || 0) + 1 : 0;
+				const maxLen = 500 - (reply ? userLogin.length + 2 : 0);
 				if (text.length + INVIS_CHAR.length <= maxLen) text += INVIS_CHAR;
 				else
 					text =

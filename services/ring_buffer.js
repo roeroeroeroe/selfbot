@@ -63,10 +63,6 @@ export default class RingBuffer {
 		return this.#buffer[(this.#tail - 1) & this.#mask];
 	}
 
-	isFull() {
-		return this.#size === this.#capacity;
-	}
-
 	forcePush(item) {
 		this.#buffer[this.#tail] = item;
 		this.#tail = (this.#tail + 1) & this.#mask;
