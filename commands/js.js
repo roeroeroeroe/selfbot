@@ -14,6 +14,8 @@ import customCommands from '../services/custom_commands.js';
 
 const context = {
 	process,
+	performance,
+	fetch,
 
 	config,
 	logger,

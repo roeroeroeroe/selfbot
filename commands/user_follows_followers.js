@@ -16,7 +16,7 @@ export default {
 		{
 			name: 'user',
 			aliases: ['u', 'user'],
-			type: 'string',
+			type: 'username',
 			defaultValue: '',
 			required: false,
 			description: 'target user (default: sender)',

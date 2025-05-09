@@ -4,7 +4,7 @@ import db from '../services/db.js';
 import twitch from '../services/twitch/index.js';
 import utils from '../utils/index.js';
 
-const JOIN_OP_BATCH_SIZE = 500;
+const OP_BATCH_SIZE = 500;
 
 export default {
 	name: 'join',
@@ -35,8 +35,7 @@ export default {
 			required: false,
 			defaultValue: config.defaultPrefix,
 			description: 'bot prefix (join only)',
-			validator: v =>
-				v.length && v.length <= 15 && !v.startsWith('.') && !v.startsWith('/'),
+			validator: utils.isValidPrefix,
 		},
 	],
 	execute: async msg => {
@@ -101,14 +100,12 @@ export default {
 		try {
 			switch (action) {
 				case 'join':
-					for (const batch of utils.splitArray(
-						targetChannels,
-						JOIN_OP_BATCH_SIZE
-					))
+					for (const batch of utils.splitArray(targetChannels, OP_BATCH_SIZE))
 						await Promise.all(batch.map(c => join(msg, c)));
 					break;
 				case 'part':
-					for (const c of targetChannels) await part(c);
+					for (const batch of utils.splitArray(targetChannels, OP_BATCH_SIZE))
+						await Promise.all(batch.map(c => part(c)));
 					break;
 			}
 		} catch (err) {

@@ -12,7 +12,7 @@ export default {
 		{
 			name: 'channel',
 			aliases: ['c', 'channel'],
-			type: 'string',
+			type: 'username',
 			required: false,
 			defaultValue: '',
 			description: 'channel to get chatters for',

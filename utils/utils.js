@@ -144,12 +144,10 @@ export function canFitAll(arr, limit, separatorLength) {
 }
 
 export function getMaxMessageLength(login, reply, mention) {
+	login ??= '';
 	// reply:   '@login '
 	// mention: '@login, '
-	if (!login) return 500;
-	if (reply) return 498 - login.length;
-	if (mention) return 497 - login.length;
-	return 500;
+	return 500 - login.length - (reply ? 2 : mention ? 3 : 0);
 }
 
 export async function retry(
@@ -193,5 +191,23 @@ export async function retry(
 				throw lastError;
 			}
 		}
+	}
+}
+
+export function isValidPrefix(prefix) {
+	return (
+		prefix &&
+		prefix.length <= 15 &&
+		!prefix.startsWith('.') &&
+		!prefix.startsWith('/')
+	);
+}
+
+export function isValidHttpUrl(str) {
+	try {
+		const url = new URL(str);
+		return url.protocol === 'https:' || url.protocol === 'http:';
+	} catch {
+		return false;
 	}
 }

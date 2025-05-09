@@ -40,6 +40,8 @@ import utils from './utils/index.js';
 		logger.debug('[INIT] loading custom commands');
 		c = await customCommands.load();
 		logger.info(`[INIT] loaded ${c} ${utils.format.plural(c, 'custom command')}`);
+
+		await twitch.chat.connect();
 	} catch (err) {
 		logger.fatal('init error:', err);
 	}

@@ -302,9 +302,14 @@ function createConnection() {
 				msg
 			);
 	});
-	c.ws.addEventListener('error', ({ error: err }) =>
-		logger.error(`[Hermes] [connection ${c.id}] error:`, err?.message || err)
-	);
+	c.ws.addEventListener('error', ({ error: err }) => {
+		logger.error(`[Hermes] [connection ${c.id}] error:`, err?.message || err);
+		if (
+			c.ws.readyState !== WebSocket.CLOSING &&
+			c.ws.readyState !== WebSocket.CLOSED
+		)
+			c.ws.close();
+	});
 	c.ws.addEventListener('close', ({ code, reason }) => {
 		logger.debug(`[Hermes] [connection ${c.id}] close (${code}): ${reason}`);
 		clearInterval(c.healthInterval);

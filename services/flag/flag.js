@@ -1,7 +1,14 @@
 import utils from '../../utils/index.js';
 import globalFlags from './global_flags.js';
 
-const FLAG_TYPES = ['string', 'boolean', 'number', 'duration', 'url'];
+const FLAG_TYPES = [
+	'string',
+	'boolean',
+	'number',
+	'duration',
+	'url',
+	'username',
+];
 
 function init(schema) {
 	const flags = {};
@@ -23,6 +30,7 @@ function init(schema) {
 			flag.defaultValue !== null &&
 			flag.type !== 'duration' &&
 			flag.type !== 'url' &&
+			flag.type !== 'username' &&
 			typeof flag.defaultValue !== flag.type
 		)
 			throw new Error(`default value for flag "${flag.name}" must be a ${flag.type}`);
@@ -65,38 +73,56 @@ function init(schema) {
 	return { flags, aliasesMap };
 }
 
-const converters = {
-	boolean: v => (v === 'false' ? false : true),
-	number: v => {
-		const n = parseFloat(v);
-		if (Number.isNaN(n)) throw new Error('not a number');
-		return n;
-	},
-	duration: v => {
-		try {
-			return utils.duration.parse(v);
-		} catch (err) {
-			throw new Error(`invalid duration: ${err.message}`);
-		}
-	},
-	url: v => {
-		if (!utils.regex.patterns.url.test(v)) throw new Error('invalid url');
-		return v;
-	},
-};
-
 function vconv(flag, v) {
 	if (v === null)
 		return [flag.type === 'boolean' ? true : flag.defaultValue, null];
 
-	try {
-		return converters[flag.type] ? [converters[flag.type](v), null] : [v, null];
-	} catch (err) {
-		return [
-			null,
-			`invalid ${flag.type} for flag "${flag.name}": ${err.message}`,
-		];
+	let value,
+		err = null;
+	switch (flag.type) {
+		case 'boolean': {
+			value = v === 'false' ? false : true;
+			break;
+		}
+		case 'number': {
+			const n = parseFloat(v);
+			if (Number.isNaN(n)) {
+				err = 'not a number';
+				break;
+			}
+			value = n;
+			break;
+		}
+		case 'duration': {
+			const n = utils.duration.parse(v);
+			if (n === null) {
+				err = 'invalid duration';
+				break;
+			}
+			value = n;
+			break;
+		}
+		case 'url': {
+			if (!utils.isValidHttpUrl(v)) {
+				err = 'invalid url';
+				break;
+			}
+			value = v;
+			break;
+		}
+		case 'username': {
+			if (!utils.regex.patterns.username.test(v)) {
+				err = 'invalid username';
+				break;
+			}
+			value = v;
+			break;
+		}
+		default: {
+			value = v;
+		}
 	}
+	return [value, err];
 }
 
 function parse(argv, flagData) {
@@ -176,7 +202,7 @@ function parse(argv, flagData) {
 			);
 		} else if (
 			typeof flag.validator === 'function' &&
-			options[k] !== flag.defaultValue &&
+			providedFlags[k] &&
 			!flag.validator(options[k])
 		)
 			errors.push(`flag "${flag.name}" did not pass validation`);

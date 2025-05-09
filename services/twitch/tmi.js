@@ -20,7 +20,7 @@ export default function init(chatService) {
 
 	tmi.on('connecting', () => logger.debug('[TMI] connecting...'));
 	tmi.on('ready', () => {
-		tmi.connectedAt = Date.now();
+		tmi.connectedAt = performance.now();
 		logger.info('[TMI] connected');
 		channelManager.init();
 	});
@@ -29,21 +29,16 @@ export default function init(chatService) {
 	tmi.on('NOTICE', msg => logger.debug('[TMI] NOTICE:', msg));
 	tmi.on('USERNOTICE', msg => logger.debug('[TMI] USERNOTICE:', msg));
 	tmi.on('JOIN', msg => logger.debug('[TMI] JOIN:', msg.rawSource));
-
-	tmi.on('ROOMSTATE', ({ channelID, slowModeDuration }) => {
+	tmi.on('ROOMSTATE', ({ channelID, slowModeDuration, channelName }) => {
 		const duration = Math.max(
 			ChatService.DEFAULT_SLOW_MODE_MS,
 			(slowModeDuration ?? 0) * 1000 + 100
 		);
-		const state = chatService.sendStates.get(channelID) || {
-			slowModeDuration: duration,
-			lastSend: 0,
-			lastDuplicateKey: null,
-		};
-		state.slowModeDuration = duration;
-		chatService.sendStates.set(channelID, state);
+		logger.debug(
+			`[TMI] setting slowModeDuration to ${duration}ms for channel ${channelName}`
+		);
+		chatService.getState(channelID).slowModeDuration = duration;
 	});
-
 	tmi.on('PRIVMSG', async msg => {
 		if (msg.sourceChannelID && msg.sourceChannelID !== msg.channelID) return;
 		msg.receivedAt = performance.now();
@@ -55,8 +50,7 @@ export default function init(chatService) {
 			if (!msg.query)
 				return logger.warning('[TMI] unknown channel:', msg.channelName);
 		} catch (err) {
-			logger.error(`error getting channel ${msg.channelName}:`, err);
-			return;
+			return logger.error(`error getting channel ${msg.channelName}:`, err);
 		}
 
 		if (msg.query.log)
@@ -81,10 +75,8 @@ export default function init(chatService) {
 
 		// prettier-ignore
 		if (msg.senderUserID === config.bot.id) {
-			if (msg.ircTags['client-nonce'] !== chatService.botNonce) {
-				chatService.bumpGlobalLimit();
+			if (msg.ircTags['client-nonce'] !== chatService.botNonce)
 				chatService.recordSend(msg.channelID);
-			}
 			const isPrivileged = msg.isMod || msg.badges.hasVIP || msg.badges.hasBroadcaster;
 			if (msg.query.privileged !== isPrivileged)
 				try {
@@ -108,6 +100,5 @@ export default function init(chatService) {
 		handle(msg);
 	});
 
-	tmi.connect();
 	return { tmi, channelManager };
 }

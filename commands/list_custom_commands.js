@@ -13,7 +13,7 @@ export default {
 		{
 			name: 'channel',
 			aliases: ['c', 'channel'],
-			type: 'string',
+			type: 'username',
 			defaultValue: '',
 			required: false,
 			description: 'list commands for channel',

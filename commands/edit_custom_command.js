@@ -18,6 +18,7 @@ export default {
 			defaultValue: '',
 			required: true,
 			description: 'command to edit',
+			validator: v => v,
 		},
 		{
 			name: 'newName',
@@ -30,7 +31,7 @@ export default {
 		{
 			name: 'channel',
 			aliases: [null, 'channel'],
-			type: 'string',
+			type: 'username',
 			defaultValue: '',
 			required: false,
 			description: 'new channel',

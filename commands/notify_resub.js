@@ -10,7 +10,7 @@ export default {
 		{
 			name: 'channel',
 			aliases: ['c', 'channel'],
-			type: 'string',
+			type: 'username',
 			required: true,
 			defaultValue: '',
 			description: 'channel to send the notification in',

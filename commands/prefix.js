@@ -13,47 +13,47 @@ export default {
 		{
 			name: 'channel',
 			aliases: ['c', 'channel'],
-			type: 'string',
-			defaultValue: '',
+			type: 'username',
 			required: false,
+			defaultValue: '',
 			description: 'channel to change the prefix in (default: current channel)',
 		},
 		{
 			name: 'global',
 			aliases: ['g', 'global'],
 			type: 'boolean',
-			defaultValue: false,
 			required: false,
+			defaultValue: false,
 			description: 'change prefix in all channels and set as default prefix',
 		},
 		{
 			name: 'prefix',
 			aliases: ['p', 'prefix'],
 			type: 'string',
+			required: false,
 			defaultValue: '',
-			required: true,
 			description: 'new prefix',
-			validator: v =>
-				v.length && v.length <= 15 && !v.startsWith('.') && !v.startsWith('/'),
+			validator: utils.isValidPrefix,
 		},
 	],
 	execute: async msg => {
+		const newPrefix = msg.commandFlags.prefix || msg.args[0];
+		if (!newPrefix) return { text: 'no prefix provided', mention: true };
+		if (!utils.isValidPrefix(newPrefix))
+			return { text: `invalid prefix: ${newPrefix}`, mention: true };
+
 		if (msg.commandFlags.global) {
 			try {
 				const channels = await db.query('SELECT id, prefix FROM channels');
 				let i = 0;
 				for (const channel of channels) {
-					if (channel.prefix === msg.commandFlags.prefix) continue;
-					await db.channel.update(
-						channel.id,
-						'prefix',
-						msg.commandFlags.prefix
-					);
+					if (channel.prefix === newPrefix) continue;
+					await db.channel.update(channel.id, 'prefix', newPrefix);
 					i++;
 				}
 
-				if (config.defaultPrefix !== msg.commandFlags.prefix) {
-					await configuration.update('defaultPrefix', msg.commandFlags.prefix);
+				if (config.defaultPrefix !== newPrefix) {
+					await configuration.update('defaultPrefix', newPrefix);
 					await db.query(
 						`ALTER TABLE channels ALTER COLUMN prefix SET DEFAULT '${config.defaultPrefix}'`
 					);
@@ -74,12 +74,12 @@ export default {
 			const channel = (await db.query('SELECT id, prefix FROM channels WHERE login = $1', [input]))[0];
 			if (!channel) return { text: `not in ${input}, aborting`, mention: true };
 
-			if (channel.prefix === msg.commandFlags.prefix)
+			if (channel.prefix === newPrefix)
 				return { text: 'prefix did not change, aborting', mention: true };
 
-			await db.channel.update(channel.id, 'prefix', msg.commandFlags.prefix);
+			await db.channel.update(channel.id, 'prefix', newPrefix);
 			return {
-				text: `changed prefix from "${channel.prefix}" to "${msg.commandFlags.prefix}" in #${input}`,
+				text: `changed prefix from "${channel.prefix}" to "${newPrefix}" in #${input}`,
 				mention: true,
 			};
 		} catch (err) {

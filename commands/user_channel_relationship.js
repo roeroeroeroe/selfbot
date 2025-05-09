@@ -11,7 +11,7 @@ export default {
 		{
 			name: 'user',
 			aliases: ['u', 'user'],
-			type: 'string',
+			type: 'username',
 			required: false,
 			defaultValue: '',
 			description: 'user (default: sender)',
@@ -19,7 +19,7 @@ export default {
 		{
 			name: 'channel',
 			aliases: ['c', 'channel'],
-			type: 'string',
+			type: 'username',
 			required: false,
 			defaultValue: '',
 			description: 'channel (default: current channel)',
@@ -28,7 +28,7 @@ export default {
 	execute: async msg => {
 		const now = Date.now();
 
-		const userInput = msg.commandFlags.user || msg.args[0];
+		const userInput = msg.commandFlags.user || msg.args.shift();
 		let user;
 		if (userInput) {
 			try {
@@ -44,7 +44,7 @@ export default {
 			user = { id: msg.senderUserID, login: msg.senderUsername };
 		}
 
-		const channelInput = msg.commandFlags.channel || msg.args[1];
+		const channelInput = msg.commandFlags.channel || msg.args.shift();
 		let channel;
 		if (channelInput) {
 			try {

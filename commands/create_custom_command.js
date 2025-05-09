@@ -22,7 +22,7 @@ export default {
 		{
 			name: 'channel',
 			aliases: [null, 'channel'],
-			type: 'string',
+			type: 'username',
 			defaultValue: '',
 			required: false,
 			description:

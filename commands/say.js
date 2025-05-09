@@ -10,7 +10,7 @@ export default {
 		{
 			name: 'channel',
 			aliases: ['c', 'channel'],
-			type: 'string',
+			type: 'username',
 			required: false,
 			defaultValue: '',
 			description: 'target channel (default: current channel)',

@@ -7,7 +7,6 @@ const patterns = {
 		/(?:(?:\b(?<![-=\.])|monka)(?:[Nnñ]|[Ii7]V)|[\/|]\\[\/|])[\s\.]*?[liI1y!j\/|]+[\s\.]*?(?:[GgbB6934Q🅱qğĜƃ၅5\*][\s\.]*?){2,}(?!arcS|l|Ktlw|ylul|ie217|64|\d? ?times)/i,
 	age: /(?:(?:i|my age)\s*['’]?\s*(?:am|'m|m| is)\s*(?:under\s*)?(?:less\s*than\s*)?\s*(1[0-4]|([1-9]$|([1-9]\s?(yo|years|years\s old)))|(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen)($|\s?(yo|years|years\s old))))/i,
 	homophobia: /(\s|^)f\s*[ag@а]\s*(g|8)(o|0)*t*/i,
-	url: /[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/,
 	regexp: /\/(.*?)\/([gimsuy]*)/,
 	username: /^(?!_)\w{1,25}$/,
 	id: /^[1-9]\d*$/,

@@ -33,12 +33,13 @@ function format(ms, largest = 3, separator = ' ') {
 function parse(str) {
 	unitPattern.lastIndex = 0;
 	let ms = 0,
-		match;
+		match = unitPattern.exec(str);
+	if (!match) return null;
 
-	while ((match = unitPattern.exec(str))) {
-		if (!match[2]) throw new Error('unknown time unit');
+	do {
+		if (!match[2]) return null;
 		ms += +match[1] * durationUnits[match[2]];
-	}
+	} while ((match = unitPattern.exec(str)));
 
 	return ms;
 }

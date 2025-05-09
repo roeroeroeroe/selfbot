@@ -12,8 +12,8 @@ const configPath = join(
 	'../config.json'
 );
 
-function assert(condition, message) {
-	if (!condition) throw new Error(message);
+function assert(bool, message) {
+	if (!bool) throw new Error(message);
 }
 // prettier-ignore
 const validators = {
@@ -30,7 +30,7 @@ const validators = {
 	'defaultPrefix': v => assert(typeof v === 'string' && v.trim(), 'defaultPrefix must be a non-empty string'),
 	'responsePartsSeparator': v => assert(typeof v === 'string', 'responsePartsSeparator must be a string'),
 	'againstTOS': v => assert(typeof v === 'string', 'againstTOS must be a string'),
-	'hastebinInstance': v => assert(typeof v === 'string' && utils.regex.patterns.url.test(v), 'hastebinInstance must be a valid URL'),
+	'hastebinInstance': v => assert(typeof v === 'string' && utils.isValidHttpUrl(v), 'hastebinInstance must be a valid URL'),
 	'rateLimits': v => assert(['regular', 'verified'].includes(v), 'rateLimits must be "regular" or "verified"'),
 	'authedTmiClientConnectionsPoolSize': v => {
 		if (config.chatServiceTransport !== 'irc') return;

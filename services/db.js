@@ -93,9 +93,9 @@ const pool = new pg.Pool({
 	database: process.env.DB_NAME,
 	password: process.env.DB_PASSWORD,
 	port: process.env.DB_PORT || 5432,
-	max: process.env.DB_MAX_CLIENTS || 20,
+	max: process.env.DB_MAX_CLIENTS || 30,
 	idleTimeoutMillis: 30000,
-	connectionTimeoutMillis: 2000,
+	connectionTimeoutMillis: 3000,
 });
 
 pool.on('connect', ({ processID }) =>

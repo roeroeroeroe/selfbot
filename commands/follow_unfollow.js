@@ -11,7 +11,7 @@ export default {
 		{
 			name: 'channel',
 			aliases: ['c', 'channel'],
-			type: 'string',
+			type: 'username',
 			required: false,
 			defaultValue: '',
 			description: 'channel to (un)follow (default: current channel)',

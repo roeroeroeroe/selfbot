@@ -45,9 +45,8 @@ function getHostResponse() {
 		text: utils.format.join([
 			`uptime: ${utils.duration.format(os.uptime() * 1000, 2)}`,
 			`memory: ${utils.format.bytes(usedMem)}/${utils.format.bytes(totalMem)}`,
-			`host: ${os.type()}`,
+			`host: ${os.type()} ${os.machine()}`,
 			`kernel: ${os.release()}`,
-			`arch: ${os.machine()}`,
 		]),
 		mention: true,
 	};
@@ -86,16 +85,21 @@ async function getGenericResponse(msg) {
 	let topics = 0;
 	for (const topic of twitch.hermes.topics.values())
 		if (topic.state === twitch.hermes.TopicState.SUBSCRIBED) topics++;
+	const processMemory = process.memoryUsage(),
+		rss = utils.format.bytes(processMemory.rss),
+		heapUsed = utils.format.bytes(processMemory.heapUsed),
+		heapTotal = utils.format.bytes(processMemory.heapTotal);
 	return {
 		text: utils.format.join([
 			`tmi: ${(t1 - t0) | 0}ms`,
 			`handler: ${(t0 - msg.receivedAt).toFixed(2)}ms`,
-			`uptime: ${utils.duration.format(Date.now() - twitch.chat.connectedAt, 2)}`,
-			`memory: ${utils.format.bytes(process.memoryUsage().heapTotal)}`,
+			`uptime: ${utils.duration.format(t1 - twitch.chat.connectedAt, 2)}`,
+			`rss: ${rss}, heap: ${heapUsed}/${heapTotal}`,
 			`channels: ${twitch.chat.joinedChannels.size}`,
 			`irc: ${twitch.chat.connections.length}`,
 			`hermes: ${twitch.hermes.connections.size} (${topics} ${utils.format.plural(topics, 'topic')})`,
 			`node: ${process.version}`,
+			`pid: ${process.pid}, ppid: ${process.ppid}`,
 		]),
 		mention: true,
 	};

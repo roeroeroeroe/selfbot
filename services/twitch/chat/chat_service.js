@@ -18,35 +18,26 @@ metrics.counter.create(MESSAGES_TX_METRICS_COUNTER);
 export default class ChatService {
 	static DEFAULT_SLOW_MODE_MS =
 		config.chatServiceTransport === 'gql' ? 1250 : 1100;
+	#queues = new Map();
+	#sendStates = new Map();
 
 	constructor(transport, botNonce) {
 		this.transport = transport;
 		this.botNonce = botNonce;
-		this.queues = new Map();
-		this.sendStates = new Map();
 		this.#initRateLimiters();
-		setInterval(
-			() => {
-				const now = Date.now();
-				for (const [k, v] of this.sendStates.entries())
-					if (now - v.lastSend > DUPLICATE_MESSAGE_THRESHOLD_MS * 2) {
-						this.sendStates.delete(k);
-						this.queues.delete(k);
-					}
-			},
-			DUPLICATE_MESSAGE_THRESHOLD_MS * 2 + 1000
-		);
 	}
 
-	#getState(channelId) {
-		let state = this.sendStates.get(channelId);
+	getState(channelId) {
+		let state = this.#sendStates.get(channelId);
 		if (!state) {
 			state = {
 				slowModeDuration: ChatService.DEFAULT_SLOW_MODE_MS,
 				lastSend: 0,
 				lastDuplicateKey: null,
 			};
-			this.sendStates.set(channelId, state);
+			this.#sendStates.set(channelId, state);
+			const queue = this.#queues.get(channelId);
+			if (queue) queue.worker = job => this.worker(state, job);
 		}
 		return state;
 	}
@@ -72,16 +63,14 @@ export default class ChatService {
 			logger.warning(
 				`[CHAT] caught message (pattern: ${pattern}, channel: ${channelLogin || channelId}, user: ${userLogin || 'N/A'}): ${text}`
 			);
-			text = userLogin
-				? `@${userLogin}, ${config.againstTOS}`
-				: config.againstTOS;
+			text = config.againstTOS;
 			parentId = '';
-		} else if (mention && userLogin && !parentId)
-			text = `@${userLogin}, ${text}`;
+		}
 
 		this.#enqueue({
 			channelId,
 			channelLogin,
+			userLogin,
 			text,
 			privileged,
 			mention,
@@ -94,29 +83,30 @@ export default class ChatService {
 		state,
 		channelId,
 		channelLogin,
+		userLogin,
 		text,
 		privileged,
 		mention,
 		parentId
 	) {
-		const now = Date.now();
+		const now = performance.now();
+		if (mention && userLogin && !parentId) text = `@${userLogin}, ${text}`;
+
 		if (!privileged) {
 			const reply = !!parentId;
-			const flags = (reply ? 2 : 0) | (mention ? 1 : 0);
+			const flags = reply ? 2 : mention ? 1 : 0;
 			let key = flags + text;
+
 			if (
 				state.lastDuplicateKey === key &&
 				now - state.lastSend < DUPLICATE_MESSAGE_THRESHOLD_MS
 			) {
-				const maxLen = utils.getMaxMessageLength(null, reply, mention);
-				if (text.length + INVIS_CHAR.length <= maxLen) {
-					text += INVIS_CHAR;
-					key += INVIS_CHAR;
-				} else {
+				const maxLen = 500 - reply ? (userLogin?.length || 0) + 1 : 0;
+				if (text.length + INVIS_CHAR.length <= maxLen) text += INVIS_CHAR;
+				else
 					text =
 						utils.format.trim(text, maxLen - INVIS_CHAR.length) + INVIS_CHAR;
-					key = flags + text;
-				}
+				key = flags + text;
 			}
 			state.lastDuplicateKey = key;
 		}
@@ -125,11 +115,6 @@ export default class ChatService {
 		logger.debug(`[CHAT] sending: #${channelLogin} ${text}`);
 		// prettier-ignore
 		await this.transport.send(channelId, channelLogin, text, this.botNonce, parentId);
-	}
-
-	recordSend(channelId) {
-		const state = this.#getState(channelId);
-		state.lastSend = Date.now();
 	}
 
 	// prettier-ignore
@@ -144,22 +129,27 @@ export default class ChatService {
 				MESSAGES_WINDOW_MS,
 				REGULAR_MAX_MESSAGES_PER_WINDOW_PRIVILEGED
 			);
-			this.bumpGlobalLimit = () => {
-				this.rateLimiters.normal.add();
-				this.rateLimiters.privileged.add();
+			this.recordSend = channelId => {
+				const now = performance.now();
+				this.rateLimiters.normal.forceAdd(now);
+				this.rateLimiters.privileged.forceAdd(now);
+				const state = this.getState(channelId);
+				state.lastSend = now;
 			};
 			this.worker = async (
 				state,
-				{ channelId, channelLogin, text, mention, privileged, parentId }
+				{ channelId, channelLogin, userLogin, text, mention, privileged, parentId }
 			) => {
 				if (privileged) {
-					this.rateLimiters.normal.add();
+					this.rateLimiters.normal.forceAdd();
 					await this.rateLimiters.privileged.wait();
 				} else {
-					this.rateLimiters.privileged.add();
+					this.rateLimiters.privileged.forceAdd();
 					await this.rateLimiters.normal.wait();
 					const toWait = Math.max(
-						state.slowModeDuration - (Date.now() - state.lastSend),
+						Math.ceil(
+							state.slowModeDuration - (performance.now() - state.lastSend)
+						),
 						0
 					);
 					if (toWait) {
@@ -168,22 +158,29 @@ export default class ChatService {
 					}
 				}
 				await this.#dispatchMessage(state, channelId, channelLogin,
-					text, privileged, mention, parentId);
+					userLogin, text, privileged, mention, parentId);
 			};
 		} else if (config.rateLimits === 'verified') {
 			this.rateLimiters.verified = new SlidingWindowRateLimiter(
 				MESSAGES_WINDOW_MS,
 				VERIFIED_MAX_MESSAGES_PER_WINDOW
 			);
-			this.bumpGlobalLimit = () => this.rateLimiters.verified.add();
+			this.recordSend = channelId => {
+				const now = performance.now();
+				this.rateLimiters.verified.forceAdd(now);
+				const state = this.getState(channelId);
+				state.lastSend = now;
+			};
 			this.worker = async (
 				state,
-				{ channelId, channelLogin, text, mention, privileged, parentId }
+				{ channelId, channelLogin, userLogin, text, mention, privileged, parentId }
 			) => {
 				await this.rateLimiters.verified.wait();
 				if (!privileged) {
 					const toWait = Math.max(
-						state.slowModeDuration - (Date.now() - state.lastSend),
+						Math.ceil(
+							state.slowModeDuration - (performance.now() - state.lastSend)
+						),
 						0
 					);
 					if (toWait) {
@@ -192,17 +189,19 @@ export default class ChatService {
 					}
 				}
 				await this.#dispatchMessage(state, channelId, channelLogin,
-					text, privileged, mention, parentId);
+					userLogin, text, privileged, mention, parentId);
 			};
 		} else throw new Error(`unknown rate limits preset: ${config.rateLimits}`);
 	}
 
 	#enqueue(job) {
-		if (!this.queues.has(job.channelId))
-			this.queues.set(
+		if (!this.#queues.has(job.channelId)) {
+			const state = this.getState(job.channelId);
+			this.#queues.set(
 				job.channelId,
-				new AsyncQueue(this.worker.bind(this, this.#getState(job.channelId)))
+				new AsyncQueue(job => this.worker(state, job), 1 << 3)
 			);
-		this.queues.get(job.channelId).enqueue(job);
+		}
+		this.#queues.get(job.channelId).enqueue(job);
 	}
 }

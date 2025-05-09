@@ -12,7 +12,7 @@ export default {
 		{
 			name: 'channel',
 			aliases: ['c', 'channel'],
-			type: 'string',
+			type: 'username',
 			required: false,
 			defaultValue: '',
 			description: 'lookup channel (default: current channel)',

@@ -20,10 +20,10 @@ export default {
 		{
 			name: 'channel',
 			aliases: ['c', 'channel'],
-			type: 'string',
+			type: 'username',
 			defaultValue: '',
 			required: false,
-			description: 'delete all commands from a channel',
+			description: 'delete all commands from the specified channel',
 		},
 		{
 			name: 'global',

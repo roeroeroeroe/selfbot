@@ -47,8 +47,10 @@ export default {
 	BOT_NONCE,
 
 	send: (...args) => chatService.send(...args),
+	recordSend: channelId => chatService.recordSend(channelId),
 	join: c => channelManager.join(c),
 	part: c => channelManager.part(c),
+	connect: () => tmi.connect(),
 	ping: () => tmi.ping(),
 	get connectedAt() {
 		return tmi.connectedAt;
@@ -58,10 +60,5 @@ export default {
 	},
 	get joinedChannels() {
 		return tmi.joinedChannels;
-	},
-	bumpGlobalLimit: () => chatService.bumpGlobalLimit(),
-	recordSend: channelId => chatService.recordSend(channelId),
-	get sendStates() {
-		return chatService.sendStates;
 	},
 };
