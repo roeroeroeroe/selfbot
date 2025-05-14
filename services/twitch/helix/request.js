@@ -1,4 +1,3 @@
-import config from '../../../config.json' with { type: 'json' };
 import utils from '../../../utils/index.js';
 import logger from '../../logger.js';
 
@@ -33,12 +32,14 @@ async function helix({ endpoint, method = 'GET', query = {}, body = null }) {
 	return utils.retry(
 		async () => {
 			const res = await fetch(url, options);
-			if (res.status >= 400 && res.status < 500) {
+			if (res.status >= 400 && res.status < 500)
+				throw new Error(`HELIX ${res.status}: ${await res.text()}`);
+
+			if (!res.ok) {
 				const err = new Error(`HELIX ${res.status}: ${await res.text()}`);
-				err.retryable = false;
+				err.retryable = true;
 				throw err;
 			}
-			if (!res.ok) throw new Error(`HELIX ${res.status}: ${await res.text()}`);
 
 			const body = await res.json();
 			logger.debug('[HELIX] got response:', body);
@@ -48,7 +49,6 @@ async function helix({ endpoint, method = 'GET', query = {}, body = null }) {
 			requestsCounter: REQUESTS_METRICS_COUNTER,
 			retriesCounter: RETRIES_METRICS_COUNTER,
 			logLabel: 'HELIX',
-			canRetry: err => err.retryable !== false,
 		}
 	);
 }

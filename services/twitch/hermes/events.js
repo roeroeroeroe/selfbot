@@ -1,7 +1,7 @@
 import config from '../../../config.json' with { type: 'json' };
 import cooldown from '../../cooldown.js';
 import logger from '../../logger.js';
-import db from '../../db.js';
+import db from '../../db/index.js';
 import utils from '../../../utils/index.js';
 import twitch from '../index.js';
 import metrics from '../../metrics.js';
@@ -154,7 +154,7 @@ export default {
 			await twitch.chat.join(activity.channel_login);
 			for (const sub of twitch.hermes.CHANNEL_SUBS)
 				twitch.hermes.subscribe(sub, activity.channel_id);
-			logger.info(`[Hermes] presence: joined ${channelName}`);
+			logger.info(`[Hermes] presence: joining ${channelName}`);
 		} catch (err) {
 			logger.error(`error joining channel ${activity.channel_login}:`, err);
 		}

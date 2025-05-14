@@ -15,18 +15,20 @@ metrics.counter.create(CUSTOM_COMMANDS_EXECUTED_METRICS_COUNTER);
 const CUSTOM_COMMAND_COOLDOWN_KEY_PREFIX = 'handler:customcommand';
 
 export default async function handle(msg) {
+	if (msg.self) return;
 	msg.messageText = msg.messageText.replace(
 		utils.regex.patterns.invisChars,
 		''
 	);
 	msg.args = utils.shellSplit(msg.messageText);
-	if (msg.ircTags['reply-parent-msg-id']) {
+	const parent = msg.ircTags['reply-parent-msg-body'];
+	if (parent) {
 		msg.args.shift();
-		msg.args.push(...utils.shellSplit(msg.ircTags['reply-parent-msg-body']));
+		msg.args.push(...utils.shellSplit(parent));
 	}
 
 	if (msg.senderUserID === config.bot.id) {
-		msg.prefix = msg.query?.prefix || config.defaultPrefix;
+		msg.prefix = msg.query.prefix || config.defaultPrefix;
 		const trigger = msg.args.shift()?.toLowerCase() || '';
 		if (trigger.startsWith(msg.prefix)) {
 			msg.commandName =
@@ -36,7 +38,7 @@ export default async function handle(msg) {
 			const command = commands.getCommandByName(msg.commandName);
 			if (command) {
 				logger.debug(
-					`[HANDLER] got valid command: ${msg.commandName}, entering regular command handler`
+					`[HANDLER] got command: ${msg.commandName}, entering regular command handler`
 				);
 				metrics.counter.increment(COMMANDS_EXECUTED_METRICS_COUNTER);
 				const commandResult = await handleCommand(msg, command);
@@ -50,45 +52,39 @@ export default async function handle(msg) {
 		}
 	}
 
-	let customCommandTriggered = false;
-	for (const customCommand of customCommands.getGlobalAndChannelCommands(
-		msg.channelID
-	))
-		if (customCommand.trigger.test(msg.messageText)) {
-			logger.debug(
-				`[HANDLER] custom command ${customCommand.name} triggered (trigger: ${customCommand.trigger.toString()}, message: ${msg.messageText}), checking cooldown and permissions`
-			);
-			customCommandTriggered = true;
-			if (
-				cooldown.has(
-					`${CUSTOM_COMMAND_COOLDOWN_KEY_PREFIX}:${msg.senderUserID}:${customCommand.name}`
-				) ||
-				(customCommand.whitelist !== null &&
-					!customCommand.whitelist.includes(msg.senderUserID))
-			)
-				continue;
-			logger.debug(
-				`[HANDLER] cooldown and permissions checks passed for custom command ${customCommand.name} invoked by ${msg.senderUsername}, executing`
-			);
-			metrics.counter.increment(CUSTOM_COMMANDS_EXECUTED_METRICS_COUNTER);
-			sendResult(msg, await executeCustomCommand(msg, customCommand));
-			return;
-		}
+	let ccTriggered = false;
+	for (const cc of customCommands.getGlobalAndChannelCommands(msg.channelID)) {
+		if (!cc.trigger.test(msg.messageText)) continue;
+		logger.debug(
+			`[HANDLER] custom command ${cc.name} triggered (trigger: ${cc.trigger.toString()}, message: ${msg.messageText}), checking cooldown and permissions`
+		);
+		ccTriggered = true;
+		if (cc.whitelist !== null && !cc.whitelist.includes(msg.senderUserID))
+			continue;
+		const cooldownKey = `${CUSTOM_COMMAND_COOLDOWN_KEY_PREFIX}:${msg.senderUserID}:${cc.name}`;
+		if (cooldown.has(cooldownKey)) continue;
+		logger.debug(
+			`[HANDLER] cooldown and permissions checks passed for custom command ${cc.name} invoked by ${msg.senderUsername}, executing`
+		);
+		metrics.counter.increment(CUSTOM_COMMANDS_EXECUTED_METRICS_COUNTER);
+		sendResult(msg, await executeCustomCommand(msg, cc, cooldownKey));
+		return;
+	}
 
-	if (!customCommandTriggered && msg.commandName && config.getClosestCommand) {
+	if (!ccTriggered && msg.commandName && config.getClosestCommand) {
 		logger.debug(
 			`[HANDLER] unknown command ${msg.commandName}, trying to get closest match`
 		);
-		const bestMatch = utils.getClosestString(
+		const closest = utils.getClosestString(
 			msg.commandName,
 			commands.getKnownNames()
 		);
-		if (bestMatch) {
+		if (closest) {
 			logger.debug(
-				`[HANDLER] got best match for command ${msg.commandName}: ${bestMatch}`
+				`[HANDLER] got best match for command ${msg.commandName}: ${closest}`
 			);
 			sendResult(msg, {
-				text: `unknown command "${msg.commandName}", the most similar command is: ${bestMatch}`,
+				text: `unknown command "${msg.commandName}", the most similar command is: ${closest}`,
 				mention: true,
 			});
 		}
@@ -130,13 +126,8 @@ async function handleCommand(msg, command) {
 	}
 }
 
-async function executeCustomCommand(msg, customCommand) {
-	if (customCommand.cooldown) {
-		cooldown.set(
-			`${CUSTOM_COMMAND_COOLDOWN_KEY_PREFIX}:${msg.senderUserID}:${customCommand.name}`,
-			customCommand.cooldown
-		);
-	}
+async function executeCustomCommand(msg, customCommand, cooldownKey) {
+	if (customCommand.cooldown) cooldown.set(cooldownKey, customCommand.cooldown);
 	try {
 		const result = {
 			text: null,
@@ -144,9 +135,6 @@ async function executeCustomCommand(msg, customCommand) {
 			reply: customCommand.reply,
 		};
 		if (customCommand.runcmd) {
-			logger.debug(
-				`[HANDLER] getting regular command ${customCommand.runcmd} for custom command ${customCommand.name}`
-			);
 			const command = commands.getCommandByName(customCommand.runcmd);
 			if (!command) {
 				logger.error(
@@ -157,16 +145,12 @@ async function executeCustomCommand(msg, customCommand) {
 			msg.messageText = msg.messageText
 				.replace(customCommand.trigger, '')
 				.trim();
-			logger.debug(
-				`[HANDLER] removed trigger ${customCommand.trigger.toString()} from message, result: ${msg.messageText}`
-			);
 			msg.args = utils.shellSplit(msg.messageText);
 			msg.commandName = command.name;
 			logger.debug(
 				`[HANDLER] custom command ${customCommand.name} -> regular command ${msg.commandName}, entering regular command handler`
 			);
-			const regularCommandResult = await handleCommand(msg, command);
-			result.text = regularCommandResult?.text;
+			result.text = (await handleCommand(msg, command))?.text;
 		} else {
 			result.text = customCommand.response;
 		}
@@ -175,10 +159,7 @@ async function executeCustomCommand(msg, customCommand) {
 		);
 		return result;
 	} catch (err) {
-		if (customCommand.cooldown)
-			cooldown.delete(
-				`${CUSTOM_COMMAND_COOLDOWN_KEY_PREFIX}:${msg.senderUserID}:${customCommand.name}`
-			);
+		if (customCommand.cooldown) cooldown.delete(cooldownKey);
 		logger.error(
 			`custom command ${customCommand.name} invoked by ${msg.senderUsername} in #${msg.channelName} execution error:`,
 			err

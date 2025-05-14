@@ -30,8 +30,7 @@ async function resolve(fqdn, recordTypes = SUPPORTED_RR_TYPES) {
 		})()
 	);
 
-	const results = await Promise.all(promises);
-	return Object.fromEntries(results);
+	return Object.fromEntries(await Promise.all(promises));
 }
 
 export default {

@@ -1,50 +1,131 @@
-const unitPattern = /(\d+(?:\.\d+)?)(ms|mo|[ywdhms])?/g;
-const durationUnits = {
-	y: 31536000000,
-	mo: 2592000000,
-	w: 604800000,
-	d: 86400000,
-	h: 3600000,
-	m: 60000,
-	s: 1000,
-	ms: 1,
-};
+import utils from './index.js';
+// prettier-ignore
+const UNIT_NAMES = [
+	'year', 'month', 'week', 'day', 'hour', 'minute', 'second', 'millisecond',
+];
+// prettier-ignore
+const UNIT_PLURALS = [
+	'years', 'months', 'weeks', 'days', 'hours', 'minutes', 'seconds', 'milliseconds',
+];
+const UNIT_MS = [
+	31536000000, 2592000000, 604800000, 86400000, 3600000, 60000, 1000, 1,
+];
+const UNIT_ALIASES = [
+	['y', 'yr', 'yrs'],
+	['mo', 'mos'],
+	['w', 'wk', 'wks'],
+	['d'],
+	['h', 'hr', 'hrs'],
+	['m', 'min', 'mins'],
+	['s', 'sec', 'secs'],
+	['ms', 'msec', 'msecs'],
+];
 
-const nonMsDurationUnits = { ...durationUnits };
-delete nonMsDurationUnits.ms;
+const aliasToMs = new Map();
+const nameToIndex = Object.create(null);
 
-function format(ms, largest = 3, separator = ' ') {
-	if (typeof ms !== 'number' || isNaN(ms) || ms <= 0) return `0${separator}s`;
-
-	const resultParts = [];
-	for (const k in nonMsDurationUnits) {
-		if (resultParts.length >= largest) break;
-		const v = nonMsDurationUnits[k];
-		if (ms < v) continue;
-
-		resultParts.push(Math.floor(ms / v) + k);
-
-		if ((ms %= v) === 0) break;
+for (let i = 0; i < UNIT_NAMES.length; i++) {
+	nameToIndex[UNIT_NAMES[i]] = i;
+	nameToIndex[UNIT_PLURALS[i]] = i;
+	aliasToMs.set(UNIT_NAMES[i], UNIT_MS[i]);
+	aliasToMs.set(UNIT_PLURALS[i], UNIT_MS[i]);
+	for (const a of UNIT_ALIASES[i]) {
+		nameToIndex[a] = i;
+		aliasToMs.set(a, UNIT_MS[i]);
 	}
-
-	return resultParts.length ? resultParts.join(separator) : `0${separator}s`;
 }
 
+const sortedUnitKeys = Array.from(aliasToMs.keys())
+	.sort((a, b) => b.length - a.length)
+	.join('|');
+
+const numberPattern = /^\d+(?:\.\d+)?$/;
+const durationPattern = new RegExp(
+	`(\\d+(?:\\.\\d+)?)\\s*(${sortedUnitKeys})`,
+	'g'
+);
+
 function parse(str) {
-	unitPattern.lastIndex = 0;
-	let ms = 0,
-		match = unitPattern.exec(str);
-	if (!match) return null;
+	if (typeof str !== 'string') return null;
+	str = str.trim().toLowerCase();
+	if (!str) return null;
 
-	do {
-		if (!match[2]) return null;
-		ms += +match[1] * durationUnits[match[2]];
-	} while ((match = unitPattern.exec(str)));
+	if (numberPattern.test(str)) return Math.round(parseFloat(str));
+	let total = 0,
+		match;
 
-	return ms;
+	durationPattern.lastIndex = 0;
+	while ((match = durationPattern.exec(str)) !== null) {
+		const num = parseFloat(match[1]);
+		const unitMs = aliasToMs.get(match[2]);
+		if (!isFinite(num) || !unitMs) return null;
+		total += num * unitMs;
+	}
+
+	durationPattern.lastIndex = 0;
+	if (!total && !durationPattern.exec(str)) return null;
+
+	durationPattern.lastIndex = 0;
+	if (str.replace(durationPattern, '').trim()) return null;
+
+	return Math.round(total);
+}
+
+function format(
+	ms,
+	{
+		maxParts = 3,
+		separator = ' ',
+		lastSeparator = ' and ',
+		shortForm = true,
+		smallest = 'second',
+	} = {}
+) {
+	if (typeof ms !== 'number' || !isFinite(ms) || ms < 0) return null;
+
+	const end = nameToIndex[smallest] ?? UNIT_NAMES.length - 1;
+	if (!ms)
+		return shortForm ? `0${UNIT_ALIASES[end][0]}` : `0 ${UNIT_PLURALS[end]}`;
+
+	const buildPart = shortForm
+		? (c, i) => `${c}${UNIT_ALIASES[i][0]}`
+		: (c, i) =>
+				`${c} ${utils.format.plural(c, UNIT_NAMES[i], UNIT_PLURALS[i])}`;
+
+	const parts = [];
+	for (let i = 0; i <= end && parts.length < maxParts; i++) {
+		const count = Math.floor(ms / UNIT_MS[i]);
+		if (!count) continue;
+		parts.push(buildPart(count, i));
+		ms -= count * UNIT_MS[i];
+	}
+
+	switch (parts.length) {
+		case 0:
+			return shortForm ? `0${UNIT_ALIASES[end][0]}` : `0 ${UNIT_PLURALS[end]}`;
+		case 1:
+			return parts[0];
+		default:
+			const last = parts.pop();
+			return parts.join(separator) + lastSeparator + last;
+	}
+}
+
+function createAge(
+	now = Date.now(),
+	invalidDatePlaceholder = 'N/A',
+	formatOptions = {}
+) {
+	if (now instanceof Date) now = now.getTime();
+	return function (dateInput) {
+		const ts = Date.parse(dateInput);
+		if (Number.isNaN(ts)) return invalidDatePlaceholder;
+		return format(now - ts, formatOptions) ?? invalidDatePlaceholder;
+	};
 }
 
 export default {
-	format,
 	parse,
+	format,
+	createAge,
 };

@@ -47,7 +47,7 @@ export default {
 			);
 
 			return {
-				text: res.userChatNotificationToken?.isSuccess
+				text: res.useChatNotificationToken?.isSuccess
 					? 'notification sent'
 					: 'error sending resub notification',
 				mention: true,

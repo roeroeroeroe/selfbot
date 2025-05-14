@@ -40,10 +40,7 @@ export default {
 			res.user.login,
 			res.user.displayName
 		);
-		const now = Date.now();
-		function age(date) {
-			return utils.duration.format(now - Date.parse(date));
-		}
+		const age = utils.duration.createAge(Date.now());
 
 		if (!res.user.stream) {
 			if (!res.user.lastBroadcast?.startedAt)

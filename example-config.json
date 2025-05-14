@@ -13,12 +13,13 @@
 	"responsePartsSeparator": " · ",
 	"againstTOS": "message goes against twitch TOS",
 	"hastebinInstance": "https://paste.ivr.fi",
+	"maxPasteLength": 1500000,
 	"rateLimits": "regular",
 	"authedTmiClientConnectionsPoolSize": 10,
-	"maxHermesConnections": 10,
+	"maxHermesConnections": 20,
 	"maxHermesTopicsPerConnection": 50,
-	"messagesBatchInsertIntervalMs": 2500,
-	"maxMessagesBatchInsertSize": 500,
+	"messagesFlushIntervalMs": 2500,
+	"maxMessagesPerChannelFlush": 150,
 	"bot": {
 		"login": "",
 		"id": "0"

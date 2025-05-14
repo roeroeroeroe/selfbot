@@ -39,7 +39,7 @@ async function shell(command, timeout = 5000) {
 	}
 }
 
-async function js(input, context = {}, timeout = 1000) {
+async function js(input, context = {}, timeout = 3000) {
 	const script = new vm.Script(`(async () => { ${input} })()`);
 	const contextKeysString = Object.keys(context).join(',');
 

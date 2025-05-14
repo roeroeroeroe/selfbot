@@ -42,7 +42,7 @@ export default {
 			!msg.args.length
 		)
 			return { text: 'you must specify a command to delete', mention: true };
-		let commandsToDelete = [];
+		const commandsToDelete = [];
 		if (msg.commandFlags.name) {
 			const c = customCommands.getCommandByName(msg.commandFlags.name);
 			if (c) commandsToDelete.push(c);

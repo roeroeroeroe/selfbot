@@ -23,7 +23,11 @@ export default class SlidingWindowRateLimiter {
 
 	#prune(now = performance.now()) {
 		const expiry = now - this.#windowMs;
-		this.#buffer.pruneFront(ts => ts < expiry);
+		const c = this.#buffer.pruneFront(ts => ts < expiry);
+		if (c)
+			logger.debug(
+				`[SlidingWindowRateLimiter] prune: pruned ${c} expired timestamps`
+			);
 	}
 
 	add(now = performance.now()) {

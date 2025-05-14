@@ -4,7 +4,7 @@ import config from '../config.json' with { type: 'json' };
 import logger from '../services/logger.js';
 import twitch from '../services/twitch/index.js';
 import hastebin from '../services/hastebin.js';
-import db from '../services/db.js';
+import db from '../services/db/index.js';
 import metrics from '../services/metrics.js';
 import utils from '../utils/index.js';
 import cooldown from '../services/cooldown.js';

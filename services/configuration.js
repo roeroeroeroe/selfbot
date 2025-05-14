@@ -3,7 +3,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import config from '../config.json' with { type: 'json' };
 import twitch from './twitch/index.js';
-import db from './db.js';
+import db from './db/index.js';
 import utils from '../utils/index.js';
 import logger from './logger.js';
 
@@ -31,6 +31,7 @@ const validators = {
 	'responsePartsSeparator': v => assert(typeof v === 'string', 'responsePartsSeparator must be a string'),
 	'againstTOS': v => assert(typeof v === 'string', 'againstTOS must be a string'),
 	'hastebinInstance': v => assert(typeof v === 'string' && utils.isValidHttpUrl(v), 'hastebinInstance must be a valid URL'),
+	'maxPasteLength': v => assert(Number.isInteger(v) && v >= 0, 'maxPasteLength must be a non-negative integer'),
 	'rateLimits': v => assert(['regular', 'verified'].includes(v), 'rateLimits must be "regular" or "verified"'),
 	'authedTmiClientConnectionsPoolSize': v => {
 		if (config.chatServiceTransport !== 'irc') return;
@@ -48,13 +49,13 @@ const validators = {
 		assert(Number.isInteger(v) && v >= 1 && v <= twitch.hermes.MAX_TOPICS_PER_CONNECTION,
 			`maxHermesTopicsPerConnection must be an integer between 1 and ${twitch.hermes.MAX_TOPICS_PER_CONNECTION}`);
 	},
-	'messagesBatchInsertIntervalMs': v => {
-		assert(Number.isInteger(v) && v >= 0 && v <= db.MAX_MESSAGES_BATCH_INSERT_INTERVAL_MS,
-			`messagesBatchInsertIntervalMs must be a <= ${db.MAX_MESSAGES_BATCH_INSERT_INTERVAL_MS} integer`);
+	'messagesFlushIntervalMs': v => {
+		assert(Number.isInteger(v) && v >= 0 && v <= db.MAX_MESSAGES_FLUSH_INTERVAL_MS,
+			`messagesFlushIntervalMs must be a <= ${db.MAX_MESSAGES_FLUSH_INTERVAL_MS} integer`);
 	},
-	'maxMessagesBatchInsertSize': v => {
-		assert(Number.isInteger(v) && v >= 0 && v <= db.MAX_MESSAGES_BATCH_SIZE,
-			`maxMessagesBatchInsertSize must be a <= ${db.MAX_MESSAGES_BATCH_SIZE} integer`);
+	'maxMessagesPerChannelFlush': v => {
+		assert(Number.isInteger(v) && v >= 0 && v <= db.MAX_MESSAGES_PER_CHANNEL_FLUSH,
+			`maxMessagesPerChannelFlush must be a <= ${db.MAX_MESSAGES_PER_CHANNEL_FLUSH} integer`);
 	},
 	'bot.login': v => assert(typeof v === 'string' && v.trim(), 'bot.login must be a non-empty string'),
 	'bot.id': v => assert(typeof v === 'string' && v.trim(), 'bot.id must be a non-empty string'),

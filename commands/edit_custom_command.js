@@ -1,7 +1,7 @@
 import utils from '../utils/index.js';
 import logger from '../services/logger.js';
 import commands from '../services/commands.js';
-import db from '../services/db.js';
+import db from '../services/db/index.js';
 import customCommands from '../services/custom_commands.js';
 import twitch from '../services/twitch/index.js';
 
@@ -42,16 +42,8 @@ export default {
 			type: 'string',
 			defaultValue: '',
 			required: false,
-			description: 'new command trigger',
-			validator: v => {
-				try {
-					const m = v.match(utils.regex.patterns.regexp);
-					new RegExp(m[1], m[2]);
-					return true;
-				} catch {
-					return false;
-				}
-			},
+			description: 'new command trigger (regular expression)',
+			validator: v => utils.regex.construct(v) !== null,
 		},
 		{
 			name: 'response',
@@ -139,13 +131,15 @@ export default {
 		}
 
 		if (msg.commandFlags.trigger) {
-			const match = msg.commandFlags.trigger.match(utils.regex.patterns.regexp);
-			const regex = new RegExp(match[1], match[2]);
+			const regex = utils.regex.construct(msg.commandFlags.trigger);
 			if (regex.toString() !== command.trigger.toString())
 				newValues.trigger = regex;
 		}
 
-		for (const field of ['response', 'runcmd', 'cooldown', 'mention', 'reply'])
+		if (msg.commandFlags.cooldown !== null)
+			newValues.cooldown = msg.commandFlags.cooldown;
+
+		for (const field of ['response', 'runcmd', 'mention', 'reply'])
 			if (
 				(msg.commandFlags[field] || msg.commandFlags[field] === false) &&
 				msg.commandFlags[field] !== command[field]

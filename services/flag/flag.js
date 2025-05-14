@@ -115,7 +115,7 @@ function vconv(flag, v) {
 				err = 'invalid username';
 				break;
 			}
-			value = v;
+			value = v.toLowerCase();
 			break;
 		}
 		default: {
@@ -132,9 +132,9 @@ function parse(argv, flagData) {
 	const providedFlags = {};
 	const rest = [];
 	const errors = [];
+	const argc = argv.length;
 
-	let i = 0,
-		argc = argv.length;
+	let i = 0;
 	function getv(k) {
 		const flag = flags[aliasesMap[k]];
 		if (

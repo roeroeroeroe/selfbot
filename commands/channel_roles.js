@@ -57,7 +57,6 @@ export default {
 			channel.login = msg.channelName;
 		}
 
-		let modsData, vipsData, foundersData, artistsData;
 		// prettier-ignore
 		const results = await Promise.allSettled([
 			utils.withTimeout(twitch.gql.channel.getMods(channel.login, msg.commandFlags.maxMods), msg.commandFlags.timeout),
@@ -65,12 +64,12 @@ export default {
 			utils.withTimeout(twitch.gql.channel.getFounders(channel.login), msg.commandFlags.timeout),
 			utils.withTimeout(twitch.gql.channel.getArtists(channel.id), msg.commandFlags.timeout),
 		]);
-		[modsData, vipsData, foundersData, artistsData] = results.map(res =>
+		const [modsData, vipsData, foundersData, artistsData] = results.map(res =>
 			res.status === 'fulfilled' ? res.value : undefined
 		);
 
 		const list = [];
-		const messageParts = [];
+		const responseParts = [];
 
 		if (modsData?.length) {
 			const { lines: modsList, activeCount } = processRoles(modsData, {
@@ -80,7 +79,7 @@ export default {
 			if (modsList.length) {
 				const modsInfo = `${modsList.length} ${utils.format.plural(modsList.length, 'mod')} (${activeCount} currently in chat)`;
 				list.push(`${modsInfo}:\n`);
-				messageParts.push(modsInfo);
+				responseParts.push(modsInfo);
 				for (const line of modsList) list.push(line);
 			}
 		}
@@ -90,7 +89,7 @@ export default {
 			if (vipsList.length) {
 				const vipsInfo = `${vipsList.length} ${utils.format.plural(vipsList.length, 'vip')}`;
 				list.push(`${list.length ? '\n' : ''}${vipsInfo}:\n`);
-				messageParts.push(vipsInfo);
+				responseParts.push(vipsInfo);
 				for (const line of vipsList) list.push(line);
 			}
 		}
@@ -104,7 +103,7 @@ export default {
 			if (foundersList.length) {
 				const foundersInfo = `${foundersList.length} ${utils.format.plural(foundersList.length, 'founder')} (${subscribedCount} currently subscribed)`;
 				list.push(`${list.length ? '\n' : ''}${foundersInfo}:\n`);
-				messageParts.push(foundersInfo);
+				responseParts.push(foundersInfo);
 				for (const line of foundersList) list.push(line);
 			}
 		}
@@ -114,7 +113,7 @@ export default {
 			if (artistsList.length) {
 				const artistsInfo = `${artistsList.length} ${utils.format.plural(artistsList.length, 'artist')}`;
 				list.push(`${list.length ? '\n' : ''}${artistsInfo}:\n`);
-				messageParts.push(artistsInfo);
+				responseParts.push(artistsInfo);
 				for (const line of artistsList) list.push(line);
 			}
 		}
@@ -127,13 +126,13 @@ export default {
 
 		try {
 			const link = await hastebin.create(utils.format.align(list));
-			messageParts.push(link);
-			return { text: utils.format.join(messageParts), mention: true };
+			responseParts.push(link);
 		} catch (err) {
 			logger.error('error creating paste:', err);
-			messageParts.push('error creating paste');
-			return { text: utils.format.join(messageParts), mention: true };
+			responseParts.push('error creating paste');
 		}
+
+		return { text: utils.format.join(responseParts), mention: true };
 	},
 };
 

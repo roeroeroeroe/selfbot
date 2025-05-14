@@ -1,5 +1,5 @@
 import logger from '../services/logger.js';
-import db from '../services/db.js';
+import db from '../services/db/index.js';
 import commands from '../services/commands.js';
 import customCommands from '../services/custom_commands.js';
 import utils from '../utils/index.js';
@@ -34,16 +34,8 @@ export default {
 			type: 'string',
 			defaultValue: '',
 			required: true,
-			description: 'command trigger',
-			validator: v => {
-				try {
-					const m = v.match(utils.regex.patterns.regexp);
-					new RegExp(m[1], m[2]);
-					return true;
-				} catch {
-					return false;
-				}
-			},
+			description: 'command trigger (regular expression)',
+			validator: v => utils.regex.construct(v) !== null,
 		},
 		{
 			name: 'response',
@@ -74,7 +66,7 @@ export default {
 			name: 'cooldown',
 			aliases: [null, 'cooldown'],
 			type: 'duration',
-			defaultValue: null,
+			defaultValue: 0,
 			required: false,
 			description: 'per-user cooldown',
 		},

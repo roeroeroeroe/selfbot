@@ -42,12 +42,10 @@ export default class AsyncQueue {
 		for (;;) {
 			await this.#mu.lock();
 			if (!this.#buffer.size) {
-				if (this.#buffer.capacity > this.#minCapacity) {
-					logger.debug(
-						`[AsyncQueue] process: shrinking buffer: oldCap=${this.#buffer.capacity}, newCap=${this.#minCapacity}`
-					);
-					this.#buffer.shrink();
-				}
+				if (this.#buffer.capacity > this.#minCapacity) this.#buffer.shrink();
+				logger.debug(
+					'[AsyncQueue] process: no more items, stopping processing loop'
+				);
 				this.#processing = false;
 				this.#mu.unlock();
 				return;

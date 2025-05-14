@@ -4,8 +4,10 @@ import initTMI from '../tmi.js';
 import createIrcTransport from './irc_transport.js';
 import createGqlTransport from './gql_transport.js';
 import config from '../../../config.json' with { type: 'json' };
+import logger from '../../logger.js';
 import utils from '../../../utils/index.js';
 
+// used for config validation
 const REGULAR_MAX_CONNECTIONS_POOL_SIZE = 20;
 const VERIFIED_MAX_CONNECTIONS_POOL_SIZE = 200;
 
@@ -21,6 +23,8 @@ switch (config.chatServiceTransport) {
 			connection: { type: config.ircClientTransport, secure: true },
 			installDefaultMixins: false,
 		});
+		authed.on('error', err => logger.error('[IRC-TX] error:', err.message));
+		authed.on('close', err => err && logger.fatal('[IRC-TX] closed:', err));
 		if (config.authedTmiClientConnectionsPoolSize >= 2)
 			authed.use(
 				new ConnectionPool(authed, {

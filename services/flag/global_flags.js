@@ -99,6 +99,8 @@ const postFlagHandlers = [
 			if (!msg.commandFlags.toPaste) return result;
 
 			const text = result?.text ?? '';
+			if (!text) return result;
+
 			const maxLength = utils.getMaxMessageLength(
 				msg.senderUsername,
 				result.reply,

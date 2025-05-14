@@ -1,4 +1,3 @@
-import config from '../../../config.json' with { type: 'json' };
 import metrics from '../../metrics.js';
 import logger from '../../logger.js';
 import utils from '../../../utils/index.js';
@@ -27,17 +26,20 @@ export async function gql(body = {}) {
 				headers: HEADERS,
 				body: bodyString,
 			});
-			if (res.status >= 400 && res.status < 500) {
+			if (res.status >= 400 && res.status < 500)
+				throw new Error(`GQL ${res.status}: ${await res.text()}`);
+			if (!res.ok) {
 				const err = new Error(`GQL ${res.status}: ${await res.text()}`);
-				err.retryable = false;
+				err.retryable = true;
 				throw err;
 			}
-			if (!res.ok) throw new Error(`GQL ${res.status}: ${await res.text()}`);
 
 			const body = await res.json();
 			if (Array.isArray(body.errors) && body.errors.length) {
 				metrics.counter.increment(ERRORS_METRICS_COUNTER);
-				throw new Error(`graphql errors: ${JSON.stringify(body.errors)}`);
+				const err = new Error(`graphql errors: ${JSON.stringify(body.errors)}`);
+				err.retryable = true;
+				throw err;
 			}
 
 			logger.debug('[GQL] got response:', body);
@@ -47,7 +49,6 @@ export async function gql(body = {}) {
 			requestsCounter: REQUESTS_METRICS_COUNTER,
 			retriesCounter: RETRIES_METRICS_COUNTER,
 			logLabel: 'GQL',
-			canRetry: err => err.retryable !== false,
 		}
 	);
 }

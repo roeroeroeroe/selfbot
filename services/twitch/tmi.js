@@ -2,7 +2,7 @@ import { ChatClient } from '@mastondzn/dank-twitch-irc';
 import ChannelManager from './chat/channel_manager.js';
 import ChatService from './chat/chat_service.js';
 import config from '../../config.json' with { type: 'json' };
-import db from '../db.js';
+import db from '../db/index.js';
 import logger from '../logger.js';
 import metrics from '../metrics.js';
 import handle from '../message_handler.js';
@@ -75,8 +75,8 @@ export default function init(chatService) {
 
 		// prettier-ignore
 		if (msg.senderUserID === config.bot.id) {
-			if (msg.ircTags['client-nonce'] !== chatService.botNonce)
-				chatService.recordSend(msg.channelID);
+			msg.self = msg.ircTags['client-nonce'] === chatService.botNonce;
+			if (!msg.self) chatService.recordSend(msg.channelID);
 			const isPrivileged = msg.isMod || msg.badges.hasVIP || msg.badges.hasBroadcaster;
 			if (msg.query.privileged !== isPrivileged)
 				try {

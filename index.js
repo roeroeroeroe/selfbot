@@ -4,7 +4,7 @@ import configuration from './services/configuration.js';
 import twitch from './services/twitch/index.js';
 import metrics from './services/metrics.js';
 import logger from './services/logger.js';
-import db from './services/db.js';
+import db from './services/db/index.js';
 import commands from './services/commands.js';
 import customCommands from './services/custom_commands.js';
 import utils from './utils/index.js';

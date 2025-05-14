@@ -63,11 +63,6 @@ export default {
 			channel = { id: msg.channelID, login: msg.channelName };
 		}
 
-		let relationshipData,
-			channelViewerData,
-			vipsData,
-			foundersData,
-			artistsData;
 		const results = await Promise.allSettled([
 			twitch.gql.user.getRelationship(user.login, channel.id),
 			twitch.gql.channel.getChannelViewer(user.login, channel.login),
@@ -75,7 +70,7 @@ export default {
 			twitch.gql.channel.getFounders(channel.login),
 			twitch.gql.channel.getArtists(channel.id),
 		]);
-		[relationshipData, channelViewerData, vipsData, foundersData, artistsData] =
+		const [relationshipData, channelViewerData, vipsData, foundersData, artistsData] =
 			results.map(res => (res.status === 'fulfilled' ? res.value : undefined));
 
 		const responseParts = [];

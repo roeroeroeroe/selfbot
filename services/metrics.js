@@ -22,7 +22,7 @@ function init() {
 	initialized = true;
 	setInterval(() => {
 		const now = Date.now();
-		let deltaMs = now - lastSampleTs || 1;
+		const deltaMs = now - lastSampleTs || 1;
 
 		const ctrs = {};
 		for (const [k, v] of counters) {

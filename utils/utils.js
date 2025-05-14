@@ -158,7 +158,7 @@ export async function retry(
 		requestsCounter,
 		retriesCounter,
 		logLabel = '',
-		canRetry = () => true,
+		canRetry = err => err.retryable === true,
 	} = {}
 ) {
 	if (requestsCounter) metrics.counter.create(requestsCounter);

@@ -1,6 +1,6 @@
 import config from '../config.json' with { type: 'json' };
 import logger from '../services/logger.js';
-import db from '../services/db.js';
+import db from '../services/db/index.js';
 import twitch from '../services/twitch/index.js';
 import utils from '../utils/index.js';
 

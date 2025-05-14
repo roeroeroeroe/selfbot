@@ -36,7 +36,13 @@ export default class RingBuffer {
 			if (!this.resizable)
 				throw new Error('buffer overflow: buffer is fixed-size');
 			const newCap = Math.min(this.#capacity << 1, RingBuffer.MAX_CAPACITY);
-			if (newCap === this.#capacity) return this.forcePush(item);
+			if (newCap === this.#capacity) {
+				logger.warning(
+					'[RingBuffer] push: forcePush fallback due to max capacity'
+				);
+				this.forcePush(item);
+				return;
+			}
 			this.#resize(newCap);
 		}
 		this.#buffer[this.#tail] = item;
@@ -67,7 +73,10 @@ export default class RingBuffer {
 		this.#buffer[this.#tail] = item;
 		this.#tail = (this.#tail + 1) & this.#mask;
 		if (this.#size < this.#capacity) this.#size++;
-		else this.#head = (this.#head + 1) & this.#mask;
+		else {
+			logger.debug('[RingBuffer] forcePush: overwriting oldest item at head');
+			this.#head = (this.#head + 1) & this.#mask;
+		}
 	}
 
 	pruneFront(predicate) {
@@ -101,17 +110,24 @@ export default class RingBuffer {
 			this.#buffer[(this.#head + i) & this.#mask] = undefined;
 		this.#size = write;
 		this.#tail = (this.#head + this.#size) & this.#mask;
-		return oldSize - write;
+		const c = oldSize - write;
+		if (c) logger.debug(`[RingBuffer] removeMatching: removed ${c} items`);
+		return c;
 	}
 
 	clear() {
 		for (let i = 0, N = this.#size; i < N; i++)
 			this.#buffer[(this.#head + i) & this.#mask] = undefined;
 		this.#head = this.#tail = this.#size = 0;
+		logger.debug('[RingBuffer] clear: cleared all items');
 	}
 
 	shrink() {
+		if (!this.resizable) throw new Error('buffer is fixed-size, cannot shrink');
 		if (this.#capacity === this.#minCapacity) return;
+		logger.debug(
+			`[RingBuffer] shrink: shrinking from ${this.#capacity} to ${this.#minCapacity}`
+		);
 		this.#buffer = this.#bufferFactory(this.#minCapacity);
 		this.#capacity = this.#minCapacity;
 		this.#mask = this.#minCapacity - 1;
@@ -119,6 +135,9 @@ export default class RingBuffer {
 	}
 
 	#resize(newCapacity) {
+		logger.debug(
+			`[RingBuffer] resize: resizing buffer: oldCap=${this.#capacity}, newCap=${newCapacity}`
+		);
 		const buf = this.#bufferFactory(newCapacity);
 		for (let i = 0, N = this.#size; i < N; i++)
 			buf[i] = this.#buffer[(this.#head + i) & this.#mask];

@@ -23,6 +23,7 @@ export default {
 	],
 	execute: async msg => {
 		const summaries = [];
+		const ageFn = utils.duration.createAge(Date.now());
 		try {
 			if (msg.args.length > 1) {
 				const usersMap = msg.commandFlags.idLookup
@@ -34,7 +35,7 @@ export default {
 					const user = usersMap.get(arg);
 					summaries.push(
 						user
-							? constructUserSummary(user)
+							? constructUserSummary(user, null, ageFn)
 							: `user ${idPrefix}${arg} does not exist`
 					);
 				}
@@ -45,7 +46,7 @@ export default {
 					: await twitch.gql.user.getUserWithBanReason(input);
 				summaries.push(
 					result?.user
-						? constructUserSummary(result.user, result.banned)
+						? constructUserSummary(result.user, result.banned, ageFn)
 						: 'user does not exist'
 				);
 			}
@@ -70,18 +71,14 @@ export default {
 	},
 };
 
-function constructUserSummary(user, banned) {
+function constructUserSummary(user, banned, ageFn) {
 	const parts = [];
-	const now = Date.now();
-	function age(date) {
-		return utils.duration.format(now - Date.parse(date));
-	}
 	parts.push(`@${utils.getEffectiveName(user.login, user.displayName)}`);
 	parts.push(`id: ${user.id}`);
 	if (banned?.reason) {
 		let suspendedSummary = `suspended (${banned.reason}`;
 		if (banned.reason === 'DEACTIVATED' && user.deletedAt)
-			suspendedSummary += ` ${age(user.deletedAt)} ago`;
+			suspendedSummary += ` ${ageFn(user.deletedAt)} ago`;
 		parts.push(suspendedSummary + ')');
 	}
 	if (user.description)
@@ -141,11 +138,11 @@ function constructUserSummary(user, banned) {
 		parts.push(teamSummary);
 	}
 	if (!user.stream && user.lastBroadcast?.startedAt)
-		parts.push(`last live: ${age(user.lastBroadcast.startedAt)} ago`);
-	parts.push(`created: ${age(user.createdAt)} ago`);
-	if (user.updatedAt) parts.push(`updated: ${age(user.updatedAt)} ago`);
+		parts.push(`last live: ${ageFn(user.lastBroadcast.startedAt)} ago`);
+	parts.push(`created: ${ageFn(user.createdAt)} ago`);
+	if (user.updatedAt) parts.push(`updated: ${ageFn(user.updatedAt)} ago`);
 	if (user.stream?.createdAt) {
-		let streamSummary = `live, uptime: ${age(user.stream.createdAt)}`;
+		let streamSummary = `live, uptime: ${ageFn(user.stream.createdAt)}`;
 		if (user.stream.game?.displayName)
 			streamSummary += `, category: ${user.stream.game.displayName}`;
 		if (user.stream.viewersCount)

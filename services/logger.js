@@ -79,8 +79,7 @@ function scheduleRotation() {
 	}, nextMidnight - now);
 }
 
-let currentDate = new Date().toISOString().slice(0, 10);
-openAllFiles(currentDate);
+openAllFiles(new Date().toISOString().slice(0, 10));
 scheduleRotation();
 
 const flushInterval = setInterval(() => {

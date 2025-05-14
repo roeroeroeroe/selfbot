@@ -1,6 +1,6 @@
 # selfbot
 > Requires Node.js version >= v22  
-> Make sure **Redis** and **PostgreSQL** are installed and configured on your system before proceeding with the steps below.
+> Make sure **Redis**|**Valkey** and **PostgreSQL** are installed and configured on your system before proceeding with the steps below.
 ## install dependencies
 ```bash
 npm i
@@ -26,12 +26,13 @@ vi config.json
   "responsePartsSeparator": " · ",       // separator for parts of command output
   "againstTOS": "message goes against twitch TOS", // message shown if content triggered internal banphrase
   "hastebinInstance": "https://paste.ivr.fi", // base URL of the hastebin server (POST to /documents, GET from /{key}, /raw/{key})
+  "maxPasteLength": 1500000,             // 0 for unlimited
   "rateLimits": "regular",               // "regular" | "verified" - https://dev.twitch.tv/docs/chat/#verified-bots
   "authedTmiClientConnectionsPoolSize": 10, // create N authenticated tmi connections (irc transport only)
-  "maxHermesConnections": 10,            // maximum amount of WS hermes connections to create
-  "maxHermesTopicsPerConnection": 50,    // maximum amount of topics a single connection can be subscribed to
-  "messagesBatchInsertIntervalMs": 2500, // how often to flush queued messages
-  "maxMessagesBatchInsertSize": 500,     // max number of messages to flush per batch
+  "maxHermesConnections": 20,            // max amount of WS hermes connections to create
+  "maxHermesTopicsPerConnection": 50,    // max amount of topics a single connection can be subscribed to
+  "messagesFlushIntervalMs": 2500,       // how often to flush queued messages
+  "maxMessagesPerChannelFlush": 150      // max amount of messages to flush per channel at once
   "bot": {
     "login": "",
     "id": "0"
@@ -92,7 +93,7 @@ DB_HOST=127.0.0.1
 DB_NAME=
 DB_PASSWORD=
 DB_PORT=5432
-DB_MAX_CLIENTS=30
+DB_MAX_CLIENTS=40
 REDIS_USER=
 REDIS_HOST=
 REDIS_PASSWORD=

@@ -43,7 +43,7 @@ function getHostResponse() {
 
 	return {
 		text: utils.format.join([
-			`uptime: ${utils.duration.format(os.uptime() * 1000, 2)}`,
+			`uptime: ${utils.duration.format(os.uptime() * 1000, { maxParts: 2 })}`,
 			`memory: ${utils.format.bytes(usedMem)}/${utils.format.bytes(totalMem)}`,
 			`host: ${os.type()} ${os.machine()}`,
 			`kernel: ${os.release()}`,
@@ -93,7 +93,7 @@ async function getGenericResponse(msg) {
 		text: utils.format.join([
 			`tmi: ${(t1 - t0) | 0}ms`,
 			`handler: ${(t0 - msg.receivedAt).toFixed(2)}ms`,
-			`uptime: ${utils.duration.format(t1 - twitch.chat.connectedAt, 2)}`,
+			`uptime: ${utils.duration.format(t1 - twitch.chat.connectedAt, { maxParts: 2 })}`,
 			`rss: ${rss}, heap: ${heapUsed}/${heapTotal}`,
 			`channels: ${twitch.chat.joinedChannels.size}`,
 			`irc: ${twitch.chat.connections.length}`,

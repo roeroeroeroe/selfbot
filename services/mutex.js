@@ -2,7 +2,7 @@ import RingBuffer from './ring_buffer.js';
 
 export default class Mutex {
 	#locked = false;
-	#waiters = new RingBuffer(16);
+	#waiters = new RingBuffer(1 << 4);
 
 	async lock() {
 		if (!this.#locked) {

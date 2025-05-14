@@ -1,15 +1,13 @@
 import logger from './logger.js';
 import utils from '../utils/index.js';
-import db from './db.js';
+import db from './db/index.js';
 
 const commands = new Map();
 const byName = new Map();
 
 function normalizeTrigger(command) {
-	if (!(command.trigger instanceof RegExp)) {
-		const match = command.trigger.match(utils.regex.patterns.regexp);
-		command.trigger = new RegExp(match[1], match[2]);
-	}
+	if (!(command.trigger instanceof RegExp))
+		command.trigger = utils.regex.construct(command.trigger);
 	return command;
 }
 

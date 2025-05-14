@@ -125,19 +125,19 @@ export default {
 				}
 		}
 
-		const messageParts = [totalCount];
+		const responseParts = [totalCount];
 		try {
 			const link = await hastebin.create(list.join('\n'));
 			const collectedChattersCount = getTotalChatters(chatters);
 			if (collectedChattersCount !== totalCount)
-				messageParts.push(`collected: ${collectedChattersCount}`);
-			messageParts.push(link);
-			return { text: utils.format.join(messageParts), mention: true };
+				responseParts.push(`collected: ${collectedChattersCount}`);
+			responseParts.push(link);
 		} catch (err) {
 			logger.error('error creating paste:', err);
-			messageParts.push('error creating paste');
-			return { text: utils.format.join(messageParts), mention: true };
+			responseParts.push('error creating paste');
 		}
+
+		return { text: utils.format.join(responseParts), mention: true };
 	},
 };
 

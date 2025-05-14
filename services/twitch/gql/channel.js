@@ -197,14 +197,22 @@ async function getSelfEditableChannels() {
 	return res.data;
 }
 
-async function isSelfPrivileged(channelLogin) {
-	if (channelLogin === config.bot.login) return true;
+async function isSelfPrivileged(
+	channelLogin,
+	vip = true,
+	moderator = true,
+	editor = false
+) {
+	if (channelLogin === config.bot.login || (!vip && !moderator && !editor))
+		return true;
+
 	const res = await request.send({
 		query: `query($login: String) {
 	user(login: $login) {
 		self {
-			isModerator
 			isVIP
+			isModerator
+			isEditor
 		}
 	}
 }`,
@@ -212,8 +220,9 @@ async function isSelfPrivileged(channelLogin) {
 	});
 
 	if (!res.data?.user?.self) return false;
-	const { isModerator, isVIP } = res.data.user.self;
-	return isModerator || isVIP;
+	const { isVIP, isModerator, isEditor } = res.data.user.self;
+
+	return (vip && isVIP) || (moderator && isModerator) || (editor && isEditor);
 }
 
 async function getChannelViewer(userLogin, channelLogin) {

@@ -20,11 +20,13 @@ export default function createGqlTransport(botNonce) {
 					);
 					if (res.sendChatMessage?.dropReason) {
 						metrics.counter.increment(DROPPED_MESSAGES_METRICS_COUNTER);
-						throw new Error(`dropped: ${res.sendChatMessage.dropReason}`);
+						const err = new Error(`dropped: ${res.sendChatMessage.dropReason}`);
+						err.retryable = true;
+						throw err;
 					}
 					return res;
 				},
-				{ logLabel: 'GQL-TX', canRetry: err => err.retryable !== false }
+				{ logLabel: 'GQL-TX' }
 			);
 		},
 	};

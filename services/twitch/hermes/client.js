@@ -3,7 +3,7 @@ import AsyncQueue from '../../async_queue.js';
 import config from '../../../config.json' with { type: 'json' };
 import events from './events.js';
 import logger from '../../logger.js';
-import db from '../../db.js';
+import db from '../../db/index.js';
 import utils from '../../../utils/index.js';
 import metrics from '../../metrics.js';
 
@@ -26,8 +26,11 @@ const WS_URL = `wss://hermes.twitch.tv/v1?clientId=${process.env.TWITCH_ANDROID_
 const HEALTH_CHECK_INTERVAL_MS = 2000;
 const WS_CONNECTION_SPAWN_WINDOW_MS = 1000;
 const WS_CONNECTION_SPAWNS_PER_WINDOW = 1;
+
+// used for config validation
 const MAX_CONNECTIONS = 100;
 const MAX_TOPICS_PER_CONNECTION = 100;
+
 const BASE64URL_CHARSET =
 	'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
 /*

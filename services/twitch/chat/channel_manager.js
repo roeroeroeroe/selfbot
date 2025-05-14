@@ -1,6 +1,6 @@
 import SlidingWindowRateLimiter from '../../sliding_window_rate_limiter.js';
 import AsyncQueue from '../../async_queue.js';
-import db from '../../db.js';
+import db from '../../db/index.js';
 import twitch from '../index.js';
 import logger from '../../logger.js';
 import utils from '../../../utils/index.js';

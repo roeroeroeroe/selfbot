@@ -8,7 +8,16 @@ export default {
 	aliases: ['mc', 'listmc'],
 	description: 'list moderated channels',
 	unsafe: false,
-	flags: [],
+	flags: [
+		{
+			name: 'info',
+			aliases: ['i', 'info'],
+			type: 'boolean',
+			required: false,
+			defaultValue: false,
+			description: 'print summary only',
+		},
+	],
 	execute: async msg => {
 		const list = [];
 		const counters = {
@@ -76,14 +85,15 @@ export default {
 		for (const c of Object.values(counters))
 			if (c.count) responseParts.push(`${c.desc}: ${c.count}`);
 
-		try {
-			const link = await hastebin.create(utils.format.align(list));
-			responseParts.push(link);
-			return { text: utils.format.join(responseParts), mention: true };
-		} catch (err) {
-			logger.error('error creating paste:', err);
-			responseParts.push('error creating paste');
-			return { text: utils.format.join(responseParts), mention: true };
-		}
+		if (!msg.commandFlags.info)
+			try {
+				const link = await hastebin.create(utils.format.align(list));
+				responseParts.push(link);
+			} catch (err) {
+				logger.error('error creating paste:', err);
+				responseParts.push('error creating paste');
+			}
+
+		return { text: utils.format.join(responseParts), mention: true };
 	},
 };

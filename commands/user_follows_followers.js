@@ -3,6 +3,8 @@ import hastebin from '../services/hastebin.js';
 import utils from '../utils/index.js';
 import twitch from '../services/twitch/index.js';
 
+const NOTIFICATIONS_SYMBOL = '';
+
 export default {
 	name: 'follows',
 	// prettier-ignore
@@ -82,7 +84,7 @@ export default {
 			countStr,
 			edges,
 			includeCategories = false;
-		const messageParts = [];
+		const responseParts = [];
 
 		switch (action) {
 			case 'follows':
@@ -107,7 +109,7 @@ export default {
 				break;
 		}
 
-		messageParts.push(countStr);
+		responseParts.push(countStr);
 		if (edges.length > limit) edges = edges.slice(0, limit);
 
 		let header = countStr;
@@ -122,23 +124,22 @@ export default {
 
 		if (includeCategories) {
 			const categoriesCountStr = `${result.followedGames.length} ${utils.format.plural(result.followedGames.length, 'category', 'categories')}`;
-			messageParts.push(categoriesCountStr);
+			responseParts.push(categoriesCountStr);
 			list.push(`${list.length ? '\n' : ''}${categoriesCountStr}:\n`);
 			for (const c of result.followedGames) list.push(c);
 		}
 
-		try {
-			// in case all edges are missing node.login
-			if (list.length) {
+		// in case all edges are missing node.login
+		if (list.length)
+			try {
 				const link = await hastebin.create(utils.format.align(list));
-				messageParts.push(link);
+				responseParts.push(link);
+			} catch (err) {
+				logger.error('error creating paste:', err);
+				responseParts.push('error creating paste');
 			}
-			return { text: utils.format.join(messageParts), mention: true };
-		} catch (err) {
-			logger.error('error creating paste:', err);
-			messageParts.push('error creating paste');
-			return { text: utils.format.join(messageParts), mention: true };
-		}
+
+		return { text: utils.format.join(responseParts), mention: true };
 	},
 };
 
@@ -161,7 +162,7 @@ function processEdges(edges, raw) {
 		}
 		parts[parts.length - 1] +=
 			`__ALIGN__followed at: ${utils.date.format(e.followedAt)}`;
-		if (e.notificationSettings.isEnabled) parts.push('');
+		if (e.notificationSettings.isEnabled) parts.push(NOTIFICATIONS_SYMBOL);
 
 		lines.push(utils.format.join(parts));
 	}

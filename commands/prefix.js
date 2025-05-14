@@ -1,7 +1,7 @@
 import config from '../config.json' with { type: 'json' };
 import configuration from '../services/configuration.js';
 import logger from '../services/logger.js';
-import db from '../services/db.js';
+import db from '../services/db/index.js';
 import utils from '../utils/index.js';
 
 export default {

@@ -1,4 +1,4 @@
-import db from '../services/db.js';
+import db from '../services/db/index.js';
 
 export default {
 	name: 'sql',
