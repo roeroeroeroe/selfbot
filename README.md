@@ -32,7 +32,7 @@ vi config.json
   "maxHermesConnections": 20,            // max amount of WS hermes connections to create
   "maxHermesTopicsPerConnection": 50,    // max amount of topics a single connection can be subscribed to
   "messagesFlushIntervalMs": 2500,       // how often to flush queued messages
-  "maxMessagesPerChannelFlush": 150      // max amount of messages to flush per channel at once
+  "maxMessagesPerChannelFlush": 150,     // max amount of messages to flush per channel at once
   "bot": {
     "login": "",
     "id": "0"
