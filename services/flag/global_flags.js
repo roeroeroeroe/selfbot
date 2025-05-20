@@ -72,58 +72,51 @@ async function preHandle(msg, command) {
 }
 
 const postFlagHandlers = [
-	{
-		name: 'quiet',
-		handler: (msg, result) => {
-			return msg.commandFlags.quiet ? null : result;
-		},
+	// quiet
+	(msg, result) => {
+		return msg.commandFlags.quiet ? null : result;
 	},
-	{
-		name: 'timeExec',
-		handler: (msg, result) => {
-			if (!msg.commandFlags.timeExec) return result;
-			const execT1 = performance.now();
-			const duration = msg.execT0
-				? (execT1 - msg.execT0).toFixed(3) + 'ms'
-				: 'N/A';
-			if (result.text)
-				result.text += ` ${config.responsePartsSeparator} took ${duration}`;
-			else result.text = `took ${duration}`;
+	// timeExec
+	(msg, result) => {
+		if (!msg.commandFlags.timeExec) return result;
+		const execT1 = performance.now();
+		const duration = msg.execT0
+			? (execT1 - msg.execT0).toFixed(3) + 'ms'
+			: 'N/A';
+		if (result.text)
+			result.text += ` ${config.responsePartsSeparator} took ${duration}`;
+		else result.text = `took ${duration}`;
+		return result;
+	},
+	// toPaste
+	async (msg, result) => {
+		if (!msg.commandFlags.toPaste) return result;
 
+		const text = result?.text;
+		if (!text) return result;
+
+		const maxLength = utils.getMaxMessageLength(
+			msg.senderUsername,
+			result.reply,
+			result.mention
+		);
+
+		if (text.includes(normalizedHastebinUrl) && text.length <= maxLength)
 			return result;
-		},
-	},
-	{
-		name: 'toPaste',
-		handler: async (msg, result) => {
-			if (!msg.commandFlags.toPaste) return result;
 
-			const text = result?.text ?? '';
-			if (!text) return result;
-
-			const maxLength = utils.getMaxMessageLength(
-				msg.senderUsername,
-				result.reply,
-				result.mention
-			);
-
-			if (text.includes(normalizedHastebinUrl) && text.length <= maxLength)
-				return result;
-
-			try {
-				result.text = await hastebin.create(text);
-				return result;
-			} catch (err) {
-				logger.error('error creating paste:', err);
-				return { text: `error creating paste: ${err.message}`, mention: true };
-			}
-		},
+		try {
+			result.text = await hastebin.create(text);
+			return result;
+		} catch (err) {
+			logger.error('error creating paste:', err);
+			return { text: `error creating paste: ${err.message}`, mention: true };
+		}
 	},
 ];
 
 async function postHandle(msg, result) {
-	for (const { handler } of postFlagHandlers) {
-		result = await handler(msg, result);
+	for (let i = 0; i < postFlagHandlers.length; i++) {
+		result = await postFlagHandlers[i](msg, result);
 		if (result === null || result === undefined) return null;
 	}
 

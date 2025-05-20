@@ -32,6 +32,7 @@
 		"colorize": true
 	},
 	"metrics": {
+		"enabled": false,
 		"sampleIntervalMs": 5000,
 		"logIntervalMs": 1800000,
 		"prometheus": {

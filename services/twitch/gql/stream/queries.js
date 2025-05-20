@@ -1,12 +1,9 @@
-import request from './request.js';
+import { BASIC_USER } from '../fragments.js';
 
-async function getStream(channelLogin) {
-	const res = await request.send({
-		query: `query($login: String!) {
+export const GET_STREAM = `
+query($login: String!) {
 	user(login: $login lookupType: ALL) {
-		login
-		id
-		displayName
+		...BasicUserFragment
 		lastBroadcast {
 			startedAt
 		}
@@ -44,13 +41,5 @@ async function getStream(channelLogin) {
 			}
 		}
 	}
-}`,
-		variables: { login: channelLogin },
-	});
-
-	return res.data;
 }
-
-export default {
-	get: getStream,
-};
+${BASIC_USER}`;

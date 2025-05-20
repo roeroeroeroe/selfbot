@@ -39,7 +39,7 @@ async function oauthRequest(url, urlParams) {
 	});
 	if (!res.ok) throw new Error(await res.text());
 
-	return await res.json();
+	return res.json();
 }
 
 async function main() {

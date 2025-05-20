@@ -1,23 +1,15 @@
 import SlidingWindowRateLimiter from '../../sliding_window_rate_limiter.js';
 import AsyncQueue from '../../async_queue.js';
+import * as constants from './constants.js';
 import utils from '../../../utils/index.js';
 import logger from '../../logger.js';
-import metrics from '../../metrics.js';
+import metrics from '../../metrics/index.js';
 import config from '../../../config.json' with { type: 'json' };
-
-const MESSAGES_WINDOW_MS = 30000;
-const REGULAR_MAX_MESSAGES_PER_WINDOW = 19;
-const REGULAR_MAX_MESSAGES_PER_WINDOW_PRIVILEGED = 99;
-const VERIFIED_MAX_MESSAGES_PER_WINDOW = 7499;
-const DUPLICATE_MESSAGE_THRESHOLD_MS = 30000;
-const INVIS_CHAR = ' \u{E0000}';
-
-const MESSAGES_TX_METRICS_COUNTER = 'tmi_messages_sent';
-metrics.counter.create(MESSAGES_TX_METRICS_COUNTER);
 
 export default class ChatService {
 	static DEFAULT_SLOW_MODE_MS =
 		config.chatServiceTransport === 'gql' ? 1250 : 1100;
+	static CAN_BYPASS_FOLLOWERS_ONLY_MODE = config.rateLimits === 'verified';
 	#queues = new Map();
 	#sendStates = new Map();
 
@@ -42,6 +34,14 @@ export default class ChatService {
 		return state;
 	}
 
+	setSlowModeDuration(channelId, ms) {
+		const duration = Math.max(ChatService.DEFAULT_SLOW_MODE_MS, ms);
+		logger.debug(
+			`[CHAT] setting slowModeDuration to ${duration}ms for channel ${channelId}`
+		);
+		this.getState(channelId).slowModeDuration = duration;
+	}
+
 	send(
 		channelId,
 		channelLogin,
@@ -59,10 +59,12 @@ export default class ChatService {
 		const maxLength = utils.getMaxMessageLength(userLogin, !!parentId, mention);
 		text = utils.format.trim(text, maxLength).replace(/[\r\n]/g, ' ');
 
-		const pattern = utils.regex.checkMessage(text);
-		if (pattern) {
+		const tosMatch = utils.regex.checkMessage(text);
+		if (tosMatch) {
 			logger.warning(
-				`[CHAT] caught message (pattern: ${pattern}, channel: ${channelLogin || channelId}, user: ${userLogin || 'N/A'}): ${text}`
+				`[CHAT] caught message (pattern: ${tosMatch.pattern}, channel:`,
+				`${channelLogin || channelId}, user: ${userLogin || 'N/A'}):\n` +
+					utils.regex.pointer(tosMatch.match)
 			);
 			text = config.againstTOS;
 			parentId = '';
@@ -100,19 +102,21 @@ export default class ChatService {
 
 			if (
 				state.lastDuplicateKey === key &&
-				now - state.lastSend < DUPLICATE_MESSAGE_THRESHOLD_MS
+				now - state.lastSend < constants.DUPLICATE_MESSAGE_THRESHOLD_MS
 			) {
 				const maxLen = 500 - (reply ? userLogin.length + 2 : 0);
-				if (text.length + INVIS_CHAR.length <= maxLen) text += INVIS_CHAR;
+				if (text.length + constants.INVIS_CHAR.length <= maxLen)
+					text += constants.INVIS_CHAR;
 				else
 					text =
-						utils.format.trim(text, maxLen - INVIS_CHAR.length) + INVIS_CHAR;
+						utils.format.trim(text, maxLen - constants.INVIS_CHAR.length) +
+						constants.INVIS_CHAR;
 				key = flags + text;
 			}
 			state.lastDuplicateKey = key;
 		}
 		state.lastSend = now;
-		metrics.counter.increment(MESSAGES_TX_METRICS_COUNTER);
+		metrics.counter.increment(metrics.names.counters.TMI_MESSAGES_TX);
 		logger.debug(`[CHAT] sending: #${channelLogin} ${text}`);
 		// prettier-ignore
 		await this.transport.send(channelId, channelLogin, text, this.botNonce, parentId);
@@ -123,19 +127,18 @@ export default class ChatService {
 		this.rateLimiters = {};
 		if (config.rateLimits === 'regular') {
 			this.rateLimiters.normal = new SlidingWindowRateLimiter(
-				MESSAGES_WINDOW_MS,
-				REGULAR_MAX_MESSAGES_PER_WINDOW
+				constants.MESSAGES_WINDOW_MS,
+				constants.REGULAR_MAX_MESSAGES_PER_WINDOW
 			);
 			this.rateLimiters.privileged = new SlidingWindowRateLimiter(
-				MESSAGES_WINDOW_MS,
-				REGULAR_MAX_MESSAGES_PER_WINDOW_PRIVILEGED
+				constants.MESSAGES_WINDOW_MS,
+				constants.REGULAR_MAX_MESSAGES_PER_WINDOW_PRIVILEGED
 			);
 			this.recordSend = channelId => {
 				const now = performance.now();
 				this.rateLimiters.normal.forceAdd(now);
 				this.rateLimiters.privileged.forceAdd(now);
-				const state = this.getState(channelId);
-				state.lastSend = now;
+				this.getState(channelId).lastSend = now;
 			};
 			this.worker = async (
 				state,
@@ -163,14 +166,13 @@ export default class ChatService {
 			};
 		} else if (config.rateLimits === 'verified') {
 			this.rateLimiters.verified = new SlidingWindowRateLimiter(
-				MESSAGES_WINDOW_MS,
-				VERIFIED_MAX_MESSAGES_PER_WINDOW
+				constants.MESSAGES_WINDOW_MS,
+				constants.VERIFIED_MAX_MESSAGES_PER_WINDOW
 			);
 			this.recordSend = channelId => {
 				const now = performance.now();
 				this.rateLimiters.verified.forceAdd(now);
-				const state = this.getState(channelId);
-				state.lastSend = now;
+				this.getState(channelId).lastSend = now;
 			};
 			this.worker = async (
 				state,

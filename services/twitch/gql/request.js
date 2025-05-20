@@ -1,29 +1,16 @@
-import metrics from '../../metrics.js';
+import gql from './index.js';
+import metrics from '../../metrics/index.js';
 import logger from '../../logger.js';
 import utils from '../../../utils/index.js';
 
-const REQUESTS_METRICS_COUNTER = 'gql_requests_sent';
-const RETRIES_METRICS_COUNTER = 'gql_retries';
-const ERRORS_METRICS_COUNTER = 'gql_graphql_errors';
-metrics.counter.create(ERRORS_METRICS_COUNTER);
-
-const GQL_URL = 'https://gql.twitch.tv/gql';
-const METHOD = 'POST';
-const MAX_OPERATIONS_PER_REQUEST = 35;
-const HEADERS = {
-	'Client-Id': process.env.TWITCH_ANDROID_CLIENT_ID,
-	'Authorization': `OAuth ${process.env.TWITCH_ANDROID_TOKEN}`,
-	'Content-Type': 'application/json',
-};
-
-export async function gql(body = {}) {
+export default function send(body = {}) {
 	const bodyString = JSON.stringify(body);
-	logger.debug(`[GQL] ${METHOD} ${GQL_URL}:`, bodyString);
+	logger.debug(`[GQL] ${gql.METHOD} ${gql.API_URL}:`, bodyString);
 	return utils.retry(
 		async () => {
-			const res = await fetch(GQL_URL, {
-				method: METHOD,
-				headers: HEADERS,
+			const res = await fetch(gql.API_URL, {
+				method: gql.METHOD,
+				headers: gql.HEADERS,
 				body: bodyString,
 			});
 			if (res.status >= 400 && res.status < 500)
@@ -36,7 +23,7 @@ export async function gql(body = {}) {
 
 			const body = await res.json();
 			if (Array.isArray(body.errors) && body.errors.length) {
-				metrics.counter.increment(ERRORS_METRICS_COUNTER);
+				metrics.counter.increment(metrics.names.counters.GQL_ERRORS);
 				const err = new Error(`graphql errors: ${JSON.stringify(body.errors)}`);
 				err.retryable = true;
 				throw err;
@@ -46,15 +33,9 @@ export async function gql(body = {}) {
 			return body;
 		},
 		{
-			requestsCounter: REQUESTS_METRICS_COUNTER,
-			retriesCounter: RETRIES_METRICS_COUNTER,
+			requestsCounter: metrics.names.counters.GQL_REQUESTS_SENT,
+			retriesCounter: metrics.names.counters.GQL_RETRIES,
 			logLabel: 'GQL',
 		}
 	);
 }
-
-export default {
-	MAX_OPERATIONS_PER_REQUEST,
-
-	send: gql,
-};

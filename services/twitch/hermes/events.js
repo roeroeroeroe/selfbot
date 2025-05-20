@@ -4,18 +4,7 @@ import logger from '../../logger.js';
 import db from '../../db/index.js';
 import utils from '../../../utils/index.js';
 import twitch from '../index.js';
-import metrics from '../../metrics.js';
-
-const JOINED_RAIDS_METRICS_COUNTER = 'hermes_joined_raids';
-const ACKNOWLEDGED_WARNINGS_METRICS_COUNTER = 'hermes_acknowledged_warnings';
-metrics.counter.create(JOINED_RAIDS_METRICS_COUNTER);
-metrics.counter.create(ACKNOWLEDGED_WARNINGS_METRICS_COUNTER);
-
-const CHANNEL_MODERATION_ACTION_COOLDOWN_MS = 2500;
-
-const USER_MODERATION_ACTION_COOLDOWN_KEY_PREFIX =
-	'hermes:user_moderation_action';
-const RAID_COOLDOWN_KEY_PREFIX = 'hermes:raid_update_v2';
+import metrics from '../../metrics/index.js';
 
 export default {
 	user_moderation_action: async msg => {
@@ -26,13 +15,13 @@ export default {
 		if (
 			msg.data?.target_id !== config.bot.id ||
 			cooldown.has(
-				`${USER_MODERATION_ACTION_COOLDOWN_KEY_PREFIX}:${msg.data.channel_id}`
+				`${twitch.hermes.USER_MODERATION_ACTION_COOLDOWN_KEY_PREFIX}:${msg.data.channel_id}`
 			)
 		)
 			return;
 		cooldown.set(
-			`${USER_MODERATION_ACTION_COOLDOWN_KEY_PREFIX}:${msg.data.channel_id}`,
-			CHANNEL_MODERATION_ACTION_COOLDOWN_MS
+			`${twitch.hermes.USER_MODERATION_ACTION_COOLDOWN_KEY_PREFIX}:${msg.data.channel_id}`,
+			twitch.hermes.CHANNEL_MODERATION_ACTION_COOLDOWN_MS
 		);
 
 		let user;
@@ -65,7 +54,9 @@ export default {
 				const errorCode = res.acknowledgeChatWarning.error?.code;
 				if (errorCode) logger.error('error acknowledging warning:', errorCode);
 				else {
-					metrics.counter.increment(ACKNOWLEDGED_WARNINGS_METRICS_COUNTER);
+					metrics.counter.increment(
+						metrics.names.counters.HERMES_ACKNOWLEDGED_WARNINGS
+					);
 					logger.info(
 						`[Hermes] user_moderation_action: acknowledged warning in ${channelName}`
 					);
@@ -80,8 +71,14 @@ export default {
 			logger.warning(`[Hermes] raid_update_v2: no raid id:`, msg);
 			return;
 		}
-		if (cooldown.has(`${RAID_COOLDOWN_KEY_PREFIX}:${msg.raid.id}`)) return;
-		cooldown.set(`${RAID_COOLDOWN_KEY_PREFIX}:${msg.raid.id}`, 600000);
+		if (
+			cooldown.has(`${twitch.hermes.RAID_COOLDOWN_KEY_PREFIX}:${msg.raid.id}`)
+		)
+			return;
+		cooldown.set(
+			`${twitch.hermes.RAID_COOLDOWN_KEY_PREFIX}:${msg.raid.id}`,
+			600000
+		);
 
 		const channel = await db.channel.get(msg.raid.source_id);
 		if (!channel) {
@@ -118,7 +115,7 @@ export default {
 			try {
 				const res = await twitch.gql.channel.joinRaid(msg.raid.id);
 				if (res?.joinRaid?.raidID) {
-					metrics.counter.increment(JOINED_RAIDS_METRICS_COUNTER);
+					metrics.counter.increment(metrics.names.counters.HERMES_JOINED_RAIDS);
 					logger.info(
 						`[Hermes] raid_update_v2: joined raid from ${sourceChannelName} to ${targetChannelName}, raid id: ${res.joinRaid.raidID}`
 					);
@@ -151,7 +148,7 @@ export default {
 				activity.channel_login,
 				activity.channel_display_name
 			);
-			await twitch.chat.join(activity.channel_login);
+			twitch.chat.join(activity.channel_login);
 			for (const sub of twitch.hermes.CHANNEL_SUBS)
 				twitch.hermes.subscribe(sub, activity.channel_id);
 			logger.info(`[Hermes] presence: joining ${channelName}`);

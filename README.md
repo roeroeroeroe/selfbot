@@ -45,6 +45,7 @@ vi config.json
     "colorize": true                     // enable colored terminal output
   },
   "metrics": {
+    "enabled": false,
     "sampleIntervalMs": 5000,            // how often to sample and compute rates
     "logIntervalMs": 1800000,            // how often to log the latest snapshot (0 to disable)
     "prometheus": {

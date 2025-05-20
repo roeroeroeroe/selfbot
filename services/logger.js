@@ -90,6 +90,7 @@ const flushInterval = setInterval(() => {
 }, FILE_WRITE_FLUSH_INTERVAL_MS);
 
 function formatArgs(args) {
+	if (!args.length) return '';
 	let stack = null;
 	for (let i = 0; i < args.length; i++) {
 		const arg = args[i];

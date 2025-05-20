@@ -1,5 +1,6 @@
-import db from './index.js';
-import logger from '../logger.js';
+import * as queries from './queries.js';
+import db from '../index.js';
+import logger from '../../logger.js';
 
 async function insertCustomCommand(
 	commandName,
@@ -19,7 +20,7 @@ async function insertCustomCommand(
 		`whitelist: ${whitelist}, cooldown: ${cooldown},`,
 		`reply: ${reply}, mention: ${mention}`
 	);
-	await db.query(db.INSERT_CUSTOM_COMMAND, [
+	await db.query(queries.INSERT_CUSTOM_COMMAND, [
 		commandName,
 		channelId,
 		trigger,
@@ -51,10 +52,12 @@ async function updateCustomCommand(commandName, newValues = {}) {
 
 async function deleteCustomCommand(commandName) {
 	logger.debug('[DB] deleting custom command', commandName);
-	await db.query(db.DELETE_CUSTOM_COMMAND, [commandName]);
+	await db.query(queries.DELETE_CUSTOM_COMMAND, [commandName]);
 }
 
 export default {
+	queries,
+
 	insert: insertCustomCommand,
 	update: updateCustomCommand,
 	delete: deleteCustomCommand,

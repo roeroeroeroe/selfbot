@@ -1,14 +1,10 @@
-import { ChatClient } from '@mastondzn/dank-twitch-irc';
+import { ChatClient, ReconnectError } from '@mastondzn/dank-twitch-irc';
 import ChannelManager from './chat/channel_manager.js';
-import ChatService from './chat/chat_service.js';
 import config from '../../config.json' with { type: 'json' };
 import db from '../db/index.js';
 import logger from '../logger.js';
-import metrics from '../metrics.js';
+import metrics from '../metrics/index.js';
 import handle from '../message_handler.js';
-
-const MESSAGES_RX_METRICS_COUNTER = 'tmi_messages_received';
-metrics.counter.create(MESSAGES_RX_METRICS_COUNTER);
 
 export default function init(chatService) {
 	logger.debug('[TMI] initializing...');
@@ -24,26 +20,31 @@ export default function init(chatService) {
 		logger.info('[TMI] connected');
 		channelManager.init();
 	});
-	tmi.on('error', err => logger.error('[TMI] error:', err.message));
+	tmi.on('error', err => {
+		if (err instanceof ReconnectError)
+			logger.debug('[TMI] server requested reconnect');
+		else logger.error('[TMI] error:', err.message);
+	});
 	tmi.on('close', err => err && logger.fatal('[TMI] closed:', err));
 	tmi.on('NOTICE', msg => logger.debug('[TMI] NOTICE:', msg));
 	tmi.on('USERNOTICE', msg => logger.debug('[TMI] USERNOTICE:', msg));
 	tmi.on('JOIN', msg => logger.debug('[TMI] JOIN:', msg.rawSource));
-	tmi.on('ROOMSTATE', ({ channelID, slowModeDuration, channelName }) => {
-		const duration = Math.max(
-			ChatService.DEFAULT_SLOW_MODE_MS,
-			(slowModeDuration ?? 0) * 1000 + 100
-		);
-		logger.debug(
-			`[TMI] setting slowModeDuration to ${duration}ms for channel ${channelName}`
-		);
-		chatService.getState(channelID).slowModeDuration = duration;
+	tmi.on('PART', msg => {
+		logger.debug('[TMI] PART:', msg.rawSource);
+		if (msg.partedUsername === config.bot.login)
+			channelManager.desiredChannels.delete(msg.channelName);
 	});
+	tmi.on('ROOMSTATE', ({ channelID, slowModeDuration }) =>
+		chatService.setSlowModeDuration(
+			channelID,
+			(slowModeDuration ?? 0) * 1000 + 100
+		)
+	);
 	tmi.on('PRIVMSG', async msg => {
 		if (msg.sourceChannelID && msg.sourceChannelID !== msg.channelID) return;
 		msg.receivedAt = performance.now();
 		logger.debug('[TMI] PRIVMSG:', msg.rawSource);
-		metrics.counter.increment(MESSAGES_RX_METRICS_COUNTER);
+		metrics.counter.increment(metrics.names.counters.TMI_MESSAGES_RX);
 
 		try {
 			msg.query = await db.channel.get(msg.channelID);
@@ -54,14 +55,12 @@ export default function init(chatService) {
 		}
 
 		if (msg.query.log)
-			db.message
-				.queueInsert(
-					msg.channelID,
-					msg.senderUserID,
-					msg.messageText,
-					msg.serverTimestamp.toISOString()
-				)
-				.catch(err => logger.error('failed to queue message insert:', err));
+			db.message.queueInsert(
+				msg.channelID,
+				msg.senderUserID,
+				msg.messageText,
+				msg.serverTimestamp.toISOString()
+			);
 
 		// prettier-ignore
 		if (msg.query.login !== msg.channelName) {

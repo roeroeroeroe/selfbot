@@ -1,6 +1,7 @@
 import config from '../config.json' with { type: 'json' };
 // prettier-ignore
-const iecByteUnits = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB'];
+const IEC_BYTE_UNITS = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB'];
+const MAX_IEC_BYTE_UNIT_INDEX = IEC_BYTE_UNITS.length - 1;
 
 function trimString(str, lim = 500) {
 	str ??= '';
@@ -14,13 +15,9 @@ function joinParts(arr, sep = config.responsePartsSeparator) {
 function formatBytes(bytes, precision = 1) {
 	if (typeof bytes !== 'number' || bytes < 1) return '0 B';
 	let i = 0;
-	for (
-		let n = iecByteUnits.length - 1;
-		bytes >= 1024 && i < n;
-		bytes /= 1024, i++
-	);
+	for (; bytes >= 1024 && i < MAX_IEC_BYTE_UNIT_INDEX; bytes /= 1024, i++);
 
-	return `${bytes.toFixed(precision)} ${iecByteUnits[i]}`;
+	return `${bytes.toFixed(precision)} ${IEC_BYTE_UNITS[i]}`;
 }
 
 function toPlural(n, single, plural = `${single}s`) {

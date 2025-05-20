@@ -44,11 +44,19 @@ export default {
 				const result = msg.commandFlags.idLookup
 					? await twitch.gql.user.getUserWithBanReason(null, input)
 					: await twitch.gql.user.getUserWithBanReason(input);
-				summaries.push(
-					result?.user
-						? constructUserSummary(result.user, result.banned, ageFn)
-						: 'user does not exist'
-				);
+				if (result?.user)
+					summaries.push(
+						constructUserSummary(result.user, result.banned, ageFn)
+					);
+				else if (!msg.commandFlags.idLookup) {
+					const res = await twitch.gql.user.search(input);
+					const suggestion = res.searchUsers.edges[0]?.node.login;
+					summaries.push(
+						suggestion
+							? `user does not exist, did you mean ${suggestion}?`
+							: 'user does not exist'
+					);
+				} else summaries.push('user does not exist');
 			}
 		} catch (err) {
 			logger.error('error getting users:', err);
@@ -123,9 +131,9 @@ function constructUserSummary(user, banned, ageFn) {
 	if (user.chatColor) {
 		const color = utils.color.get(user.chatColor);
 		if (color) {
-			const { rgb, name: colorName } = color;
+			const { hex, shorthandHex, rgb, name: colorName } = color;
 			parts.push(
-				`color: ${user.chatColor} ${colorName} rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`
+				`color: #${shorthandHex || hex} ${colorName} rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`
 			);
 		} else parts.push(`color: ${user.chatColor}`);
 	} else parts.push('default color (never set)');

@@ -1,6 +1,6 @@
 import config from '../config.json' with { type: 'json' };
 import logger from '../services/logger.js';
-import metrics from '../services/metrics.js';
+import metrics from '../services/metrics/index.js';
 
 const shellArgPattern = /(?:[^\s"']+|"[^"]*"|'[^']*')+/g;
 const base62Charset =
@@ -73,7 +73,8 @@ function damerauLevenshteinDistance(a, b) {
 	const INF = aLen + bLen;
 
 	const da = {};
-	for (const char of new Set([...a, ...b])) da[char] = 0;
+	for (let i = 0; i < aLen; da[a[i++]] = 0);
+	for (let i = 0; i < bLen; da[b[i++]] = 0);
 
 	const d = [];
 	const rows = aLen + 2;
@@ -161,8 +162,6 @@ export async function retry(
 		canRetry = err => err.retryable === true,
 	} = {}
 ) {
-	if (requestsCounter) metrics.counter.create(requestsCounter);
-	if (retriesCounter) metrics.counter.create(retriesCounter);
 	const logPrefix = logLabel ? `[${logLabel}] ` : '';
 
 	let lastError;

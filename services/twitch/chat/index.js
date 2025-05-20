@@ -1,15 +1,12 @@
 import { ChatClient, ConnectionPool } from '@mastondzn/dank-twitch-irc';
 import ChatService from './chat_service.js';
+import * as constants from './constants.js';
 import initTMI from '../tmi.js';
 import createIrcTransport from './irc_transport.js';
 import createGqlTransport from './gql_transport.js';
 import config from '../../../config.json' with { type: 'json' };
 import logger from '../../logger.js';
 import utils from '../../../utils/index.js';
-
-// used for config validation
-const REGULAR_MAX_CONNECTIONS_POOL_SIZE = 20;
-const VERIFIED_MAX_CONNECTIONS_POOL_SIZE = 200;
 
 // base16 32char string - emulate webchat
 const BOT_NONCE = utils.randomString('0123456789abcdef', 32);
@@ -44,25 +41,23 @@ switch (config.chatServiceTransport) {
 
 const chatService = new ChatService(transport, BOT_NONCE);
 const { tmi, channelManager } = initTMI(chatService);
-
+// prettier-ignore
 export default {
-	REGULAR_MAX_CONNECTIONS_POOL_SIZE,
-	VERIFIED_MAX_CONNECTIONS_POOL_SIZE,
+	...constants,
 	BOT_NONCE,
 
-	send: (...args) => chatService.send(...args),
+	send: (
+		channelId, channelLogin, userLogin, text, mention, privileged, parentId
+	) => chatService.send(
+		channelId, channelLogin, userLogin, text, mention, privileged, parentId
+	),
 	recordSend: channelId => chatService.recordSend(channelId),
+	setSlowModeDuration: (channelId, ms) => chatService.setSlowModeDuration(channelId, ms),
 	join: c => channelManager.join(c),
 	part: c => channelManager.part(c),
 	connect: () => tmi.connect(),
 	ping: () => tmi.ping(),
-	get connectedAt() {
-		return tmi.connectedAt;
-	},
-	get connections() {
-		return tmi.connections;
-	},
-	get joinedChannels() {
-		return tmi.joinedChannels;
-	},
+	get connectedAt() { return tmi.connectedAt; },
+	get connections() { return tmi.connections; },
+	get joinedChannels() { return tmi.joinedChannels; },
 };

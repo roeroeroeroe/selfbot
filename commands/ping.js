@@ -2,7 +2,7 @@ import config from '../config.json' with { type: 'json' };
 import os from 'os';
 import twitch from '../services/twitch/index.js';
 import utils from '../utils/index.js';
-import metrics from '../services/metrics.js';
+import metrics from '../services/metrics/index.js';
 import hastebin from '../services/hastebin.js';
 import logger from '../services/logger.js';
 
@@ -29,11 +29,11 @@ export default {
 			description: 'print latest metrics snapshot',
 		},
 	],
-	execute: async msg => {
+	execute: msg => {
 		if (msg.commandFlags.host) return getHostResponse();
-		if (msg.commandFlags.metrics) return await getMetricsResponse();
+		if (msg.commandFlags.metrics) return getMetricsResponse();
 
-		return await getGenericResponse(msg);
+		return getGenericResponse(msg);
 	},
 };
 
@@ -53,6 +53,8 @@ function getHostResponse() {
 }
 
 async function getMetricsResponse() {
+	if (!config.metrics.enabled)
+		return { text: 'metrics are disabled', mention: true };
 	const sampleInterval = utils.duration.format(config.metrics.sampleIntervalMs);
 	const snapshot = metrics.get();
 	const counters = formatMetrics(snapshot.counters, sampleInterval);

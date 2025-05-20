@@ -1,17 +1,15 @@
+import helix from './index.js';
 import utils from '../../../utils/index.js';
 import logger from '../../logger.js';
+import metrics from '../../metrics/index.js';
 
-const REQUESTS_METRICS_COUNTER = 'helix_requests_sent';
-const RETRIES_METRICS_COUNTER = 'helix_retries';
-
-const HELIX_BASE_URL = 'https://api.twitch.tv/helix';
-const HEADERS = {
-	'Client-Id': '9uavest5z7knsvpbip19fxqkywxz3ec',
-	'Content-Type': 'application/json',
-};
-
-async function helix({ endpoint, method = 'GET', query = {}, body = null }) {
-	const url = new URL(`${HELIX_BASE_URL}${endpoint}`);
+export default function send({
+	endpoint,
+	method = 'GET',
+	query = {},
+	body = null,
+}) {
+	const url = new URL(`${helix.API_BASE_URL}${endpoint}`);
 	for (const k in query) {
 		const v = query[k];
 		if (Array.isArray(v))
@@ -19,7 +17,7 @@ async function helix({ endpoint, method = 'GET', query = {}, body = null }) {
 		else url.searchParams.set(k, v);
 	}
 
-	const options = { method, headers: HEADERS };
+	const options = { method, headers: helix.HEADERS };
 	let bodyString;
 	if (body) {
 		bodyString = JSON.stringify(body);
@@ -46,13 +44,9 @@ async function helix({ endpoint, method = 'GET', query = {}, body = null }) {
 			return body;
 		},
 		{
-			requestsCounter: REQUESTS_METRICS_COUNTER,
-			retriesCounter: RETRIES_METRICS_COUNTER,
+			requestsCounter: metrics.names.counters.HELIX_REQUESTS_SENT,
+			retriesCounter: metrics.names.counters.HELIX_RETRIES,
 			logLabel: 'HELIX',
 		}
 	);
 }
-
-export default {
-	send: helix,
-};

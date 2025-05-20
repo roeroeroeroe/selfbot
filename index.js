@@ -2,7 +2,7 @@ import 'dotenv/config';
 import config from './config.json' with { type: 'json' };
 import configuration from './services/configuration.js';
 import twitch from './services/twitch/index.js';
-import metrics from './services/metrics.js';
+import metrics from './services/metrics/index.js';
 import logger from './services/logger.js';
 import db from './services/db/index.js';
 import commands from './services/commands.js';

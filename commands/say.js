@@ -65,6 +65,14 @@ export default {
 			defaultValue: false,
 			description: 'convert to lowercase',
 		},
+		{
+			name: 'force',
+			aliases: [null, 'force'],
+			type: 'boolean',
+			required: false,
+			defaultValue: false,
+			description: 'bypass chat restrictions and send anyway',
+		},
 	],
 	execute: async msg => {
 		if (!msg.args.length) return { text: 'no message provided', mention: true };
@@ -85,6 +93,30 @@ export default {
 		} else {
 			channel = { id: msg.channelID, login: msg.channelName };
 			privileged = msg.query.privileged;
+		}
+
+		if (!msg.commandFlags.force) {
+			const { allowed, slowMode, error, selfBanStatus } =
+				await twitch.gql.chat.canSend(channel.id, channel.login, privileged);
+			if (!allowed) return { text: error, mention: true };
+			if (selfBanStatus.warningDetails?.createdAt)
+				try {
+					const res = await twitch.gql.channel.acknowledgeChatWarning(
+						channel.id
+					);
+					const errorCode = res.acknowledgeChatWarning.error?.code;
+					if (errorCode) {
+						logger.error('error acknowledging warning:', errorCode);
+						return {
+							text: `error acknowledging warning: ${errorCode}`,
+							mention: true,
+						};
+					}
+				} catch (err) {
+					logger.error('error acknowledging warning:', err);
+					return { text: 'error acknowledging warning', mention: true };
+				}
+			twitch.chat.setSlowModeDuration(channel.id, slowMode);
 		}
 
 		const phrase = msg.args.join(' ');

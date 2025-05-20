@@ -1,9 +1,10 @@
 import pgStreams from 'pg-copy-streams';
-import RingBuffer from '../ring_buffer.js';
-import config from '../../config.json' with { type: 'json' };
-import db from './index.js';
-import metrics from '../metrics.js';
-import logger from '../logger.js';
+import RingBuffer from '../../ring_buffer.js';
+import config from '../../../config.json' with { type: 'json' };
+import * as queries from './queries.js';
+import db from '../index.js';
+import metrics from '../../metrics/index.js';
+import logger from '../../logger.js';
 
 const messageQueueEntries = new Map();
 
@@ -16,7 +17,7 @@ function getMessageQueueEntry(channelId) {
 	return messageQueueEntries.get(channelId);
 }
 
-async function queueMessageInsert(channelId, userId, text, timestamp) {
+function queueMessageInsert(channelId, userId, text, timestamp) {
 	if (text.includes('\t'))
 		return logger.warning('[DB] not queuing message: \\t not allowed:', text);
 
@@ -25,7 +26,7 @@ async function queueMessageInsert(channelId, userId, text, timestamp) {
 	logger.debug(`[DB] queued message for ${channelId}: ${record}`);
 }
 
-async function searchMessages(
+function searchMessages(
 	channelId,
 	userId,
 	lastMilliseconds,
@@ -56,7 +57,7 @@ async function searchMessages(
 		cteLimitIndex = values.push(limit * multiplier),
 		finalLimitIndex = values.push(limit);
 
-	return await db.query(
+	return db.query(
 		`
 		WITH filtered AS (
 			SELECT channel_id, user_id, text, timestamp
@@ -83,7 +84,7 @@ async function flushMessages() {
 	const c = await db.pool.connect();
 	try {
 		await c.query('BEGIN');
-		const stream = c.query(pgStreams.from(db.COPY_MESSAGES_STREAM));
+		const stream = c.query(pgStreams.from(queries.COPY_MESSAGES_STREAM));
 		for (const [channelId, entry] of messageQueueEntries.entries()) {
 			const buffer = entry.buffer;
 			let count = 0;
@@ -117,7 +118,7 @@ async function flushMessages() {
 			stream.on('error', rej);
 		});
 		await c.query('COMMIT');
-		metrics.counter.increment(db.QUERIES_METRICS_COUNTER);
+		metrics.counter.increment(metrics.names.counters.PG_QUERIES);
 	} catch (err) {
 		await c.query('ROLLBACK').catch(() => {});
 		logger.error('[DB] error flushing messages:', err);
@@ -128,6 +129,7 @@ async function flushMessages() {
 }
 
 export default {
+	queries,
 	queueEntries: messageQueueEntries,
 
 	queueInsert: queueMessageInsert,

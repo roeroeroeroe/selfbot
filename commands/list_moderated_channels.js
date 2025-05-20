@@ -60,7 +60,7 @@ export default {
 				lineParts.push('affiliate');
 				counters.affiliates.count++;
 			}
-			const followers = e.node.followers?.totalCount || 0;
+			const followers = e.node.followers?.totalCount;
 			if (followers) {
 				lineParts.push(
 					`${followers} ${utils.format.plural(followers, 'follower')}`

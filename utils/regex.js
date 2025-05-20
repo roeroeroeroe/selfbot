@@ -14,7 +14,13 @@ const patterns = {
 };
 
 function checkMessage(str) {
-	for (const p of tosPatterns) if (patterns[p].test(str)) return p;
+	for (const p of tosPatterns) {
+		const pattern = patterns[p];
+		pattern.lastIndex = 0;
+		const match = pattern.exec(str);
+		if (match) return { pattern: p, match };
+	}
+	return null;
 }
 
 function construct(str) {
@@ -30,9 +36,28 @@ function construct(str) {
 	}
 }
 
+function pointer(match, prefix = '') {
+	if (
+		!match ||
+		typeof match.index !== 'number' ||
+		typeof match.input !== 'string' ||
+		match[0] === null ||
+		match[0] === undefined
+	)
+		throw new Error('expected a RegExp match');
+
+	const pointerLine =
+		' '.repeat(prefix.length + match.index) +
+		'^' +
+		'~'.repeat(Math.max(0, match[0].length - 1));
+
+	return `${prefix}${match.input}\n${pointerLine}`;
+}
+
 export default {
 	patterns,
 
 	checkMessage,
 	construct,
+	pointer,
 };

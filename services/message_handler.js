@@ -5,12 +5,7 @@ import commands from './commands.js';
 import customCommands from './custom_commands.js';
 import flag from './flag/index.js';
 import utils from '../utils/index.js';
-import metrics from './metrics.js';
-
-const COMMANDS_EXECUTED_METRICS_COUNTER = 'commands_executed';
-const CUSTOM_COMMANDS_EXECUTED_METRICS_COUNTER = 'custom_commands_executed';
-metrics.counter.create(COMMANDS_EXECUTED_METRICS_COUNTER);
-metrics.counter.create(CUSTOM_COMMANDS_EXECUTED_METRICS_COUNTER);
+import metrics from './metrics/index.js';
 
 const CUSTOM_COMMAND_COOLDOWN_KEY_PREFIX = 'handler:customcommand';
 
@@ -24,7 +19,8 @@ export default async function handle(msg) {
 	const parent = msg.ircTags['reply-parent-msg-body'];
 	if (parent) {
 		msg.args.shift();
-		msg.args.push(...utils.shellSplit(parent));
+		const parentArgs = utils.shellSplit(parent);
+		for (let i = 0; i < parentArgs.length; msg.args.push(parentArgs[i++]));
 	}
 
 	if (msg.senderUserID === config.bot.id) {
@@ -40,7 +36,7 @@ export default async function handle(msg) {
 				logger.debug(
 					`[HANDLER] got command: ${msg.commandName}, entering regular command handler`
 				);
-				metrics.counter.increment(COMMANDS_EXECUTED_METRICS_COUNTER);
+				metrics.counter.increment(metrics.names.counters.COMMANDS_EXECUTED);
 				const commandResult = await handleCommand(msg, command);
 				logger.debug(
 					`[HANDLER] executed command ${msg.commandName}, result:`,
@@ -66,7 +62,7 @@ export default async function handle(msg) {
 		logger.debug(
 			`[HANDLER] cooldown and permissions checks passed for custom command ${cc.name} invoked by ${msg.senderUsername}, executing`
 		);
-		metrics.counter.increment(CUSTOM_COMMANDS_EXECUTED_METRICS_COUNTER);
+		metrics.counter.increment(metrics.names.counters.CUSTOM_COMMANDS_EXECUTED);
 		sendResult(msg, await executeCustomCommand(msg, cc, cooldownKey));
 		return;
 	}

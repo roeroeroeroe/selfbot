@@ -1,8 +1,5 @@
-import request from './request.js';
+import helix from './index.js';
 import utils from '../../../utils/index.js';
-
-const MAX_USERS_PER_REQUEST = 100;
-const CONCURRENT_REQUESTS = 10;
 
 async function getMany(userLogins, userIds) {
 	let key, inputArray;
@@ -16,14 +13,14 @@ async function getMany(userLogins, userIds) {
 	if (!Array.isArray(inputArray)) inputArray = [inputArray];
 
 	const groupSize = Math.min(
-		MAX_USERS_PER_REQUEST * CONCURRENT_REQUESTS,
+		helix.MAX_USERS_PER_REQUEST * helix.CONCURRENT_REQUESTS,
 		inputArray.length
 	);
 	const userMap = new Map();
 	for (const group of utils.splitArray(inputArray, groupSize))
 		await Promise.all(
-			utils.splitArray(group, MAX_USERS_PER_REQUEST).map(async b => {
-				const res = await request.send({
+			utils.splitArray(group, helix.MAX_USERS_PER_REQUEST).map(async b => {
+				const res = await helix.request({
 					endpoint: '/users',
 					query: { [key]: b },
 				});

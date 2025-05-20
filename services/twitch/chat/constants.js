@@ -1,0 +1,13 @@
+export const MESSAGES_WINDOW_MS = 30000;
+export const REGULAR_MAX_MESSAGES_PER_WINDOW = 19;
+export const REGULAR_MAX_MESSAGES_PER_WINDOW_PRIVILEGED = 99;
+export const VERIFIED_MAX_MESSAGES_PER_WINDOW = 7499;
+export const DUPLICATE_MESSAGE_THRESHOLD_MS = 30000;
+export const INVIS_CHAR = ' \u{E0000}';
+export const LOAD_INTERVAL_MS = 1800000;
+export const JOINS_WINDOW_MS = 10000;
+export const MAX_JOINS_PER_WINDOW = 950;
+
+// used for config validation
+export const REGULAR_MAX_CONNECTIONS_POOL_SIZE = 20;
+export const VERIFIED_MAX_CONNECTIONS_POOL_SIZE = 200;

@@ -1,13 +1,10 @@
 import db from './index.js';
 import logger from '../logger.js';
-import metrics from '../metrics.js';
-import { QUERIES_METRICS_COUNTER } from './constants.js';
-
-metrics.counter.create(QUERIES_METRICS_COUNTER);
+import metrics from '../metrics/index.js';
 
 export default async function query(sql, values = []) {
 	logger.debug(`[DB] running query "${sql}" with values:`, values);
-	metrics.counter.increment(QUERIES_METRICS_COUNTER);
+	metrics.counter.increment(metrics.names.counters.PG_QUERIES);
 	try {
 		const t0 = performance.now(),
 			res = await db.pool.query(sql, values),

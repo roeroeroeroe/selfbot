@@ -1,16 +1,14 @@
 import config from '../config.json' with { type: 'json' };
 import logger from './logger.js';
 import utils from '../utils/index.js';
-
-const REQUESTS_METRICS_COUNTER = 'hastebin_requests_sent';
-const RETRIES_METRICS_COUNTER = 'hastebin_retries';
+import metrics from './metrics/index.js';
 
 function constructRawUrl(url) {
 	const parts = url.split('/');
 	return `${parts.slice(0, parts.length - 1).join('/')}/raw/${parts[parts.length - 1]}`;
 }
 
-async function get(url) {
+function get(url) {
 	logger.debug(`[HASTEBIN] getting paste: ${url}`);
 	return utils.retry(
 		async () => {
@@ -30,17 +28,17 @@ async function get(url) {
 				if (res.headers.get('content-type')?.includes('text/html'))
 					throw new Error('invalid paste: expected plaintext, got html');
 			}
-			return await res.text();
+			return res.text();
 		},
 		{
-			requestsCounter: REQUESTS_METRICS_COUNTER,
-			retriesCounter: RETRIES_METRICS_COUNTER,
+			requestsCounter: metrics.names.counters.HASTEBIN_REQUESTS_SENT,
+			retriesCounter: metrics.names.counters.HASTEBIN_RETRIES,
 			logLabel: 'HASTEBIN-GET',
 		}
 	);
 }
 
-async function create(
+function create(
 	content,
 	raw = true,
 	instance = config.hastebinInstance,
@@ -79,8 +77,8 @@ async function create(
 			return raw ? `${instance}/raw/${body.key}` : `${instance}/${body.key}`;
 		},
 		{
-			requestsCounter: REQUESTS_METRICS_COUNTER,
-			retriesCounter: RETRIES_METRICS_COUNTER,
+			requestsCounter: metrics.names.counters.HASTEBIN_REQUESTS_SENT,
+			retriesCounter: metrics.names.counters.HASTEBIN_RETRIES,
 			logLabel: 'HASTEBIN-CREATE',
 		}
 	);
