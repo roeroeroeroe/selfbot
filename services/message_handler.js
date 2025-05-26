@@ -9,21 +9,18 @@ import metrics from './metrics/index.js';
 
 const CUSTOM_COMMAND_COOLDOWN_KEY_PREFIX = 'handler:customcommand';
 
+const globalLocks = new Set();
+const channelLocks = new Map();
+
 export default async function handle(msg) {
 	if (msg.self) return;
 	msg.messageText = msg.messageText.replace(
 		utils.regex.patterns.invisChars,
 		''
 	);
-	msg.args = utils.shellSplit(msg.messageText);
-	const parent = msg.ircTags['reply-parent-msg-body'];
-	if (parent) {
-		msg.args.shift();
-		const parentArgs = utils.shellSplit(parent);
-		for (let i = 0; i < parentArgs.length; msg.args.push(parentArgs[i++]));
-	}
 
 	if (msg.senderUserID === config.bot.id) {
+		buildArgs(msg);
 		msg.prefix = msg.query.prefix || config.defaultPrefix;
 		const trigger = msg.args.shift()?.toLowerCase() || '';
 		if (trigger.startsWith(msg.prefix)) {
@@ -52,7 +49,8 @@ export default async function handle(msg) {
 	for (const cc of customCommands.getGlobalAndChannelCommands(msg.channelID)) {
 		if (!cc.trigger.test(msg.messageText)) continue;
 		logger.debug(
-			`[HANDLER] custom command ${cc.name} triggered (trigger: ${cc.trigger.toString()}, message: ${msg.messageText}), checking cooldown and permissions`
+			`[HANDLER] custom command ${cc.name} triggered`,
+			`(trigger: ${cc.trigger.toString()}, message: ${msg.messageText})`
 		);
 		ccTriggered = true;
 		if (cc.whitelist !== null && !cc.whitelist.includes(msg.senderUserID))
@@ -60,8 +58,10 @@ export default async function handle(msg) {
 		const cooldownKey = `${CUSTOM_COMMAND_COOLDOWN_KEY_PREFIX}:${msg.senderUserID}:${cc.name}`;
 		if (cooldown.has(cooldownKey)) continue;
 		logger.debug(
-			`[HANDLER] cooldown and permissions checks passed for custom command ${cc.name} invoked by ${msg.senderUsername}, executing`
+			'[HANDLER] cooldown and permissions checks passed for',
+			`custom command ${cc.name} invoked by ${msg.senderUsername}, executing`
 		);
+		buildArgs(msg);
 		metrics.counter.increment(metrics.names.counters.CUSTOM_COMMANDS_EXECUTED);
 		sendResult(msg, await executeCustomCommand(msg, cc, cooldownKey));
 		return;
@@ -88,37 +88,66 @@ export default async function handle(msg) {
 }
 
 async function handleCommand(msg, command) {
-	const { options, rest, errors } = flag.parse(msg.args, command.flagData);
-	logger.debug(
-		`[HANDLER] parsed flags for command ${command.name}:`,
-		`flags: ${JSON.stringify(options)}`,
-		`args: ${rest.join(',')}`,
-		`errors: ${errors.join(',')}`
-	);
-	msg.commandFlags = options;
-	msg.args = rest;
-
-	const pre = await flag.globalFlags.preHandle(msg, command);
-	if (pre) {
-		logger.debug('[HANDLER] got global flags pre result:', pre);
-		return pre;
-	}
-
-	if (errors.length) {
-		let errorString = errors[0];
-		if (errors.length > 1)
-			errorString += ` (${errors.length - 1} more ${utils.format.plural(errors.length - 1, 'error')})`;
-		return { text: errorString, mention: true };
+	if (command.lock === 'GLOBAL') {
+		if (globalLocks.has(command.name))
+			return {
+				text: `${command.name} already running (global lock)`,
+				mention: true,
+			};
+		globalLocks.add(command.name);
+	} else if (command.lock === 'CHANNEL') {
+		let channels = channelLocks.get(command.name);
+		if (!channels) {
+			channels = new Set();
+			channelLocks.set(command.name, channels);
+		} else if (channels.has(msg.channelID))
+			return {
+				text: `${command.name} already running (channel lock)`,
+				mention: true,
+			};
+		channels.add(msg.channelID);
 	}
 
 	try {
+		const { options, rest, errors } = command.parseArgs(msg.args);
+		logger.debug(
+			`[HANDLER] parsed flags for command ${command.name}:`,
+			`flags: ${JSON.stringify(options)}`,
+			`args: ${rest.join(',')}`,
+			`errors: ${errors.join(',')}`
+		);
+		msg.commandFlags = options;
+		msg.args = rest;
+
+		const pre = await flag.globalFlags.preHandle(msg, command);
+		if (pre) {
+			logger.debug('[HANDLER] got global flags pre result:', pre);
+			return pre;
+		}
+
+		if (errors.length) {
+			let errorString = errors[0];
+			if (errors.length > 1)
+				errorString += ` (${errors.length - 1} more ${utils.format.plural(errors.length - 1, 'error')})`;
+			return { text: errorString, mention: true };
+		}
 		logger.debug(`[HANDLER] trying to execute command ${msg.commandName}`);
 		return await flag.globalFlags.postHandle(msg, await command.execute(msg));
 	} catch (err) {
 		logger.error(
-			`regular command ${command.name} invoked by ${msg.senderUsername} in #${msg.channelName} execution error:`,
+			`regular command ${command.name} invoked by ${msg.senderUsername}`,
+			`in #${msg.channelName} execution error:`,
 			err
 		);
+	} finally {
+		if (command.lock === 'GLOBAL') globalLocks.delete(command.name);
+		else if (command.lock === 'CHANNEL') {
+			const channels = channelLocks.get(command.name);
+			if (channels) {
+				channels.delete(msg.channelID);
+				if (!channels.size) channelLocks.delete(command.name);
+			}
+		}
 	}
 }
 
@@ -134,30 +163,35 @@ async function executeCustomCommand(msg, customCommand, cooldownKey) {
 			const command = commands.getCommandByName(customCommand.runcmd);
 			if (!command) {
 				logger.error(
-					`regular command ${customCommand.runcmd} does not exist (custom command ${customCommand.name} invoked by ${msg.senderUsername} in #${msg.channelName})`
+					`regular command ${customCommand.runcmd} does not exist`,
+					`(custom command ${customCommand.name} invoked by`,
+					`${msg.senderUsername} in #${msg.channelName})`
 				);
 				return;
 			}
 			msg.messageText = msg.messageText
 				.replace(customCommand.trigger, '')
 				.trim();
-			msg.args = utils.shellSplit(msg.messageText);
+			buildArgs(msg, true);
 			msg.commandName = command.name;
 			logger.debug(
-				`[HANDLER] custom command ${customCommand.name} -> regular command ${msg.commandName}, entering regular command handler`
+				`[HANDLER] custom command ${customCommand.name} ->`,
+				`regular command ${msg.commandName}, entering regular command handler`
 			);
 			result.text = (await handleCommand(msg, command))?.text;
 		} else {
 			result.text = customCommand.response;
 		}
 		logger.info(
-			`[HANDLER] ${msg.senderUsername} executed custom command ${customCommand.name} in #${msg.channelName}`
+			`[HANDLER] ${msg.senderUsername} executed custom command`,
+			`${customCommand.name} in #${msg.channelName}`
 		);
 		return result;
 	} catch (err) {
 		if (customCommand.cooldown) cooldown.delete(cooldownKey);
 		logger.error(
-			`custom command ${customCommand.name} invoked by ${msg.senderUsername} in #${msg.channelName} execution error:`,
+			`custom command ${customCommand.name} invoked by`,
+			`${msg.senderUsername} in #${msg.channelName} execution error:`,
 			err
 		);
 	}
@@ -169,4 +203,15 @@ function sendResult(msg, result) {
 		`[HANDLER] sending result: text: ${result.text}, reply: ${result.reply}, mention: ${result.mention}`
 	);
 	msg.send(result.text, result.reply, result.mention);
+}
+
+function buildArgs(msg, force = false) {
+	if (msg.args && !force) return;
+	msg.args = utils.tokenizeArgs(msg.messageText);
+	const parent = msg.ircTags['reply-parent-msg-body'];
+	if (parent) {
+		msg.args.shift();
+		const parentArgs = utils.tokenizeArgs(parent);
+		for (let i = 0; i < parentArgs.length; msg.args.push(parentArgs[i++]));
+	}
 }

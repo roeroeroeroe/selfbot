@@ -3,8 +3,11 @@ import db from '../services/db/index.js';
 export default {
 	name: 'sql',
 	aliases: [],
-	description: "query bot's database",
+	description:
+		"query bot's database; quotes may be stripped -- " +
+		"wrap query in unused quotes or escape inner quotes (e.g., foo='\\'bar\\'')",
 	unsafe: true,
+	lock: 'NONE',
 	flags: [],
 	execute: async msg => {
 		if (!msg.args.length) return { text: 'no query provided', mention: true };

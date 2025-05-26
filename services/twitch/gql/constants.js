@@ -6,4 +6,3 @@ export const HEADERS = {
 	'Content-Type': 'application/json',
 };
 export const MAX_OPERATIONS_PER_REQUEST = 35;
-export const CONCURRENT_REQUESTS = 10;

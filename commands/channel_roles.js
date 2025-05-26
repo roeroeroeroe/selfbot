@@ -8,13 +8,14 @@ export default {
 	aliases: [],
 	description: "get channel's community roles",
 	unsafe: false,
+	lock: 'NONE',
 	flags: [
 		{
 			name: 'channel',
 			aliases: ['c', 'channel'],
 			type: 'username',
 			required: false,
-			defaultValue: '',
+			defaultValue: null,
 			description: 'lookup channel (default: current channel)',
 		},
 		{
@@ -30,7 +31,7 @@ export default {
 		{
 			name: 'maxMods',
 			aliases: ['m', 'max-mods'],
-			type: 'number',
+			type: 'int',
 			required: false,
 			defaultValue: 1000,
 			description:
@@ -74,7 +75,6 @@ export default {
 		if (modsData?.length) {
 			const { lines: modsList, activeCount } = processRoles(modsData, {
 				prefixActive: true,
-				activeKey: 'isActive',
 			});
 			if (modsList.length) {
 				const modsInfo = `${modsList.length} ${utils.format.plural(modsList.length, 'mod')} (${activeCount} currently in chat)`;
@@ -108,8 +108,10 @@ export default {
 			}
 		}
 
-		if (artistsData?.artists?.edges.length) {
-			const { lines: artistsList } = processRoles(artistsData.artists.edges);
+		if (artistsData?.usersByCommunityRole?.edges.length) {
+			const { lines: artistsList } = processRoles(
+				artistsData.usersByCommunityRole.edges
+			);
 			if (artistsList.length) {
 				const artistsInfo = `${artistsList.length} ${utils.format.plural(artistsList.length, 'artist')}`;
 				list.push(`${list.length ? '\n' : ''}${artistsInfo}:\n`);

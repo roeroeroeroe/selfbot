@@ -1,6 +1,7 @@
 import colors from '../data/color_names.json' with { type: 'json' };
 
 const HASH_CHARCODE = 35;
+const AXES = ['r', 'g', 'b'];
 
 const HEX_VAL = new Uint8Array(128); // ascii to hex
 for (let i = 48; i <= 57; i++) HEX_VAL[i] = i - 48; // '0'-'9' -> 0-9
@@ -44,7 +45,7 @@ function quickSelect(arr, low, high, k, axis) {
 
 const kdTreeRoot = (function buildKdTree(arr, low, high, depth) {
 	if (low >= high) return;
-	const axis = ['r', 'g', 'b'][depth % 3];
+	const axis = AXES[depth % 3];
 	const mid = low + ((high - low) >>> 1);
 
 	quickSelect(arr, low, high, mid, axis);
@@ -84,7 +85,7 @@ function kdNearest(node, target, best = { distance: Infinity, node: null }) {
 
 	return best;
 }
-// prettier-ignore
+
 function isValidHex(hex) {
 	if (typeof hex !== 'string') return false;
 	let i = hex.charCodeAt(0) === HASH_CHARCODE ? 1 : 0;
@@ -102,9 +103,10 @@ function isValidRgb(rgb) {
 	if (typeof rgb !== 'object' || rgb === null) return false;
 	const { r, g, b } = rgb;
 	return (
-		r === (r | 0) && r >= 0 && r <= 255 &&
-		g === (g | 0) && g >= 0 && g <= 255 &&
-		b === (b | 0) && b >= 0 && b <= 255
+		r === (r | 0) && g === (g | 0) && b === (b | 0) &&
+		r >= 0 && r <= 255 &&
+		g >= 0 && g <= 255 &&
+		b >= 0 && b <= 255
 	);
 }
 

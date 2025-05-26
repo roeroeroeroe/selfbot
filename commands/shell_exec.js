@@ -5,8 +5,11 @@ import utils from '../utils/index.js';
 export default {
 	name: 'exec',
 	aliases: ['shell'],
-	description: `execute command using ${config.shell}; to avoid conflicts with the bot's flag parser, use -- early`,
+	description:
+		`execute command using ${config.shell}; ` +
+		"to avoid conflicts with the bot's flag parser, use -- early",
 	unsafe: true,
+	lock: 'NONE',
 	flags: [
 		{
 			name: 'timeout',

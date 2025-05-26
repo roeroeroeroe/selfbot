@@ -21,7 +21,7 @@ async function shell(command, timeout = 5000) {
 		return {
 			stdout: result.stdout.trim(),
 			stderr: result.stderr.trim(),
-			exitStatus: result.code,
+			exitStatus: 0,
 			timedOut: false,
 		};
 	} catch (err) {
@@ -31,8 +31,8 @@ async function shell(command, timeout = 5000) {
 		);
 
 		return {
-			stdout: err.stdout ? err.stdout.trim() : '',
-			stderr: err.stderr ? err.stderr.trim() : '',
+			stdout: err.stdout?.trim() || '',
+			stderr: err.stderr?.trim() || '',
 			exitStatus: err.code,
 			timedOut: err.killed && err.signal === 'SIGTERM',
 		};

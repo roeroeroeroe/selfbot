@@ -2,7 +2,6 @@ import config from '../config.json' with { type: 'json' };
 import logger from '../services/logger.js';
 import metrics from '../services/metrics/index.js';
 
-const shellArgPattern = /(?:[^\s"']+|"[^"]*"|'[^']*')+/g;
 const base62Charset =
 	'0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
 
@@ -11,6 +10,7 @@ export function sleep(ms) {
 }
 
 export function withTimeout(promise, ms) {
+	if (ms <= 0) return promise;
 	let id;
 	return Promise.race([
 		promise,
@@ -19,18 +19,94 @@ export function withTimeout(promise, ms) {
 		}),
 	]).finally(() => clearTimeout(id));
 }
-
-export function shellSplit(str) {
-	shellArgPattern.lastIndex = 0;
+// prettier-ignore
+/**
+ * - Whitespace characters (`' '`, `\t`, `\n`) outside of quotes split arguments.
+ * - Matching single or double quotes group enclosed content as a single argument.
+ * - Backslash outside quotes is treated as a literal character.
+ * - Inside quotes, a backslash can escape the matching quote (e.g., `\'` or `\"`).
+ * - Quotes surrounded by non-whitespace characters on both sides are treated
+ *   as literal characters.
+ * - Unmatched quotes are treated as literal characters.
+ */
+export function tokenizeArgs(str) {
 	const args = [];
-	for (const match of str.match(shellArgPattern) ?? [])
-		args.push(
-			(match.startsWith('"') && match.endsWith('"')) ||
-				(match.startsWith("'") && match.endsWith("'"))
-				? match.substring(1, match.length - 1)
-				: match
-		);
+	let current = '', inSingle = false, inDouble = false, wasQuoted = false;
 
+	for (let i = 0; i < str.length; i++) {
+		const c = str[i];
+		if (c === '\\') {
+			const next = str[i + 1];
+			if ((inSingle && next === "'") ||
+			    (inDouble && next === '"')) {
+				current += next;
+				i++;
+			} else
+				current += '\\';
+			continue;
+		}
+		if (c === "'" && !inDouble) {
+			if (inSingle) {
+				inSingle = !(wasQuoted = true);
+				continue;
+			}
+			let matchIndex = -1;
+			for (let j = i + 1; j < str.length; j++)
+				if (str[j] === "'" && str[j - 1] !== '\\') {
+					matchIndex = j;
+					break;
+				}
+			if (matchIndex !== -1) {
+				const lc = str[i - 1], rc = str[matchIndex + 1];
+				if (lc && rc && lc !== ' ' && lc !== '\n' &&
+				    lc !== '\t' && rc !== ' ' && rc !== '\n' &&
+				    rc !== '\t') {
+					current += "'";
+					continue;
+				}
+				inSingle = wasQuoted = true;
+				continue;
+			}
+			current += "'";
+			continue;
+		}
+		if (c === '"' && !inSingle) {
+			if (inDouble) {
+				inDouble = !(wasQuoted = true);
+				continue;
+			}
+			let matchIndex = -1;
+			for (let j = i + 1; j < str.length; j++)
+				if (str[j] === '"' && str[j - 1] !== '\\') {
+					matchIndex = j;
+					break;
+				}
+			if (matchIndex !== -1) {
+				const lc = str[i - 1], rc = str[matchIndex + 1];
+				if (lc && rc && lc !== ' ' && lc !== '\n' &&
+				    lc !== '\t' && rc !== ' ' && rc !== '\n' &&
+				    rc !== '\t') {
+					current += '"';
+					continue;
+				}
+				inDouble = wasQuoted = true;
+				continue;
+			}
+			current += '"';
+			continue;
+		}
+		if (!inSingle && !inDouble &&
+		    (c === ' ' || c === '\n' || c === '\t')) {
+			if (wasQuoted || current)
+				args.push(current);
+			current = '';
+			wasQuoted = false;
+			continue;
+		}
+		current += c;
+	}
+	if (wasQuoted || current)
+		args.push(current);
 	return args;
 }
 
@@ -195,6 +271,7 @@ export async function retry(
 
 export function isValidPrefix(prefix) {
 	return (
+		typeof prefix === 'string' &&
 		prefix &&
 		prefix.length <= 15 &&
 		!prefix.startsWith('.') &&
@@ -203,6 +280,7 @@ export function isValidPrefix(prefix) {
 }
 
 export function isValidHttpUrl(str) {
+	if (typeof str !== 'string' || !str) return false;
 	try {
 		const url = new URL(str);
 		return url.protocol === 'https:' || url.protocol === 'http:';

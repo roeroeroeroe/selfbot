@@ -7,6 +7,7 @@ export default {
 	aliases: ['nc', 'cn'],
 	description: "change bot's display name",
 	unsafe: false,
+	lock: 'NONE',
 	flags: [
 		{
 			name: 'displayName',
@@ -18,18 +19,19 @@ export default {
 		},
 	],
 	execute: async msg => {
-		const input = msg.commandFlags.displayName || msg.args[0];
-		if (!input) return { text: 'you must specify new name', mention: true };
-		if (input.toLowerCase() !== config.bot.login)
+		const displayName = msg.commandFlags.displayName || msg.args[0];
+		if (!displayName)
+			return { text: 'you must specify new display name', mention: true };
+		if (displayName.toLowerCase() !== config.bot.login)
 			return { text: 'new display name does not match login', mention: true };
 
 		try {
-			const res = await twitch.gql.user.updateDisplayName(input);
+			const res = await twitch.gql.user.updateDisplayName(displayName);
 			const err = res.updateUser.error?.code;
 			return {
 				text: err
 					? `error updating display name: ${err}`
-					: `changed display name to ${input}`,
+					: `changed display name to ${displayName}`,
 				mention: true,
 			};
 		} catch (err) {

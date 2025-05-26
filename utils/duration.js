@@ -58,7 +58,7 @@ function parse(str) {
 	while ((match = durationPattern.exec(str)) !== null) {
 		const num = parseFloat(match[1]);
 		const unitMs = aliasToMs.get(match[2]);
-		if (!isFinite(num) || !unitMs) return null;
+		if (!Number.isFinite(num) || !unitMs) return null;
 		total += num * unitMs;
 	}
 
@@ -75,13 +75,13 @@ function format(
 	ms,
 	{
 		maxParts = 3,
-		separator = ' ',
+		separator = ', ',
 		lastSeparator = ' and ',
 		shortForm = true,
 		smallest = 'second',
 	} = {}
 ) {
-	if (typeof ms !== 'number' || !isFinite(ms) || ms < 0) return null;
+	if (typeof ms !== 'number' || !Number.isFinite(ms) || ms < 0) return null;
 
 	const end = nameToIndex[smallest] ?? UNIT_NAMES.length - 1;
 	if (!ms)

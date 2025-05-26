@@ -9,12 +9,13 @@ export default {
 	aliases: ['listcmd', 'cmdlist'],
 	description: 'list custom commands',
 	unsafe: false,
+	lock: 'NONE',
 	flags: [
 		{
 			name: 'channel',
 			aliases: ['c', 'channel'],
 			type: 'username',
-			defaultValue: '',
+			defaultValue: null,
 			required: false,
 			description: 'list commands for channel',
 		},

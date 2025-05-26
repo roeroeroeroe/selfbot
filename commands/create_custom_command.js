@@ -10,6 +10,7 @@ export default {
 	aliases: ['addcmd', 'cmdadd'],
 	description: 'create a new custom command',
 	unsafe: false,
+	lock: 'NONE',
 	flags: [
 		{
 			name: 'name',
@@ -23,7 +24,7 @@ export default {
 			name: 'channel',
 			aliases: [null, 'channel'],
 			type: 'username',
-			defaultValue: '',
+			defaultValue: null,
 			required: false,
 			description:
 				'channel in which the command will be active (default: current channel)',

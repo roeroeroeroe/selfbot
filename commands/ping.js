@@ -11,6 +11,7 @@ export default {
 	aliases: ['status'],
 	description: 'show bot status',
 	unsafe: false,
+	lock: 'CHANNEL',
 	flags: [
 		{
 			name: 'host',
@@ -95,7 +96,7 @@ async function getGenericResponse(msg) {
 		text: utils.format.join([
 			`tmi: ${(t1 - t0) | 0}ms`,
 			`handler: ${(t0 - msg.receivedAt).toFixed(2)}ms`,
-			`uptime: ${utils.duration.format(t1 - twitch.chat.connectedAt, { maxParts: 2 })}`,
+			`uptime: ${utils.duration.format(process.uptime() * 1000, { maxParts: 2 })}`,
 			`rss: ${rss}, heap: ${heapUsed}/${heapTotal}`,
 			`channels: ${twitch.chat.joinedChannels.size}`,
 			`irc: ${twitch.chat.connections.length}`,

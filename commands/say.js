@@ -6,19 +6,20 @@ export default {
 	aliases: [],
 	description: 'send message(s)',
 	unsafe: false,
+	lock: 'NONE',
 	flags: [
 		{
 			name: 'channel',
 			aliases: ['c', 'channel'],
 			type: 'username',
 			required: false,
-			defaultValue: '',
+			defaultValue: null,
 			description: 'target channel (default: current channel)',
 		},
 		{
 			name: 'count',
 			aliases: [null, 'count'],
-			type: 'number',
+			type: 'int',
 			required: false,
 			defaultValue: 1,
 			description: 'send the message N times (default: 1, min: 1, max: 100)',
@@ -35,7 +36,7 @@ export default {
 		{
 			name: 'repeat',
 			aliases: ['r', 'repeat'],
-			type: 'number',
+			type: 'int',
 			required: false,
 			defaultValue: 1,
 			description: 'repeat the message N times (default: 1, min: 1, max: 250)',

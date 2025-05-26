@@ -4,4 +4,4 @@ export const HEADERS = {
 	'Content-Type': 'application/json',
 };
 export const MAX_USERS_PER_REQUEST = 100;
-export const CONCURRENT_REQUESTS = 10;
+export const CONCURRENT_REQUESTS = 50;

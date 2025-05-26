@@ -25,6 +25,7 @@ export default {
 	aliases: ['usage'],
 	description: '',
 	unsafe: false,
+	lock: 'NONE',
 	flags: [],
 	execute: async msg => {
 		let usagePage = `Usage of ${packageName}:

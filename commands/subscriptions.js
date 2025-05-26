@@ -7,6 +7,7 @@ export default {
 	aliases: ['subs'],
 	description: "get bot's subscriptions",
 	unsafe: false,
+	lock: 'NONE',
 	flags: [
 		{
 			name: 'printEmotes',

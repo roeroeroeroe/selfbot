@@ -7,6 +7,7 @@ export default {
 	aliases: ['unlockemote', 'getemote'],
 	description: 'unlock an emote using channel points',
 	unsafe: false,
+	lock: 'NONE',
 	flags: [
 		{
 			name: 'emoteToken',
@@ -20,7 +21,7 @@ export default {
 			name: 'channel',
 			aliases: ['c', 'channel'],
 			type: 'username',
-			defaultValue: '',
+			defaultValue: null,
 			required: false,
 			description: 'channel (default: current channel)',
 		},

@@ -14,12 +14,13 @@ export default {
 	],
 	description: "list user's follow(er)s (alias-driven)",
 	unsafe: false,
+	lock: 'NONE',
 	flags: [
 		{
 			name: 'user',
 			aliases: ['u', 'user'],
 			type: 'username',
-			defaultValue: '',
+			defaultValue: null,
 			required: false,
 			description: 'target user (default: sender)',
 		},
@@ -34,7 +35,7 @@ export default {
 		{
 			name: 'limit',
 			aliases: ['l', 'limit'],
-			type: 'number',
+			type: 'int',
 			defaultValue: 1000,
 			required: false,
 			description:
@@ -45,7 +46,7 @@ export default {
 			name: 'sort',
 			aliases: ['s', 'sort'],
 			type: 'string',
-			defaultValue: '',
+			defaultValue: null,
 			required: false,
 			description: 'sort list by [viewers|followers] (default: none)',
 			validator: v => v === 'viewers' || v === 'followers',
@@ -123,7 +124,10 @@ export default {
 			list.push(line);
 
 		if (includeCategories) {
-			const categoriesCountStr = `${result.followedGames.length} ${utils.format.plural(result.followedGames.length, 'category', 'categories')}`;
+			const categoriesCount = result.followedGames.length;
+			const categoriesCountStr =
+				`${categoriesCount} ` +
+				utils.format.plural(categoriesCount, 'category', 'categories');
 			responseParts.push(categoriesCountStr);
 			list.push(`${list.length ? '\n' : ''}${categoriesCountStr}:\n`);
 			for (const c of result.followedGames) list.push(c);
@@ -173,17 +177,17 @@ function processEdges(edges, raw) {
 function applySort(edges, sort) {
 	switch (sort) {
 		case 'viewers':
-			return edges.sort((a, b) => {
-				const av = a.node.stream?.viewersCount || 0;
-				const bv = b.node.stream?.viewersCount || 0;
-				return av > bv ? -1 : av < bv ? 1 : 0;
-			});
+			return edges.sort(
+				(a, b) =>
+					(b.node.stream?.viewersCount || 0) -
+					(a.node.stream?.viewersCount || 0)
+			);
 		case 'followers':
-			return edges.sort((a, b) => {
-				const af = a.node.followers?.totalCount || 0;
-				const bf = b.node.followers?.totalCount || 0;
-				return af > bf ? -1 : af < bf ? 1 : 0;
-			});
+			return edges.sort(
+				(a, b) =>
+					(b.node.followers?.totalCount || 0) -
+					(a.node.followers?.totalCount || 0)
+			);
 		default:
 			return edges;
 	}

@@ -6,6 +6,8 @@ import logger from './logger.js';
 import flag from './flag/index.js';
 import utils from '../utils/index.js';
 
+const VALID_LOCKS = ['GLOBAL', 'CHANNEL', 'NONE'];
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const commands = new Map();
@@ -15,17 +17,17 @@ let knownCommands = [],
 
 function add(command) {
 	validateCommand(command);
-	command.flagData = flag.init(command.flags);
+	const { flags, parse } = flag.createParser(command.flags);
+	command.flagData = flags;
+	command.parseArgs = parse;
 
 	let usage = `Usage of ${command.name}`;
 	if (command.aliases.length) usage += ` (${command.aliases.join(', ')})`;
 	usage += ':';
 	const usageLines = [];
-	for (const commandFlag of Object.values(command.flagData.flags)) {
-		const optsParts = [];
-		if (commandFlag.aliases[0]) optsParts.push(`-${commandFlag.aliases[0]}`);
-		if (commandFlag.aliases[1]) optsParts.push(`--${commandFlag.aliases[1]}`);
-		let line = `${optsParts.join(', ')} ${commandFlag.type}${commandFlag.required ? ' required' : ''}`;
+	for (const commandFlag of flags) {
+		let line = `${commandFlag.aliasDisplay} ${commandFlag.type}`;
+		if (commandFlag.required) line += ' required';
 		if (commandFlag.description) line += `__ALIGN__${commandFlag.description}`;
 		usageLines.push(`  ${line}`);
 	}
@@ -61,32 +63,29 @@ function has(commandName) {
 // prettier-ignore
 function validateCommand(command) {
 	if (typeof command.name !== 'string' || /\s/.test(command.name))
-		throw new Error('command name must be a string with no spaces');
-
+		throw new Error("'name' must be a string with no spaces");
 	if (has(command.name))
 		throw new Error(`command name "${command.name}" conflict`);
-
 	if (!Array.isArray(command.aliases))
-		throw new Error(`aliases for command "${command.name}" must be an array`);
-
+		throw new Error(`'aliases' for command "${command.name}" must be an array`);
 	for (const alias of command.aliases) {
 		if (typeof alias !== 'string' || /\s/.test(alias))
-			throw new Error(`aliases for command "${command.name}" must be an array of strings with no spaces`);
-
+			throw new Error(`'aliases' for command "${command.name}" must be ` +
+			                'an array of strings with no spaces');
 		const duplicate = getCommandByName(alias);
 		if (duplicate)
-			throw new Error(`alias "${alias}" for command "${command.name}" conflicts with command "${duplicate.name}"`);
+			throw new Error(`alias "${alias}" for command "${command.name}" ` +
+			                `conflicts with command "${duplicate.name}"`);
 	}
-
 	if (typeof command.description !== 'string')
-		throw new Error(`description for command "${command.name}" must be a string`);
-
+		throw new Error(`'description' for command "${command.name}" must be a string`);
 	if (typeof command.unsafe !== 'boolean')
 		throw new Error(`'unsafe' for command "${command.name}" must be a boolean`);
-
+	if (typeof command.lock !== 'string' || !VALID_LOCKS.includes(command.lock))
+		throw new Error(`'lock' for command "${command.name}" must be one of: ` +
+		                VALID_LOCKS.join(', '))
 	if (!Array.isArray(command.flags))
-		throw new Error(`flags for command "${command.name}" must be an array`);
-
+		throw new Error(`'flags' for command "${command.name}" must be an array`);
 	if (typeof command.execute !== 'function')
 		throw new Error(`'execute' for command "${command.name}" must be a function`);
 }
@@ -98,7 +97,7 @@ async function load() {
 	dirty = false;
 	const commandFiles = fs
 		.readdirSync(path.join(__dirname, '../commands'))
-		.filter(file => file.endsWith('.js'));
+		.filter(f => f.endsWith('.js'));
 	let i = 0;
 	for (const f of commandFiles)
 		try {
@@ -112,11 +111,13 @@ async function load() {
 			}
 			add(command);
 			logger.debug(
-				`[COMMANDS] loaded ${f}: ${command.name}${command.aliases.length ? ', ' + command.aliases.join(', ') : ''}`
+				`[COMMANDS] loaded ${f}: ${command.name}` +
+					(command.aliases.length ? ', ' + command.aliases.join(', ') : '')
 			);
 			i++;
 		} catch (err) {
-			logger.error(`error loading command ${f}:`, err);
+			err.message = `error loading command ${f}: ${err.message}`;
+			throw err;
 		}
 
 	return i;

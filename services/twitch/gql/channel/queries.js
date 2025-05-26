@@ -48,6 +48,19 @@ query($login: String!) {
 }
 ${BASIC_USER}`;
 
+export const GET_ARTISTS = `
+query($id: ID!) {
+	usersByCommunityRole(channelID: $id role: ARTIST) {
+		edges {
+			grantedAt
+			node {
+				...BasicUserFragment
+			}
+		}
+	}
+}
+${BASIC_USER}`;
+
 export const GET_CHATTERS = `
 query($login: String!) {
 	user(login: $login lookupType: ALL) {
@@ -200,6 +213,13 @@ mutation($input: AcknowledgeChatWarningInput!) {
 		error {
 			code
 		}
+	}
+}`;
+
+export const SHARE_RESUBSCRIPTION = `
+mutation($input: UseChatNotificationTokenInput!) {
+	useChatNotificationToken(input: $input) {
+		isSuccess
 	}
 }`;
 

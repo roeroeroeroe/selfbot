@@ -6,13 +6,14 @@ export default {
 	aliases: ['nr', 'resub'],
 	description: 'send resub notification',
 	unsafe: false,
+	lock: 'NONE',
 	flags: [
 		{
 			name: 'channel',
 			aliases: ['c', 'channel'],
 			type: 'username',
 			required: true,
-			defaultValue: '',
+			defaultValue: null,
 			description: 'channel to send the notification in',
 		},
 		{

@@ -7,13 +7,14 @@ export default {
 	aliases: ['rel'],
 	description: "get user's relationship with a given channel",
 	unsafe: false,
+	lock: 'NONE',
 	flags: [
 		{
 			name: 'user',
 			aliases: ['u', 'user'],
 			type: 'username',
 			required: false,
-			defaultValue: '',
+			defaultValue: null,
 			description: 'user (default: sender)',
 		},
 		{
@@ -21,7 +22,7 @@ export default {
 			aliases: ['c', 'channel'],
 			type: 'username',
 			required: false,
-			defaultValue: '',
+			defaultValue: null,
 			description: 'channel (default: current channel)',
 		},
 	],

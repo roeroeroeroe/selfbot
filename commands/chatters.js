@@ -8,13 +8,14 @@ export default {
 	aliases: [],
 	description: 'get chatters list',
 	unsafe: false,
+	lock: 'NONE',
 	flags: [
 		{
 			name: 'channel',
 			aliases: ['c', 'channel'],
 			type: 'username',
 			required: false,
-			defaultValue: '',
+			defaultValue: null,
 			description: 'channel to get chatters for',
 		},
 		{
@@ -28,7 +29,7 @@ export default {
 		{
 			name: 'maxRequests',
 			aliases: ['m', 'max-requests'],
-			type: 'number',
+			type: 'int',
 			required: false,
 			defaultValue: 100,
 			description: 'abort after N requests (default: 100, min: 1, max: 1000)',
@@ -37,7 +38,7 @@ export default {
 		{
 			name: 'batchSize',
 			aliases: [null, 'batch-size'],
-			type: 'number',
+			type: 'int',
 			required: false,
 			defaultValue: 10,
 			description: 'run N requests concurrently (default: 10, min: 1, max: 50)',
@@ -46,7 +47,7 @@ export default {
 		{
 			name: 'minPercent',
 			aliases: ['p', 'min-percent'],
-			type: 'number',
+			type: 'int',
 			required: false,
 			defaultValue: 100,
 			description:

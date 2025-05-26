@@ -29,7 +29,8 @@ function assertIntBetween(v, a, b) {
 	assert(Number.isInteger(v) && v >= a && v <= b, `must be an integer between ${a} and ${b}`);
 }
 function assertStringOneOf(v, arr) {
-	assert(arr.includes(v), `must be one of: ${arr.join(', ')}`);
+	// prettier-ignore
+	assert(typeof v === 'string' && arr.includes(v), `must be one of: ${arr.join(', ')}`);
 }
 // prettier-ignore
 const validators = {
@@ -43,10 +44,10 @@ const validators = {
 	'ircClientTransport': v => assertStringOneOf(v, ['tcp', 'websocket']),
 	'chatServiceTransport': v => assertStringOneOf(v, ['irc', 'gql']),
 	'retries': v => assertNonNegativeInt(v),
-	'defaultPrefix': v => assert(typeof v === 'string' && utils.isValidPrefix(v), 'must be a valid prefix'),
+	'defaultPrefix': v => assert(utils.isValidPrefix(v), 'must be a valid prefix'),
 	'responsePartsSeparator': v => assertNonEmptyString(v),
 	'againstTOS': v => assertNonEmptyString(v),
-	'hastebinInstance': v => assert(typeof v === 'string' && utils.isValidHttpUrl(v), 'must be a valid URL'),
+	'hastebinInstance': v => assert(utils.isValidHttpUrl(v), 'must be a valid URL'),
 	'maxPasteLength': v => assertNonNegativeInt(v),
 	'rateLimits': v => assertStringOneOf(v, ['regular', 'verified']),
 	'authedTmiClientConnectionsPoolSize': v => {
@@ -142,7 +143,7 @@ async function updateConfig(pathStr, newValue) {
 		}
 
 	parent[key] = newValue;
-	await writeFile(configPath, JSON.stringify(config, null, 2));
+	await writeFile(configPath, JSON.stringify(config, null, '\t'));
 }
 
 export default {

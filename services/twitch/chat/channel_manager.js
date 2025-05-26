@@ -7,10 +7,10 @@ import logger from '../../logger.js';
 import utils from '../../../utils/index.js';
 
 export default class ChannelManager {
+	#joinControllers = new Map();
 	constructor(anonClient) {
 		this.anon = anonClient;
-		this.desiredChannels = new Set();
-		this.joinQueue = new AsyncQueue(c => this.#joinWorker(c));
+		this.joinQueue = new AsyncQueue(job => this.#joinWorker(job));
 		this.joinRateLimiter = new SlidingWindowRateLimiter(
 			constants.JOINS_WINDOW_MS,
 			constants.MAX_JOINS_PER_WINDOW
@@ -60,14 +60,22 @@ export default class ChannelManager {
 		setInterval(() => this.load(), constants.LOAD_INTERVAL_MS);
 	}
 
-	async #joinWorker(c) {
-		if (this.anon.joinedChannels.has(c) || !this.desiredChannels.has(c)) return;
+	async #joinWorker({ channel: c, controller }) {
+		if (this.anon.joinedChannels.has(c)) {
+			this.#joinControllers.delete(c);
+			return;
+		}
+		if (controller.signal.aborted) {
+			this.#joinControllers.delete(c);
+			logger.debug(`[ChannelManager] join ${c} canceled`);
+			return;
+		}
 		await this.joinRateLimiter.wait();
 		logger.debug(`[ChannelManager] trying to join ${c}`);
 		utils
 			.retry(
 				() => {
-					if (!this.desiredChannels.has(c)) {
+					if (controller.signal.aborted) {
 						const err = new Error('aborted');
 						err.retryable = false;
 						throw err;
@@ -84,23 +92,27 @@ export default class ChannelManager {
 			.catch(err => {
 				if (err.message === 'aborted')
 					logger.debug(`[ChannelManager] join ${c} canceled`);
-				else {
-					logger.error(`[ChannelManager] failed to join ${c}:`, err);
-					this.desiredChannels.delete(c);
-				}
-			});
+				else logger.error(`[ChannelManager] failed to join ${c}:`, err);
+			})
+			.finally(() => this.#joinControllers.delete(c));
 	}
 
 	join(c) {
-		if (this.desiredChannels.has(c)) return;
-		this.desiredChannels.add(c);
-		this.joinQueue.enqueue(c);
+		if (this.#joinControllers.has(c) || this.anon.joinedChannels.has(c)) return;
+		const controller = new AbortController();
+		this.#joinControllers.set(c, controller);
+		this.joinQueue.enqueue({ channel: c, controller });
 	}
 
 	async part(c) {
-		this.desiredChannels.delete(c);
+		const controller = this.#joinControllers.get(c);
+		if (controller) {
+			controller.abort();
+			this.#joinControllers.delete(c);
+			await this.joinQueue.removeMatching(job => job.channel === c);
+			return;
+		}
 		logger.debug('[ChannelManager] trying to part', c);
-		if (await this.joinQueue.removeMatching(item => item === c)) return;
 		try {
 			await this.anon.part(c);
 		} catch (err) {

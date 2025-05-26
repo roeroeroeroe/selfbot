@@ -66,7 +66,7 @@ export const GET_SELF_BAN_STATUS = `
 query($channelId: ID! $userId: ID!) {
 	chatModeratorStrikeStatus(channelID: $channelId userID: $userId) {
 		roomOwner {
-			id
+			...BasicUserFragment
 		}
 		banDetails {
 			id
@@ -82,7 +82,8 @@ query($channelId: ID! $userId: ID!) {
 			createdAt
 		}
 	}
-}`;
+}
+${BASIC_USER}`;
 
 export const GET_SELF_SUBSCRIPTION_BENEFITS = `
 query($cursor: Cursor) {

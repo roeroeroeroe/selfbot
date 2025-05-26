@@ -40,21 +40,8 @@ async function getFounders(channelLogin) {
 
 async function getArtists(channelId) {
 	const res = await gql.request({
-		operationName: 'UserRolesCacheQuery',
-		variables: {
-			channelID: channelId,
-			includeArtists: true,
-			includeEditors: false,
-			includeMods: false,
-			includeVIPs: false,
-		},
-		extensions: {
-			persistedQuery: {
-				version: 1,
-				sha256Hash:
-					'dfe01a8ac494183d85cc9dbde2d808c35f7ffcfd2b3c12db4c7d2a57c2712121',
-			},
-		},
+		query: queries.GET_ARTISTS,
+		variables: { id: channelId },
 	});
 
 	return res.data;
@@ -174,21 +161,8 @@ async function acknowledgeChatWarning(channelId) {
 
 async function shareResubscription(channelLogin, includeStreak, message) {
 	const res = await gql.request({
-		operationName: 'Chat_ShareResub_UseResubToken',
-		variables: {
-			input: {
-				channelLogin,
-				includeStreak,
-				message,
-			},
-		},
-		extensions: {
-			persistedQuery: {
-				version: 1,
-				sha256Hash:
-					'61045d4a4bb10d25080bc0a01a74232f1fa67a6a530e0f2ebf05df2f1ba3fa59',
-			},
-		},
+		query: queries.SHARE_RESUBSCRIPTION,
+		variables: { input: { channelLogin, includeStreak, message } },
 	});
 
 	return res.data;

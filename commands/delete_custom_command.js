@@ -8,6 +8,7 @@ export default {
 	aliases: ['delcmd', 'cmddel'],
 	description: 'remove an existing custom command',
 	unsafe: false,
+	lock: 'NONE',
 	flags: [
 		{
 			name: 'name',
@@ -21,7 +22,7 @@ export default {
 			name: 'channel',
 			aliases: ['c', 'channel'],
 			type: 'username',
-			defaultValue: '',
+			defaultValue: null,
 			required: false,
 			description: 'delete all commands from the specified channel',
 		},

@@ -28,7 +28,7 @@ const GLOBAL_FLAGS_SCHEMA = [
 		aliases: [null, 'from-paste'],
 		type: 'url',
 		required: false,
-		defaultValue: '',
+		defaultValue: null,
 		description: 'populate arguments from paste',
 	},
 	// post
@@ -64,10 +64,10 @@ async function preHandle(msg, command) {
 	if (msg.commandFlags.fromPaste)
 		try {
 			const content = await hastebin.get(msg.commandFlags.fromPaste);
-			for (const arg of utils.shellSplit(content)) msg.args.push(arg);
+			for (const arg of utils.tokenizeArgs(content)) msg.args.push(arg);
 		} catch (err) {
-			logger.error('error fetching paste:', err);
-			return { text: `error fetching paste: ${err.message}`, mention: true };
+			logger.error('error getting paste:', err);
+			return { text: `error getting paste: ${err.message}`, mention: true };
 		}
 }
 

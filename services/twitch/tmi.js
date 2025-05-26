@@ -16,7 +16,6 @@ export default function init(chatService) {
 
 	tmi.on('connecting', () => logger.debug('[TMI] connecting...'));
 	tmi.on('ready', () => {
-		tmi.connectedAt = performance.now();
 		logger.info('[TMI] connected');
 		channelManager.init();
 	});
@@ -29,11 +28,7 @@ export default function init(chatService) {
 	tmi.on('NOTICE', msg => logger.debug('[TMI] NOTICE:', msg));
 	tmi.on('USERNOTICE', msg => logger.debug('[TMI] USERNOTICE:', msg));
 	tmi.on('JOIN', msg => logger.debug('[TMI] JOIN:', msg.rawSource));
-	tmi.on('PART', msg => {
-		logger.debug('[TMI] PART:', msg.rawSource);
-		if (msg.partedUsername === config.bot.login)
-			channelManager.desiredChannels.delete(msg.channelName);
-	});
+	tmi.on('PART', msg => logger.debug('[TMI] PART:', msg.rawSource));
 	tmi.on('ROOMSTATE', ({ channelID, slowModeDuration }) =>
 		chatService.setSlowModeDuration(
 			channelID,

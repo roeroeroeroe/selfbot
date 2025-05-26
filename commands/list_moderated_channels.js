@@ -8,6 +8,7 @@ export default {
 	aliases: ['mc', 'listmc'],
 	description: 'list moderated channels',
 	unsafe: false,
+	lock: 'CHANNEL',
 	flags: [
 		{
 			name: 'info',

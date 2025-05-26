@@ -1,15 +1,17 @@
 import * as core from './utils.js';
-import duration from './duration.js';
+import color from './color.js';
 import date from './date.js';
+import duration from './duration.js';
 import format from './format.js';
 import regex from './regex.js';
-import color from './color.js';
+import stats from './stats.js';
 
 export default {
 	...core,
-	duration,
+	color,
 	date,
+	duration,
 	format,
 	regex,
-	color,
+	stats,
 };

@@ -1,4 +1,8 @@
-import { ChatClient, ConnectionPool } from '@mastondzn/dank-twitch-irc';
+import {
+	ChatClient,
+	ConnectionPool,
+	ReconnectError,
+} from '@mastondzn/dank-twitch-irc';
 import ChatService from './chat_service.js';
 import * as constants from './constants.js';
 import initTMI from '../tmi.js';
@@ -20,7 +24,11 @@ switch (config.chatServiceTransport) {
 			connection: { type: config.ircClientTransport, secure: true },
 			installDefaultMixins: false,
 		});
-		authed.on('error', err => logger.error('[IRC-TX] error:', err.message));
+		authed.on('error', err => {
+			if (err instanceof ReconnectError)
+				logger.debug('[IRC-TX] server requested reconnect');
+			else logger.error('[IRC-TX] error:', err.message);
+		});
 		authed.on('close', err => err && logger.fatal('[IRC-TX] closed:', err));
 		if (config.authedTmiClientConnectionsPoolSize >= 2)
 			authed.use(
@@ -57,7 +65,6 @@ export default {
 	part: c => channelManager.part(c),
 	connect: () => tmi.connect(),
 	ping: () => tmi.ping(),
-	get connectedAt() { return tmi.connectedAt; },
 	get connections() { return tmi.connections; },
 	get joinedChannels() { return tmi.joinedChannels; },
 };

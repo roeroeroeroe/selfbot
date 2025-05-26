@@ -11,6 +11,7 @@ export default {
 	aliases: ['u', 'whois'],
 	description: 'get user(s) info',
 	unsafe: false,
+	lock: 'NONE',
 	flags: [
 		{
 			name: 'idLookup',

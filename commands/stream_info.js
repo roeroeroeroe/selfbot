@@ -9,12 +9,13 @@ export default {
 	aliases: ['si'],
 	description: 'get stream info',
 	unsafe: false,
+	lock: 'NONE',
 	flags: [
 		{
 			name: 'channel',
 			aliases: ['c', 'channel'],
 			type: 'username',
-			defaultValue: '',
+			defaultValue: null,
 			required: false,
 			description: 'target channel (default: current channel)',
 		},

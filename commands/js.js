@@ -33,8 +33,11 @@ const context = {
 export default {
 	name: 'js',
 	aliases: ['eval'],
-	description: 'run arbitrary javascript',
+	description:
+		'run arbitrary javascript; quotes may be stripped -- ' +
+		"use backticks or escape inner quotes (e.g., foo('\\'bar\\''))",
 	unsafe: true,
+	lock: 'NONE',
 	flags: [],
 	execute: async msg => {
 		if (!msg.args.length) return { text: 'no input provided', mention: true };

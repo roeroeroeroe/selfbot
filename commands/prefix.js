@@ -9,13 +9,14 @@ export default {
 	aliases: ['setprefix'],
 	description: 'change bot prefix',
 	unsafe: false,
+	lock: 'NONE',
 	flags: [
 		{
 			name: 'channel',
 			aliases: ['c', 'channel'],
 			type: 'username',
 			required: false,
-			defaultValue: '',
+			defaultValue: null,
 			description: 'channel to change the prefix in (default: current channel)',
 		},
 		{
@@ -24,7 +25,7 @@ export default {
 			type: 'boolean',
 			required: false,
 			defaultValue: false,
-			description: 'change prefix in all channels and set as default prefix',
+			description: 'change prefix in all channels and set as default',
 		},
 		{
 			name: 'prefix',

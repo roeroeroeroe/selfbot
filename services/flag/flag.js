@@ -4,216 +4,243 @@ import globalFlags from './global_flags.js';
 const FLAG_TYPES = [
 	'string',
 	'boolean',
-	'number',
+	'int',
+	'float',
 	'duration',
 	'url',
 	'username',
 ];
+const BOOLEAN_TRUE_VALUES = new Set(['t', 'true', '1']);
+const BOOLEAN_FALSE_VALUES = new Set(['f', 'false', '0']);
+// prettier-ignore
+function makeConverter(type) {
+	switch (type) {
+		case 'boolean':
+			return v => {
+				if (v === null || v === undefined ||
+				    BOOLEAN_TRUE_VALUES.has(v))
+					return [true, null];
+				if (BOOLEAN_FALSE_VALUES.has(v))
+					return [false, null];
+				// should only be reachable with --flag=value syntax
+				return [null, 'invalid boolean'];
+			};
+		case 'int':
+			return v => {
+				if (v === null || v === undefined)
+					return [null, 'not an integer'];
+				const n = Number(v);
+				if (!Number.isInteger(n))
+					return [null, 'not an integer'];
+				return [n, null];
+			};
+		case 'float':
+			return v => {
+				if (v === null || v === undefined)
+					return [null, 'not a number'];
+				const n = parseFloat(v);
+				if (Number.isNaN(n))
+					return [null, 'not a number'];
+				return [n, null];
+			};
+		case 'duration':
+			return v => {
+				const n = utils.duration.parse(v);
+				if (n === null)
+					return [null, 'invalid duration'];
+				return [n, null];
+			};
+		case 'url':
+			return v => {
+				if (!utils.isValidHttpUrl(v))
+					return [null, 'invalid url'];
+				return [v, null];
+			};
+		case 'username':
+			return v => {
+				if (!v || !utils.regex.patterns.username.test(v))
+					return [null, 'invalid username'];
+				return [v.toLowerCase(), null];
+			};
+		default:
+			return v => {
+				if (v === null || v === undefined)
+					return ['', null];
+				return [v, null];
+			};
+	}
+}
+// prettier-ignore
+function createParser(schema) {
+	const flags          = new Map();
+	const aliasesMap     = new Map();
+	const requiredList   = [];
+	const validateList   = [];
+	const defaultOptions = {};
 
-function init(schema) {
-	const flags = {};
-	const aliasesMap = {};
-	// prettier-ignore
 	for (const flag of [...globalFlags.GLOBAL_FLAGS_SCHEMA, ...schema]) {
-		if (flag === null || typeof flag !== 'object')
+		if (!flag || typeof flag !== 'object')
 			throw new Error('flag must be an object');
-		if (typeof flag.name !== 'string' || flag.name === '' || /\s/.test(flag.name))
-			throw new Error('flag name must be a string with no spaces');
-		if (typeof flag.type !== 'string' || !FLAG_TYPES.includes(flag.type))
-			throw new Error(`type for flag "${flag.name}" must be one of ${FLAG_TYPES.join(', ')}`);
+		if (typeof flag.name !== 'string' || !flag.name ||
+		    /\s/.test(flag.name))
+			throw new Error("'name' must be a non-empty string with no spaces");
+		if (!FLAG_TYPES.includes(flag.type))
+			throw new Error(`'type' for flag "${flag.name}" must be one of: ` +
+			                FLAG_TYPES.join(', '));
 		if (typeof flag.required !== 'boolean')
 			throw new Error(`'required' for flag "${flag.name}" must be a boolean`);
 		if (typeof flag.description !== 'string')
-			throw new Error(`description for flag "${flag.name}" must be a string`);
+			throw new Error(`'description' for flag "${flag.name}" must be a string`);
 
-		if (
-			flag.defaultValue !== null &&
-			flag.type !== 'duration' &&
-			flag.type !== 'url' &&
-			flag.type !== 'username' &&
-			typeof flag.defaultValue !== flag.type
-		)
-			throw new Error(`default value for flag "${flag.name}" must be a ${flag.type}`);
+		flag.converter = makeConverter(flag.type);
 
+		if (flag.defaultValue !== null) {
+			const [v, err] = flag.converter(String(flag.defaultValue));
+			if (err)
+				throw new Error(`'defaultValue' for flag "${flag.name}" must be ` +
+				                `a valid ${flag.type}: ${err}`);
+			flag.defaultValue = v;
+		}
 		if (flag.validator && typeof flag.validator !== 'function')
-			throw new Error(`validator for flag "${flag.name}" must be a function`);
-
-		if (
-			!Array.isArray(flag.aliases) ||
-			!flag.aliases.length ||
-			flag.aliases.length > 2 ||
-			flag.aliases.every(a => typeof a !== 'string' && a !== null)
-		)
-			throw new Error(`aliases for flag "${flag.name}" must be an array of 1 or 2 strings (or null for unused short/long forms)`);
+			throw new Error(`'validator' for flag "${flag.name}" must be a function`);
+		if (!Array.isArray(flag.aliases) || flag.aliases.length !== 2 ||
+		    !flag.aliases.every(a => a === null || typeof a === 'string') ||
+		    flag.aliases.every(a => a === null))
+			throw new Error(`'aliases' for flag "${flag.name}" must be ` +
+			                'an array of 1 or 2 strings (null for unused short/long form)');
 
 		const [short, long] = flag.aliases;
+		const displayParts = [];
 		if (short !== null) {
-			if (typeof short !== 'string' || short.length !== 1)
-				throw new Error(`short option for flag "${flag.name}" must be a single character`);
-			if (aliasesMap[short])
-				throw new Error(`short option for flag "${flag.name}" conflicts with flag "${aliasesMap[short]}"`);
-
-			aliasesMap[short] = flag.name;
+			if (short.length !== 1)
+				throw new Error(`short option for "${flag.name}" must be a single character`);
+			if (aliasesMap.has(short))
+				throw new Error(`short option for flag "${flag.name}" ` +
+				                `conflicts with flag "${aliasesMap.get(short).name}"`);
+			aliasesMap.set(short, flag);
+			displayParts.push(`-${short}`);
 		}
-
 		if (long !== null) {
-			if (typeof long !== 'string' || long.length < 2)
-				throw new Error(`long option for flag "${flag.name}" must be at least 2 characters long`);
+			if (long.length < 2)
+				throw new Error(`long option for flag "${flag.name}" ` +
+				                'must be at least 2 characters long');
 			if (/\s/.test(long))
-				throw new Error(`long option for flag "${flag.name}" must be a string with no spaces`);
-			if (aliasesMap[long])
-				throw new Error(`long option for flag "${flag.name}" conflicts with flag "${aliasesMap[long]}"`);
-
-			aliasesMap[long] = flag.name;
+				throw new Error(`long option for flag "${flag.name}" ` +
+				                'must be a string with no spaces');
+			if (aliasesMap.has(long))
+				throw new Error(`long option for flag "${flag.name}" ` +
+				                `conflicts with flag "${aliasesMap.get(long).name}"`);
+			aliasesMap.set(long, flag);
+			displayParts.push(`--${long}`);
 		}
-
-		flags[flag.name] = flag;
+		flag.aliasDisplay = displayParts.join(', ');
+		flag.validator = typeof flag.validator === 'function' ? flag.validator : null;
+		defaultOptions[flag.name] = flag.defaultValue;
+		flags.set(flag.name, flag);
+		if (flag.required)
+			requiredList.push(flag);
+		if (flag.validator)
+			validateList.push(flag);
 	}
 
-	return { flags, aliasesMap };
-}
+	const options       = Object.assign({}, defaultOptions);
+	const providedFlags = Object.create(null);
+	const errors        = [];
+	const rest          = [];
 
-function vconv(flag, v) {
-	if (v === null)
-		return [flag.type === 'boolean' ? true : flag.defaultValue, null];
+	function parse(argv) {
+		for (const k in defaultOptions) options[k] = defaultOptions[k];
+		for (const k in providedFlags) providedFlags[k] = false;
+		errors.length = rest.length = 0;
 
-	let value,
-		err = null;
-	switch (flag.type) {
-		case 'boolean': {
-			value = v === 'false' ? false : true;
-			break;
-		}
-		case 'number': {
-			const n = parseFloat(v);
-			if (Number.isNaN(n)) {
-				err = 'not a number';
-				break;
-			}
-			value = n;
-			break;
-		}
-		case 'duration': {
-			const n = utils.duration.parse(v);
-			if (n === null) {
-				err = 'invalid duration';
-				break;
-			}
-			value = n;
-			break;
-		}
-		case 'url': {
-			if (!utils.isValidHttpUrl(v)) {
-				err = 'invalid url';
-				break;
-			}
-			value = v;
-			break;
-		}
-		case 'username': {
-			if (!utils.regex.patterns.username.test(v)) {
-				err = 'invalid username';
-				break;
-			}
-			value = v.toLowerCase();
-			break;
-		}
-		default: {
-			value = v;
-		}
-	}
-	return [value, err];
-}
+		const argc = argv.length;
+		let i = 0;
+		function setv(flag, inlineValue = null, getNext = true) {
+			let rawValue = inlineValue;
+			if (getNext && inlineValue === null && i < argc)
+				if (flag.type === 'boolean') {
+					const v = argv[i];
+					if (BOOLEAN_TRUE_VALUES.has(v) ||
+					    BOOLEAN_FALSE_VALUES.has(v))
+						rawValue = argv[i++];
+				} else {
+					const next = argv[i];
+					if (next[0] !== '-' ||
+					    !aliasesMap.has(next.slice(next[1] === '-' ? 2 : 1)))
+						rawValue = argv[i++];
+				}
 
-function parse(argv, flagData) {
-	const { flags, aliasesMap } = flagData;
-	const options = {};
-	for (const k in flags) options[k] = flags[k].defaultValue;
-	const providedFlags = {};
-	const rest = [];
-	const errors = [];
-	const argc = argv.length;
-
-	let i = 0;
-	function getv(k) {
-		const flag = flags[aliasesMap[k]];
-		if (
-			i + 1 >= argc ||
-			(argv[i + 1][0] === '-' && aliasesMap[argv[i + 1].replace(/^-+/, '')])
-		)
-			return vconv(flag, null);
-		if (flag.type === 'boolean')
-			return argv[i + 1] === 'false' || argv[i + 1] === 'true'
-				? vconv(flag, argv[++i])
-				: vconv(flag, null);
-		return vconv(flag, argv[++i]);
-	}
-
-	function setv(k, res) {
-		if (res[1]) errors.push(res[1]);
-		providedFlags[aliasesMap[k]] = true;
-		options[aliasesMap[k]] = res[0];
-	}
-
-	for (; i < argc; i++) {
-		const arg = argv[i];
-		if (arg[0] !== '-' || arg.length === 1) {
-			rest.push(arg);
-			continue;
+			providedFlags[flag.name] = true;
+			const [v, err] = flag.converter(rawValue);
+			if (err)
+				errors.push(`${flag.aliasDisplay}: ${err}`);
+			options[flag.name] = v === null ? flag.defaultValue : v;
 		}
-		if (arg[1] === '-') {
-			if (arg.length === 2) {
-				while (++i < argc) rest.push(argv[i]);
-				break;
+
+		while (i < argc) {
+			const arg = argv[i++];
+			if (arg[0] !== '-' || arg.length === 1) {
+				rest.push(arg);
+				continue;
 			}
-			const eqIndex = arg.indexOf('=');
-			if (eqIndex !== -1) {
-				const k = arg.slice(2, eqIndex);
-				if (k.length > 1 && aliasesMap[k])
-					setv(k, vconv(flags[aliasesMap[k]], arg.slice(eqIndex + 1)));
-				else rest.push(arg);
-			} else {
-				const k = arg.slice(2);
-				if (k.length > 1 && aliasesMap[k]) setv(k, getv(k));
-				else rest.push(arg);
+			if (arg[1] === '-') {
+				if (arg.length === 2) {
+					while (i < argc) rest.push(argv[i++]);
+					break;
+				}
+				const eqIndex = arg.indexOf('=');
+				if (eqIndex !== -1) {
+					const k = arg.slice(2, eqIndex);
+					if (k.length > 1) {
+						const flag = aliasesMap.get(k);
+						if (flag)
+							setv(flag, arg.slice(eqIndex + 1) || null);
+						else
+							rest.push(arg);
+					} else
+						rest.push(arg);
+				} else {
+					const k = arg.slice(2);
+					if (k.length > 1) {
+						const flag = aliasesMap.get(k);
+						if (flag)
+							setv(flag);
+						else
+							rest.push(arg);
+					} else
+						rest.push(arg);
+				}
+				continue;
 			}
-			continue;
+			for (let j = 1; j < arg.length; j++) {
+				const k = arg[j];
+				const flag = aliasesMap.get(k);
+				if (flag)
+					setv(flag, null, j === arg.length - 1);
+				else {
+					rest.push(j === 1 ? arg : arg.slice(j));
+					break;
+				}
+			}
 		}
-		for (let j = 1, n = arg.length; j < n; j++)
-			if (aliasesMap[arg[j]])
-				setv(
-					arg[j],
-					j === n - 1 ? getv(arg[j]) : vconv(flags[aliasesMap[arg[j]]], null)
-				);
-			else {
-				rest.push(j === 1 ? arg : arg.slice(j));
-				break;
-			}
+		for (i = 0; i < requiredList.length; i++) {
+			const f = requiredList[i];
+			if (!providedFlags[f.name])
+				errors.push(`flag "${f.name}" (${f.aliasDisplay}) is required`);
+		}
+		for (i = 0; i < validateList.length; i++) {
+			const f = validateList[i];
+			if (providedFlags[f.name] && !f.validator(options[f.name]))
+				errors.push(`flag "${f.name}" (${f.aliasDisplay}) failed validation`);
+		}
+		return { options, rest, errors };
 	}
 
-	for (const k in flags) {
-		const flag = flags[k];
-		if (flag.required && !providedFlags[k]) {
-			const optsParts = [];
-			if (flag.aliases[0]) optsParts.push(`-${flag.aliases[0]}`);
-			if (flag.aliases[1]) optsParts.push(`--${flag.aliases[1]}`);
-			errors.push(
-				`flag "${flag.name}" (${optsParts.join(', ')}) is required but not provided`
-			);
-		} else if (
-			typeof flag.validator === 'function' &&
-			providedFlags[k] &&
-			!flag.validator(options[k])
-		)
-			errors.push(`flag "${flag.name}" did not pass validation`);
-	}
-
-	return { options, rest, errors };
+	return { flags: Array.from(flags.values()), parse };
 }
 
 export default {
 	FLAG_TYPES,
 
-	init,
-	parse,
+	createParser,
 };

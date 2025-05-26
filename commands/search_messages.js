@@ -13,13 +13,14 @@ export default {
 	],
 	description: 'search chat messages using trigram-based similarity matching',
 	unsafe: false,
+	lock: 'NONE',
 	flags: [
 		{
 			name: 'channel',
 			aliases: ['c', 'channel'],
 			type: 'username',
 			required: false,
-			defaultValue: '',
+			defaultValue: null,
 			description: 'restrict search to the specified channel',
 		},
 		{
@@ -27,13 +28,13 @@ export default {
 			aliases: ['u', 'user'],
 			type: 'username',
 			required: false,
-			defaultValue: '',
+			defaultValue: null,
 			description: 'restrict search to the specified user',
 		},
 		{
 			name: 'threshold',
 			aliases: ['t', 'threshold'],
-			type: 'number',
+			type: 'float',
 			required: false,
 			defaultValue: 0.3,
 			description: 'minimum similarity score (default: 0.3, min: 0.3, max: 1)',
@@ -50,7 +51,7 @@ export default {
 		{
 			name: 'limit',
 			aliases: ['l', 'limit'],
-			type: 'number',
+			type: 'int',
 			required: false,
 			defaultValue: 100,
 			description:

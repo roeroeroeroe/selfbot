@@ -73,11 +73,12 @@ async function edit(name, newValues = {}, persist = true) {
 	if (newValues.name && newValues.name !== name && byName.has(newValues.name))
 		throw new Error(`duplicate command name: ${newValues.name}`);
 
-	const merged = { ...old, ...newValues };
-	normalizeTrigger(merged);
-
+	if (newValues.trigger instanceof RegExp)
+		newValues.trigger = String(newValues.trigger);
 	if (persist) await db.customCommand.update(name, newValues);
 
+	const merged = { ...old, ...newValues };
+	normalizeTrigger(merged);
 	const channelChanged =
 		'channel_id' in newValues && newValues.channel_id !== old.channel_id;
 	const nameChanged = 'name' in newValues && newValues.name !== name;

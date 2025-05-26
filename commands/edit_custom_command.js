@@ -10,6 +10,7 @@ export default {
 	aliases: ['editcmd', 'cmdedit'],
 	description: 'modify an existing custom command',
 	unsafe: false,
+	lock: 'NONE',
 	flags: [
 		{
 			name: 'name',
@@ -32,7 +33,7 @@ export default {
 			name: 'channel',
 			aliases: [null, 'channel'],
 			type: 'username',
-			defaultValue: '',
+			defaultValue: null,
 			required: false,
 			description: 'new channel',
 		},

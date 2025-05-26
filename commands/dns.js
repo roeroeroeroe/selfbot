@@ -7,6 +7,7 @@ export default {
 	aliases: ['dig'],
 	description: 'resolve DNS resource records for a given FQDN',
 	unsafe: false,
+	lock: 'NONE',
 	flags: [
 		{
 			name: 'name',

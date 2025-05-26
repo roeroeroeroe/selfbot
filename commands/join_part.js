@@ -11,6 +11,7 @@ export default {
 	aliases: ['part'],
 	description: 'join/part channel(s) (alias-driven)',
 	unsafe: false,
+	lock: 'NONE',
 	flags: [
 		{
 			name: 'id',

@@ -7,13 +7,14 @@ export default {
 	aliases: ['unfollow'],
 	description: '(un)follow a channel (alias-driven)',
 	unsafe: false,
+	lock: 'NONE',
 	flags: [
 		{
 			name: 'channel',
 			aliases: ['c', 'channel'],
 			type: 'username',
 			required: false,
-			defaultValue: '',
+			defaultValue: null,
 			description: 'channel to (un)follow (default: current channel)',
 		},
 		{
