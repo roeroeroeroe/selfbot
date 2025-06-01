@@ -35,62 +35,55 @@ export default function init(chatService) {
 			(slowModeDuration ?? 0) * 1000 + 100
 		)
 	);
+	// prettier-ignore
 	tmi.on('PRIVMSG', async msg => {
-		if (msg.sourceChannelID && msg.sourceChannelID !== msg.channelID) return;
+		if (msg.sourceChannelID && msg.sourceChannelID !== msg.channelID)
+			return;
 		msg.receivedAt = performance.now();
 		logger.debug('[TMI] PRIVMSG:', msg.rawSource);
 		metrics.counter.increment(metrics.names.counters.TMI_MESSAGES_RX);
 
 		try {
-			msg.query = await db.channel.get(msg.channelID);
-			if (!msg.query)
-				return logger.warning('[TMI] unknown channel:', msg.channelName);
+			if (!(msg.query = await db.channel.get(msg.channelID)))
+				return;
 		} catch (err) {
 			return logger.error(`error getting channel ${msg.channelName}:`, err);
 		}
 
 		if (msg.query.log)
-			db.message.queueInsert(
-				msg.channelID,
-				msg.senderUserID,
-				msg.messageText,
-				msg.serverTimestamp.toISOString()
-			);
+			db.message.queueInsert(msg.channelID, msg.senderUserID,
+			                       msg.messageText,
+			                       msg.serverTimestamp.toISOString());
 
-		// prettier-ignore
 		if (msg.query.login !== msg.channelName) {
 			logger.info(`[TMI] name change: ${msg.query.login} -> ${msg.channelName}`);
 			try {
-				await db.channel.update(msg.channelID, 'login', msg.channelName, msg.query);
+				await db.channel.update(msg.channelID, 'login',
+				                        msg.channelName, msg.query);
 			} catch (err) {
 				logger.error('error updating channel:', err);
 			}
 		}
 
-		// prettier-ignore
 		if (msg.senderUserID === config.bot.id) {
 			msg.self = msg.ircTags['client-nonce'] === chatService.botNonce;
-			if (!msg.self) chatService.recordSend(msg.channelID);
-			const isPrivileged = msg.isMod || msg.badges.hasVIP || msg.badges.hasBroadcaster;
+			if (!msg.self)
+				chatService.recordSend(msg.channelID);
+			const isPrivileged =
+				msg.isMod || msg.badges.hasVIP || msg.badges.hasBroadcaster;
 			if (msg.query.privileged !== isPrivileged)
 				try {
-					await db.channel.update(msg.channelID, 'privileged', isPrivileged, msg.query);
+					await db.channel.update(msg.channelID, 'privileged',
+					                        isPrivileged, msg.query);
 				} catch (err) {
 					logger.error('error updating channel:', err);
 				}
 		}
 
 		msg.send = (text, reply = false, mention = false) =>
-			chatService.send(
-				msg.channelID,
-				msg.channelName,
-				msg.senderUsername,
-				text,
-				mention,
-				msg.query.privileged,
-				reply ? msg.messageID : ''
-			);
-
+			chatService.send(msg.channelID, msg.channelName,
+			                 msg.senderUsername, text, mention,
+			                 msg.query.privileged, reply ? msg.messageID : '');
 		handle(msg);
 	});
 

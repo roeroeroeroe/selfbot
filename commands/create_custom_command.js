@@ -11,6 +11,11 @@ export default {
 	description: 'create a new custom command',
 	unsafe: false,
 	lock: 'NONE',
+	exclusiveFlagGroups: [
+		['response', 'runcmd'],
+		['reply', 'mention'],
+		['channel', 'global'],
+	],
 	flags: [
 		{
 			name: 'name',
@@ -58,10 +63,11 @@ export default {
 		{
 			name: 'whitelist',
 			aliases: ['w', 'whitelist'],
-			type: 'string',
-			defaultValue: '',
+			type: 'username',
+			list: { unique: true, minItems: 1 },
+			defaultValue: null,
 			required: false,
-			description: 'list of whitelisted users, e.g., "user1 user2"',
+			description: 'whitelisted users',
 		},
 		{
 			name: 'cooldown',
@@ -102,7 +108,7 @@ export default {
 			if (!msg.commandFlags.channel) {
 				channel.id = msg.channelID;
 				channel.login = msg.channelName;
-			} else {
+			} else
 				try {
 					const user = await twitch.gql.user.resolve(msg.commandFlags.channel);
 					if (!user)
@@ -121,48 +127,52 @@ export default {
 					);
 					return { text: 'error resolving channel', mention: true };
 				}
-			}
 		}
-		if (!msg.commandFlags.runcmd && !msg.commandFlags.response)
+
+		const {
+			name: commandName = `${channel.login || 'global'}_${Date.now()}`,
+			trigger,
+			response,
+			runcmd,
+			cooldown,
+			reply,
+			mention,
+		} = msg.commandFlags;
+		if (!runcmd && !response)
 			return {
 				text: 'you must provide a response or regular command',
 				mention: true,
 			};
 
-		const commandName =
-			msg.commandFlags.name || `${channel.login || 'global'}_${Date.now()}`;
-
 		if (customCommands.getCommandByName(commandName))
 			return { text: `command ${commandName} already exists`, mention: true };
 
-		let whitelist = null;
-		if (msg.commandFlags.whitelist) {
+		let { whitelist } = msg.commandFlags;
+		if (whitelist.length) {
 			try {
-				const whitelistInput = msg.commandFlags.whitelist.split(/\s+/);
-				const usersMap = await twitch.helix.user.getMany(whitelistInput);
-				whitelist = [];
-				for (const login of whitelistInput) {
-					const user = usersMap.get(login);
-					if (!user)
-						return { text: `user ${login} does not exist`, mention: true };
-					whitelist.push(user.id);
+				const usersMap = await twitch.helix.user.getMany(whitelist);
+				for (let i = 0; i < whitelist.length; i++) {
+					const n = whitelist[i];
+					const u = usersMap.get(n);
+					if (!u) return { text: `user ${n} does not exist`, mention: true };
+					whitelist[i] = u.id;
 				}
 			} catch (err) {
-				logger.error('error getting whitelist users:', err);
+				logger.error('error getting users:', err);
 				return { text: 'error getting whitelist users', mention: true };
 			}
-		}
+		} else whitelist = null;
 		try {
 			await customCommands.add({
 				name: commandName,
 				channel_id: channel.id,
-				trigger: msg.commandFlags.trigger,
-				response: msg.commandFlags.response,
-				runcmd: msg.commandFlags.runcmd,
+				trigger,
+				response,
+				runcmd,
 				whitelist,
-				cooldown: msg.commandFlags.cooldown,
-				reply: msg.commandFlags.reply,
-				mention: msg.commandFlags.mention,
+				cooldown,
+				reply,
+				mention,
 			});
 		} catch (err) {
 			logger.error(`error creating command ${commandName}:`, err);

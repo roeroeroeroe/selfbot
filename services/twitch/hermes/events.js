@@ -39,7 +39,7 @@ export default {
 		}
 
 		const action = msg.data.action;
-		const channelName = utils.getEffectiveName(user.login, user.displayName);
+		const channelName = utils.pickName(user.login, user.displayName);
 
 		let message = `[Hermes] user_moderation_action: ${action} in ${channelName}`;
 		if (msg.data.reason)
@@ -87,11 +87,11 @@ export default {
 			);
 			return;
 		}
-		const sourceChannelName = utils.getEffectiveName(
+		const sourceChannelName = utils.pickName(
 			channel.login,
 			channel.display_name
 		);
-		const targetChannelName = utils.getEffectiveName(
+		const targetChannelName = utils.pickName(
 			msg.raid.target_login,
 			msg.raid.target_display_name
 		);
@@ -104,7 +104,7 @@ export default {
 					msg.raid.creator_id
 				);
 				if (creator)
-					message += ` (created by ${utils.getEffectiveName(creator.login, creator.displayName)})`;
+					message += ` (created by ${utils.pickName(creator.login, creator.displayName)})`;
 			} catch (err) {
 				logger.error(`error resolving user id ${msg.raid.creator_id}:`, err);
 			}
@@ -132,7 +132,7 @@ export default {
 			String(msg.data.user_id) !== config.bot.id
 		)
 			return;
-		const channelName = utils.getEffectiveName(
+		const channelName = utils.pickName(
 			activity.channel_login,
 			activity.channel_display_name
 		);

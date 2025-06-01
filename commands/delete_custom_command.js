@@ -1,14 +1,14 @@
 import logger from '../services/logger.js';
 import customCommands from '../services/custom_commands.js';
-import utils from '../utils/index.js';
 import twitch from '../services/twitch/index.js';
 
 export default {
 	name: 'deletecommand',
 	aliases: ['delcmd', 'cmddel'],
-	description: 'remove an existing custom command',
+	description: 'delete an existing custom command',
 	unsafe: false,
 	lock: 'NONE',
+	exclusiveFlagGroups: [['name', 'channel', 'global']],
 	flags: [
 		{
 			name: 'name',
@@ -24,7 +24,7 @@ export default {
 			type: 'username',
 			defaultValue: null,
 			required: false,
-			description: 'delete all commands from the specified channel',
+			description: 'delete all commands in the specified channel',
 		},
 		{
 			name: 'global',
@@ -87,7 +87,10 @@ export default {
 		}
 
 		return {
-			text: `successfully deleted ${utils.format.plural(commandsToDelete.length, 'command')}`,
+			text:
+				commandsToDelete.length === 1
+					? `successfully deleted command ${commandsToDelete[0].name}`
+					: `successfully deleted ${commandsToDelete.length} commands`,
 			mention: true,
 		};
 	},

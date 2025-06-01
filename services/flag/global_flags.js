@@ -5,7 +5,11 @@ import utils from '../../utils/index.js';
 
 const normalizedHastebinUrl = config.hastebinInstance.replace(/\/+$/, '') + '/';
 
-const GLOBAL_FLAGS_SCHEMA = [
+const EXCLUSIVE_GROUPS = [
+	['quiet', 'timeExec'],
+	['quiet', 'toPaste'],
+];
+const SCHEMA = [
 	{
 		name: 'timeExec',
 		aliases: [null, 'time'],
@@ -124,7 +128,8 @@ async function postHandle(msg, result) {
 }
 
 export default {
-	GLOBAL_FLAGS_SCHEMA,
+	EXCLUSIVE_GROUPS,
+	SCHEMA,
 
 	preHandle,
 	postHandle,

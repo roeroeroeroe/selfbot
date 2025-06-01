@@ -11,6 +11,12 @@ export default {
 	description: 'modify an existing custom command',
 	unsafe: false,
 	lock: 'NONE',
+	exclusiveFlagGroups: [
+		['channel', 'global'],
+		['response', 'runcmd'],
+		['whitelist', 'clearWhitelist'],
+		['reply', 'mention'],
+	],
 	flags: [
 		{
 			name: 'name',
@@ -36,6 +42,14 @@ export default {
 			defaultValue: null,
 			required: false,
 			description: 'new channel',
+		},
+		{
+			name: 'global',
+			aliases: ['g', 'global'],
+			type: 'boolean',
+			defaultValue: null,
+			required: false,
+			description: 'make the command active in all channels',
 		},
 		{
 			name: 'trigger',
@@ -66,10 +80,19 @@ export default {
 		{
 			name: 'whitelist',
 			aliases: ['w', 'whitelist'],
-			type: 'string',
+			type: 'username',
+			list: { unique: true, minItems: 1 },
 			defaultValue: null,
 			required: false,
-			description: 'new list of whitelisted users, e.g., "user1 user2"',
+			description: 'new whitelisted users',
+		},
+		{
+			name: 'clearWhitelist',
+			aliases: ['W', 'clear-whitelist'],
+			type: 'boolean',
+			defaultValue: false,
+			required: false,
+			description: 'make the command accessible to everyone',
 		},
 		{
 			name: 'cooldown',
@@ -121,6 +144,7 @@ export default {
 				return { text: 'error resolving channel', mention: true };
 			}
 		}
+		if (msg.commandFlags.global) newValues.channel_id = null;
 
 		if (msg.commandFlags.newName) {
 			if (customCommands.getCommandByName(msg.commandFlags.newName))
@@ -133,41 +157,37 @@ export default {
 
 		if (msg.commandFlags.trigger) {
 			const regex = utils.regex.construct(msg.commandFlags.trigger);
-			if (regex.toString() !== command.trigger.toString())
+			if (String(regex) !== String(command.trigger))
 				newValues.trigger = regex;
 		}
 
 		if (msg.commandFlags.cooldown !== null)
 			newValues.cooldown = msg.commandFlags.cooldown;
 
-		for (const field of ['response', 'runcmd', 'mention', 'reply'])
+		for (const f of ['response', 'runcmd', 'mention', 'reply'])
 			if (
-				(msg.commandFlags[field] || msg.commandFlags[field] === false) &&
-				msg.commandFlags[field] !== command[field]
+				(msg.commandFlags[f] || msg.commandFlags[f] === false) &&
+				msg.commandFlags[f] !== command[f]
 			)
-				newValues[field] = msg.commandFlags[field];
+				newValues[f] = msg.commandFlags[f];
 
-		if (msg.commandFlags.whitelist !== null) {
-			let whitelist = null;
-			if (msg.commandFlags.whitelist !== '')
-				try {
-					const whitelistInput = msg.commandFlags.whitelist.split(/\s+/);
-					const usersMap = await twitch.helix.user.getMany(whitelistInput);
-					whitelist = [];
-					for (const login of whitelistInput) {
-						const user = usersMap.get(login);
-						if (!user)
-							return {
-								text: `user ${login} does not exist`,
-								mention: true,
-							};
-						whitelist.push(user.id);
-					}
-				} catch (err) {
-					logger.error('error getting users:', err);
-					return { text: 'error getting whitelist users', mention: true };
+		if (msg.commandFlags.clearWhitelist) newValues.whitelist = null;
+		if (msg.commandFlags.whitelist.length) {
+			try {
+				const usersMap = await twitch.helix.user.getMany(
+					msg.commandFlags.whitelist
+				);
+				for (let i = 0; i < msg.commandFlags.whitelist.length; i++) {
+					const n = msg.commandFlags.whitelist[i],
+						u = usersMap.get(n);
+					if (!u) return { text: `user ${n} does not exist`, mention: true };
+					msg.commandFlags.whitelist[i] = u.id;
 				}
-			newValues.whitelist = whitelist;
+			} catch (err) {
+				logger.error('error getting users:', err);
+				return { text: 'error getting whitelist users', mention: true };
+			}
+			newValues.whitelist = msg.commandFlags.whitelist;
 		}
 
 		if (!Object.keys(newValues).length)

@@ -7,6 +7,10 @@ export default {
 	description: 'send message(s)',
 	unsafe: false,
 	lock: 'NONE',
+	exclusiveFlagGroups: [
+		['fill', 'repeat'],
+		['upper', 'lower'],
+	],
 	flags: [
 		{
 			name: 'channel',
@@ -31,16 +35,16 @@ export default {
 			type: 'boolean',
 			required: false,
 			defaultValue: false,
-			description: 'fill the message',
+			description: `fill the message to maximum length (${twitch.MAX_MESSAGE_LENGTH})`,
 		},
 		{
 			name: 'repeat',
 			aliases: ['r', 'repeat'],
 			type: 'int',
 			required: false,
-			defaultValue: 1,
-			description: 'repeat the message N times (default: 1, min: 1, max: 250)',
-			validator: v => v >= 1 && v <= 250,
+			defaultValue: 0,
+			description: 'repeat the message N times (min: 2, max: 250)',
+			validator: v => v >= 2 && v <= 250,
 		},
 		{
 			name: 'reverse',
@@ -121,15 +125,11 @@ export default {
 		}
 
 		const phrase = msg.args.join(' ');
-		let text = '';
+		let text;
 		if (msg.commandFlags.fill) text = fill(phrase);
-		else if (msg.commandFlags.repeat > 1)
-			text = repeat(phrase, msg.commandFlags.repeat);
-		else text = phrase;
-
+		if (msg.commandFlags.repeat) text = repeat(phrase, msg.commandFlags.repeat);
 		if (msg.commandFlags.upper) text = text.toUpperCase();
-		else if (msg.commandFlags.lower) text = text.toLowerCase();
-
+		if (msg.commandFlags.lower) text = text.toLowerCase();
 		if (msg.commandFlags.reverse) text = text.split('').reverse().join('');
 
 		for (let i = 0; i < msg.commandFlags.count; i++)
@@ -137,7 +137,7 @@ export default {
 				channel.id,
 				channel.login,
 				undefined, // userLogin
-				text,
+				text || phrase,
 				false, // mention
 				privileged,
 				'' // parentId

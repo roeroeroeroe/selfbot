@@ -1,7 +1,9 @@
-import flag from './flag.js';
+import * as constants from './constants.js';
+import parser from './parser.js';
 import globalFlags from './global_flags.js';
 
 export default {
-	...flag,
+	...constants,
+	parser,
 	globalFlags,
 };

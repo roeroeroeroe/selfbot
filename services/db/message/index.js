@@ -25,44 +25,41 @@ function queueMessageInsert(channelId, userId, text, timestamp) {
 	getMessageQueueEntry(channelId).buffer.push(record);
 	logger.debug(`[DB] queued message for ${channelId}: ${record}`);
 }
-
-function searchMessages(
-	channelId,
-	userId,
-	lastMilliseconds,
-	searchTerm,
-	limit = 100,
-	similarityThreshold = db.PG_TRGM_MIN_SIMILARITY_THRESHOLD
-) {
-	const clauses = [],
-		values = [];
-
-	if (channelId) clauses.push(`channel_id = $${values.push(channelId)}`);
-	if (userId) clauses.push(`user_id = $${values.push(userId)}`);
+// prettier-ignore
+function searchMessages(channelId, userId, excludeChannelIds = [],
+                        excludeUserIds = [], lastMilliseconds, searchTerm,
+                        limit = db.SEARCH_MESSAGES_DEFAULT_LIMIT,
+                        similarityThreshold = db.PG_TRGM_MIN_SIMILARITY_THRESHOLD) {
+	const whereClauses = [], values = [];
+	if (channelId)
+		whereClauses.push(`channel_id = $${values.push(channelId)}`);
+	if (userId)
+		whereClauses.push(`user_id = $${values.push(userId)}`);
+	if (excludeChannelIds.length)
+		whereClauses.push(`channel_id NOT IN (${excludeChannelIds.map((id) => `$${values.push(id)}`).join(', ')})`);
+	if (excludeUserIds.length)
+		whereClauses.push(`user_id NOT IN (${excludeUserIds.map((id) => `$${values.push(id)}`).join(', ')})`);
 	if (lastMilliseconds)
-		clauses.push(
-			`timestamp >= $${values.push(new Date(Date.now() - lastMilliseconds))}`
-		);
+		whereClauses.push(`timestamp >= $${values.push(new Date(Date.now() - lastMilliseconds))}`);
 
 	let termIndex, threshIndex;
 	if (searchTerm) {
-		clauses.push(`text % $${(termIndex = values.push(searchTerm))}`);
+		whereClauses.push(`text % $${termIndex = values.push(searchTerm)}`);
 		threshIndex = values.push(similarityThreshold);
 	}
 
 	const multiplier =
-			searchTerm && similarityThreshold > db.PG_TRGM_MIN_SIMILARITY_THRESHOLD
-				? Math.ceil(similarityThreshold / db.PG_TRGM_MIN_SIMILARITY_THRESHOLD)
-				: 1,
+		searchTerm && similarityThreshold > db.PG_TRGM_MIN_SIMILARITY_THRESHOLD
+			? Math.ceil(similarityThreshold / db.PG_TRGM_MIN_SIMILARITY_THRESHOLD)
+			: 1,
 		cteLimitIndex = values.push(limit * multiplier),
 		finalLimitIndex = values.push(limit);
 
-	return db.query(
-		`
+	return db.query(`
 		WITH filtered AS (
 			SELECT channel_id, user_id, text, timestamp
-				FROM messages
-			${clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''}
+			FROM messages
+			${whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : ''}
 			ORDER BY timestamp DESC
 			LIMIT $${cteLimitIndex}
 		)
@@ -71,13 +68,11 @@ function searchMessages(
 			user_id,
 			text,
 			timestamp,
-			${searchTerm ? `similarity(text, $${termIndex}) AS similarity` : 'NULL AS similarity'}
+			${searchTerm ? `similarity(text, $${termIndex}) AS similarity` : `NULL AS similarity`}
 		FROM filtered
 		${searchTerm ? `WHERE similarity(text, $${termIndex}) >= $${threshIndex}` : ''}
 		ORDER BY ${searchTerm ? 'similarity DESC, ' : ''}timestamp DESC
-		LIMIT $${finalLimitIndex}`,
-		values
-	);
+		LIMIT $${finalLimitIndex}`, values);
 }
 
 async function flushMessages() {
@@ -108,7 +103,8 @@ async function flushMessages() {
 				messageQueueEntries.delete(channelId);
 				logger.debug(
 					`[DB] queued messages buffer for channel ${channelId}`,
-					`deleted after reaching empty streak limit (${db.MAX_MESSAGE_QUEUE_EMPTY_STREAKS})`
+					'deleted after reaching empty streak limit',
+					`(${db.MAX_MESSAGE_QUEUE_EMPTY_STREAKS})`
 				);
 			}
 		}

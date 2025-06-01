@@ -5,6 +5,7 @@ import utils from '../utils/index.js';
 import metrics from '../services/metrics/index.js';
 import hastebin from '../services/hastebin.js';
 import logger from '../services/logger.js';
+import cache from '../services/cache/index.js';
 
 export default {
 	name: 'ping',
@@ -12,6 +13,7 @@ export default {
 	description: 'show bot status',
 	unsafe: false,
 	lock: 'CHANNEL',
+	exclusiveFlagGroups: [['host', 'metrics']],
 	flags: [
 		{
 			name: 'host',
@@ -92,14 +94,23 @@ async function getGenericResponse(msg) {
 		rss = utils.format.bytes(processMemory.rss),
 		heapUsed = utils.format.bytes(processMemory.heapUsed),
 		heapTotal = utils.format.bytes(processMemory.heapTotal);
+	const channels = twitch.chat.joinedChannels.size;
+	let cachePart;
+	try {
+		const dbsize = await cache.dbsize();
+		cachePart = `cache: ${dbsize} ${utils.format.plural(dbsize, 'key')}`;
+	} catch (err) {
+		logger.error('error getting cache dbsize:', err);
+		cachePart = 'cache: N/A';
+	}
 	return {
 		text: utils.format.join([
 			`tmi: ${(t1 - t0) | 0}ms`,
 			`handler: ${(t0 - msg.receivedAt).toFixed(2)}ms`,
 			`uptime: ${utils.duration.format(process.uptime() * 1000, { maxParts: 2 })}`,
 			`rss: ${rss}, heap: ${heapUsed}/${heapTotal}`,
-			`channels: ${twitch.chat.joinedChannels.size}`,
-			`irc: ${twitch.chat.connections.length}`,
+			cachePart,
+			`irc: ${twitch.chat.connections.length} (${channels} ${utils.format.plural(channels, 'channel')})`,
 			`hermes: ${twitch.hermes.connections.size} (${topics} ${utils.format.plural(topics, 'topic')})`,
 			`node: ${process.version}`,
 			`pid: ${process.pid}, ppid: ${process.ppid}`,

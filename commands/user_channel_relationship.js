@@ -71,11 +71,18 @@ export default {
 			twitch.gql.channel.getFounders(channel.login),
 			twitch.gql.channel.getArtists(channel.id),
 		]);
-		const [relationshipData, channelViewerData, vipsData, foundersData, artistsData] =
-			results.map(res => (res.status === 'fulfilled' ? res.value : undefined));
+		const [
+			relationshipData,
+			channelViewerData,
+			vipsData,
+			foundersData,
+			artistsData,
+		] = results.map(res =>
+			res.status === 'fulfilled' ? res.value : undefined
+		);
 
 		const responseParts = [];
-		const userName = utils.getEffectiveName(
+		const userName = utils.pickName(
 			relationshipData.user.login,
 			relationshipData.user.displayName
 		);
@@ -122,7 +129,7 @@ export default {
 			subscriptionString += `currently subscribed with a ${subscriptionBenefit.purchasedWithPrime ? 'Prime' : `tier ${subscriptionBenefit.tier[0]}`} subscription`;
 			if (subscriptionBenefit.gift?.isGift) {
 				const gifter = subscriptionBenefit.gift?.gifter
-					? utils.getEffectiveName(
+					? utils.pickName(
 							subscriptionBenefit.gift.gifter.login,
 							subscriptionBenefit.gift.gifter.displayName
 						)

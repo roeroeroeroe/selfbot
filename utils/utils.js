@@ -1,4 +1,5 @@
 import config from '../config.json' with { type: 'json' };
+import twitch from '../services/twitch/index.js';
 import logger from '../services/logger.js';
 import metrics from '../services/metrics/index.js';
 
@@ -132,14 +133,14 @@ export function splitString(str, len) {
 		i < words.length;
 		chunks.push(words.slice(j, i).join(' ')),
 			j = i,
-			curr = words[i] ? words[i].length : 0
+			curr = words[i]?.length ?? 0
 	)
 		for (; ++i < words.length && (curr += 1 + words[i].length) <= len; );
 
 	return chunks;
 }
 
-export function getEffectiveName(login, displayName) {
+export function pickName(login, displayName) {
 	return displayName.toLowerCase() === login ? displayName : login;
 }
 
@@ -224,7 +225,9 @@ export function getMaxMessageLength(login, reply, mention) {
 	login ??= '';
 	// reply:   '@login '
 	// mention: '@login, '
-	return 500 - login.length - (reply ? 2 : mention ? 3 : 0);
+	return (
+		twitch.MAX_MESSAGE_LENGTH - login.length - (reply ? 2 : mention ? 3 : 0)
+	);
 }
 
 export async function retry(

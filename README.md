@@ -1,6 +1,8 @@
 # selfbot
-> Requires Node.js version >= v22  
-> Make sure **Redis**|**Valkey** and **PostgreSQL** are installed and configured on your system before proceeding with the steps below.
+## requirements
+- **Node.js** v22+
+- **PostgreSQL**
+- **Redis** or **Valkey** (unless using the `inMemory` cache backend)
 ## install dependencies
 ```bash
 npm i
@@ -19,6 +21,7 @@ vi config.json
   "autoAcknowledgeChatWarnings": true,   // auto-acknowledge chat warnings
   "autoJoinWatching": true,              // auto-join watched channels detected via presence
   "shell": "/bin/bash",                  // shell used by the `shell` command
+  "cache": "redis",                      // "redis" | "valkey" | "inMemory" -- "valkey" is an alias for "redis"
   "ircClientTransport": "websocket",     // "tcp" | "websocket"
   "chatServiceTransport": "irc",         // "irc" | "gql" - sender
   "retries": 3,                          // max retry attempts on failure

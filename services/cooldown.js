@@ -1,19 +1,27 @@
-import logger from './logger.js';
-const cooldown = new Set();
+const cooldown = new Map();
 
-function set(id, ttl) {
-	logger.debug(`[COOLDOWN] setting ${id}, ttl=${ttl}`);
-	cooldown.add(id);
-	setTimeout(() => deleteCooldown(id), ttl);
+function set(key, ttl) {
+	const id = cooldown.get(key);
+	if (id) clearTimeout(id);
+	if (ttl <= 0) {
+		cooldown.delete(key);
+		return;
+	}
+	cooldown.set(
+		key,
+		setTimeout(() => deleteCooldown(key), ttl)
+	);
 }
 
-function deleteCooldown(id) {
-	logger.debug('[COOLDOWN] deleting', id);
-	cooldown.delete(id);
+function deleteCooldown(key) {
+	const id = cooldown.get(key);
+	if (!id) return;
+	clearTimeout(id);
+	cooldown.delete(key);
 }
 
-function has(id) {
-	return cooldown.has(id);
+function has(key) {
+	return cooldown.has(key);
 }
 
 export default {

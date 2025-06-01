@@ -1,12 +1,18 @@
 import colors from '../data/color_names.json' with { type: 'json' };
 
 const HASH_CHARCODE = 35;
+const BASE16_CHARSET = '0123456789abcdef';
 const AXES = ['r', 'g', 'b'];
+const INVALID_HEX = 0xff;
 
-const HEX_VAL = new Uint8Array(128); // ascii to hex
-for (let i = 48; i <= 57; i++) HEX_VAL[i] = i - 48; // '0'-'9' -> 0-9
-for (let i = 65; i <= 70; i++) HEX_VAL[i] = i - 55; // 'A'-'F' -> 10-15
-for (let i = 97; i <= 102; i++) HEX_VAL[i] = i - 87; // 'a'-'f' -> 10-15
+const ASCII_TO_HEX = new Uint8Array(128).fill(INVALID_HEX);
+for (let i = 48; i <= 57; i++) ASCII_TO_HEX[i] = i - 48; // '0'-'9' -> 0-9
+for (let i = 65; i <= 70; i++) ASCII_TO_HEX[i] = i - 55; // 'A'-'F' -> 10-15
+for (let i = 97; i <= 102; i++) ASCII_TO_HEX[i] = i - 87; // 'a'-'f' -> 10-15
+
+const BYTE_TO_HEX = new Array(256);
+for (let i = 0; i < 256; i++)
+	BYTE_TO_HEX[i] = BASE16_CHARSET[i >> 4] + BASE16_CHARSET[i & 0xf];
 
 const points = new Array(colors.length);
 const indices = new Uint32Array(colors.length);
@@ -21,14 +27,19 @@ for (let i = 0; i < colors.length; indices[i] = i++) {
 
 function partition(arr, low, high, pivotIndex, axis) {
 	const pivotValue = points[arr[pivotIndex]][axis];
-	[arr[pivotIndex], arr[high - 1]] = [arr[high - 1], arr[pivotIndex]];
+	let temp = arr[pivotIndex];
+	arr[pivotIndex] = arr[high - 1];
+	arr[high - 1] = temp;
 	let store = low;
 	for (let i = low; i < high - 1; i++)
 		if (points[arr[i]][axis] < pivotValue) {
-			[arr[i], arr[store]] = [arr[store], arr[i]];
-			store++;
+			temp = arr[i];
+			arr[i] = arr[store];
+			arr[store++] = temp;
 		}
-	[arr[store], arr[high - 1]] = [arr[high - 1], arr[store]];
+	temp = arr[store];
+	arr[store] = arr[high - 1];
+	arr[high - 1] = temp;
 	return store;
 }
 
@@ -91,11 +102,8 @@ function isValidHex(hex) {
 	let i = hex.charCodeAt(0) === HASH_CHARCODE ? 1 : 0;
 	const len = hex.length - i;
 	if (len !== 3 && len !== 6) return false;
-
-	for (; i < hex.length; i++) {
-		const c = hex.charCodeAt(i);
-		if (!HEX_VAL[c] && c !== 48) return false;
-	}
+	for (; i < hex.length; i++)
+		if (ASCII_TO_HEX[hex.charCodeAt(i)] === INVALID_HEX) return false;
 	return true;
 }
 // prettier-ignore
@@ -127,14 +135,14 @@ function hexToName(hex, validated = false, normalized = false) {
 
 	return kdNearest(kdTreeRoot, hexToRgb(hex, true, true)).node.point.name;
 }
-// prettier-ignore
+
 function hexToRgb(hex, validated = false, normalized = false) {
 	if (!validated && !isValidHex(hex)) return null;
 	if (!normalized) hex = normalizeHex(hex);
 	return {
-		r: (HEX_VAL[hex.charCodeAt(0)] << 4) | HEX_VAL[hex.charCodeAt(1)],
-		g: (HEX_VAL[hex.charCodeAt(2)] << 4) | HEX_VAL[hex.charCodeAt(3)],
-		b: (HEX_VAL[hex.charCodeAt(4)] << 4) | HEX_VAL[hex.charCodeAt(5)],
+		r: (ASCII_TO_HEX[hex.charCodeAt(0)] << 4) | ASCII_TO_HEX[hex.charCodeAt(1)],
+		g: (ASCII_TO_HEX[hex.charCodeAt(2)] << 4) | ASCII_TO_HEX[hex.charCodeAt(3)],
+		b: (ASCII_TO_HEX[hex.charCodeAt(4)] << 4) | ASCII_TO_HEX[hex.charCodeAt(5)],
 	};
 }
 
@@ -153,8 +161,7 @@ function rgbToName(rgb = {}, validated = false) {
 
 function rgbToHex(rgb = {}, validated = false) {
 	if (!validated && !isValidRgb(rgb)) return null;
-	const { r, g, b } = rgb;
-	return ((r << 16) | (g << 8) | b | 0x1000000).toString(16).slice(1);
+	return BYTE_TO_HEX[rgb.r] + BYTE_TO_HEX[rgb.g] + BYTE_TO_HEX[rgb.b];
 }
 
 function getColor(hexOrRgb) {

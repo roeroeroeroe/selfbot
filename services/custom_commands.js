@@ -16,6 +16,8 @@ async function add(command, persist = true) {
 		throw new Error(`duplicate command name: ${command.name}`);
 
 	normalizeTrigger(command);
+	if (Array.isArray(command.whitelist) && !command.whitelist.length)
+		command.whitelist = null;
 
 	if (persist)
 		await db.customCommand.insert(
@@ -79,6 +81,8 @@ async function edit(name, newValues = {}, persist = true) {
 
 	const merged = { ...old, ...newValues };
 	normalizeTrigger(merged);
+	if (Array.isArray(merged.whitelist) && !merged.whitelist.length)
+		merged.whitelist = null;
 	const channelChanged =
 		'channel_id' in newValues && newValues.channel_id !== old.channel_id;
 	const nameChanged = 'name' in newValues && newValues.name !== name;

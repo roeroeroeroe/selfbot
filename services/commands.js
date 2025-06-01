@@ -6,7 +6,7 @@ import logger from './logger.js';
 import flag from './flag/index.js';
 import utils from '../utils/index.js';
 
-const VALID_LOCKS = ['GLOBAL', 'CHANNEL', 'NONE'];
+const VALID_LOCKS = new Set(['GLOBAL', 'CHANNEL', 'NONE']);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -17,21 +17,32 @@ let knownCommands = [],
 
 function add(command) {
 	validateCommand(command);
-	const { flags, parse } = flag.createParser(command.flags);
-	command.flagData = flags;
+	const {
+		flags: flagData,
+		exclusiveGroups,
+		parse,
+	} = flag.parser.create(command.flags, command.exclusiveFlagGroups ?? []);
+	command.flagData = flagData;
 	command.parseArgs = parse;
 
 	let usage = `Usage of ${command.name}`;
 	if (command.aliases.length) usage += ` (${command.aliases.join(', ')})`;
 	usage += ':';
-	const usageLines = [];
-	for (const commandFlag of flags) {
-		let line = `${commandFlag.aliasDisplay} ${commandFlag.type}`;
-		if (commandFlag.required) line += ' required';
-		if (commandFlag.description) line += `__ALIGN__${commandFlag.description}`;
-		usageLines.push(`  ${line}`);
+	const flagLines = flagData.map(
+		f => `  ${f.summary}${f.description ? `__ALIGN__${f.description}` : ''}`
+	);
+	usage += `\n${utils.format.align(flagLines)}`;
+	const displayByName = new Map(flagData.map(f => [f.name, f.aliasDisplay]));
+	const exclusiveFlagLines = [];
+	for (let i = 0; i < exclusiveGroups.length; i++) {
+		const group = exclusiveGroups[i];
+		if (group.length < 2) continue;
+		exclusiveFlagLines.push(
+			'  ' + group.map(n => displayByName.get(n)).join('__ALIGN__| ')
+		);
 	}
-	usage += `\n${utils.format.align(usageLines)}`;
+	if (exclusiveFlagLines.length)
+		usage += `\n\nMutually exclusive flags:\n${utils.format.align(exclusiveFlagLines)}`;
 	command.helpPage = usage;
 
 	commands.set(command.name, command);
@@ -46,7 +57,7 @@ function deleteCommand(command) {
 }
 
 function getCommandByName(commandName) {
-	return commands.get(commandName) || commands.get(aliases.get(commandName));
+	return commands.get(commandName) ?? commands.get(aliases.get(commandName));
 }
 
 function getKnownNames() {
@@ -81,9 +92,27 @@ function validateCommand(command) {
 		throw new Error(`'description' for command "${command.name}" must be a string`);
 	if (typeof command.unsafe !== 'boolean')
 		throw new Error(`'unsafe' for command "${command.name}" must be a boolean`);
-	if (typeof command.lock !== 'string' || !VALID_LOCKS.includes(command.lock))
+	if (typeof command.lock !== 'string' || !VALID_LOCKS.has(command.lock))
 		throw new Error(`'lock' for command "${command.name}" must be one of: ` +
-		                VALID_LOCKS.join(', '))
+		                [...VALID_LOCKS].join(', '))
+	if (command.exclusiveFlagGroups !== undefined &&
+	    command.exclusiveFlagGroups !== null) {
+		if (!Array.isArray(command.exclusiveFlagGroups))
+			throw new Error(`'exclusiveFlagGroups' for "${command.name}" must be an array`);
+		for (let i = 0; i < command.exclusiveFlagGroups.length; i++) {
+			const group = command.exclusiveFlagGroups[i];
+			if (!Array.isArray(group))
+				throw new Error(`exclusiveFlagGroups[${i}] for "${command.name}" ` +
+				                'must be an array of strings');
+			if (group.length < 2)
+				throw new Error(`exclusiveFlagGroups[${i}] for "${command.name}" ` +
+				                'must contain at least two flags');
+			for (const name of group)
+				if (typeof name !== 'string')
+					throw new Error(`exclusiveFlagGroups[${i}] for "${command.name}" ` +
+					                'must be an array of strings');
+		}
+	}
 	if (!Array.isArray(command.flags))
 		throw new Error(`'flags' for command "${command.name}" must be an array`);
 	if (typeof command.execute !== 'function')
@@ -98,11 +127,13 @@ async function load() {
 	const commandFiles = fs
 		.readdirSync(path.join(__dirname, '../commands'))
 		.filter(f => f.endsWith('.js'));
-	let i = 0;
+	let c = 0;
 	for (const f of commandFiles)
 		try {
+			const t0 = performance.now();
 			const command = (await import(path.join(__dirname, `../commands/${f}`)))
 				.default;
+			const t1 = performance.now();
 			if (!config.loadUnsafeCommands && command.unsafe) {
 				logger.debug(
 					`[COMMANDS] skipping unsafe command ${f}: ${command.name}`
@@ -110,17 +141,20 @@ async function load() {
 				continue;
 			}
 			add(command);
+			const t2 = performance.now();
 			logger.debug(
-				`[COMMANDS] loaded ${f}: ${command.name}` +
-					(command.aliases.length ? ', ' + command.aliases.join(', ') : '')
+				`[COMMANDS] loaded ${f} in ${(t2 - t0).toFixed(3)}ms ` +
+					`(import: ${(t1 - t0).toFixed(3)}ms, add: ${(t2 - t1).toFixed(3)}ms): ` +
+					command.name +
+					(command.aliases.length ? `, ${command.aliases.join(', ')}` : '')
 			);
-			i++;
+			c++;
 		} catch (err) {
 			err.message = `error loading command ${f}: ${err.message}`;
 			throw err;
 		}
 
-	return i;
+	return c;
 }
 
 export default {

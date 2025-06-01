@@ -2,6 +2,8 @@ import utils from '../utils/index.js';
 import dns from '../services/dns.js';
 import logger from '../services/logger.js';
 
+const validRRTypes = new Set(dns.SUPPORTED_RR_TYPES);
+
 export default {
 	name: 'dns',
 	aliases: ['dig'],
@@ -21,16 +23,19 @@ export default {
 			name: 'rrtypes',
 			aliases: ['r', 'rrtypes'],
 			type: 'string',
+			list: {
+				unique: true,
+				minItems: 1,
+				maxItems: validRRTypes.size,
+				itemValidator: v => {
+					if ((v = v.toUpperCase()) === 'ALL') return true;
+					if (!validRRTypes.has(v)) return false;
+					return true;
+				},
+			},
 			defaultValue: 'A AAAA',
 			required: false,
-			description: `list of DNS RR types to query (e.g., "A AAAA"), or ALL to query every supported type (options: ${dns.SUPPORTED_RR_TYPES.join(', ')})`,
-			validator: v => {
-				const upper = v.toUpperCase();
-				if (upper === 'ALL') return true;
-				for (const t of upper.split(/\s+/))
-					if (!dns.SUPPORTED_RR_TYPES.includes(t)) return false;
-				return true;
-			},
+			description: `DNS RR types to query, ALL to query every supported type (options: ${dns.SUPPORTED_RR_TYPES.join(', ')})`,
 		},
 	],
 
@@ -38,11 +43,15 @@ export default {
 		const fqdn = msg.commandFlags.name || msg.args[0];
 		if (!fqdn) return { text: 'no domain provided', mention: true };
 
-		const typesListUpper = msg.commandFlags.rrtypes.toUpperCase();
-		const types =
-			typesListUpper === 'ALL'
-				? dns.SUPPORTED_RR_TYPES
-				: typesListUpper.split(/\s+/);
+		let types = [];
+		for (let i = 0; i < msg.commandFlags.rrtypes.length; i++) {
+			const upper = msg.commandFlags.rrtypes[i].toUpperCase();
+			if (upper === 'ALL') {
+				types = dns.SUPPORTED_RR_TYPES;
+				break;
+			}
+			types.push(upper);
+		}
 
 		let records;
 		try {

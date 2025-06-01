@@ -6,6 +6,7 @@
 	"autoAcknowledgeChatWarnings": true,
 	"autoJoinWatching": true,
 	"shell": "/bin/bash",
+	"cache": "redis",
 	"ircClientTransport": "websocket",
 	"chatServiceTransport": "irc",
 	"retries": 3,

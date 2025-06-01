@@ -50,7 +50,7 @@ export default async function handle(msg) {
 		if (!cc.trigger.test(msg.messageText)) continue;
 		logger.debug(
 			`[HANDLER] custom command ${cc.name} triggered`,
-			`(trigger: ${cc.trigger.toString()}, message: ${msg.messageText})`
+			`(trigger: ${String(cc.trigger)}, message: ${msg.messageText})`
 		);
 		ccTriggered = true;
 		if (cc.whitelist !== null && !cc.whitelist.includes(msg.senderUserID))
@@ -120,10 +120,7 @@ async function handleCommand(msg, command) {
 		msg.args = rest;
 
 		const pre = await flag.globalFlags.preHandle(msg, command);
-		if (pre) {
-			logger.debug('[HANDLER] got global flags pre result:', pre);
-			return pre;
-		}
+		if (pre) return pre;
 
 		if (errors.length) {
 			let errorString = errors[0];

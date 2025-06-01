@@ -10,6 +10,7 @@ export default {
 	description: 'list custom commands',
 	unsafe: false,
 	lock: 'NONE',
+	exclusiveFlagGroups: [['channel', 'global', 'all']],
 	flags: [
 		{
 			name: 'channel',
@@ -48,7 +49,7 @@ export default {
 						mention: true,
 					};
 				commands = customCommands.getChannelCommands(user.id);
-				noCommandsMessage = `no commands found for channel ${utils.getEffectiveName(user.login, user.displayName)}`;
+				noCommandsMessage = `no commands found for channel ${utils.pickName(user.login, user.displayName)}`;
 			} catch (err) {
 				logger.error(`error resolving user ${msg.commandFlags.channel}:`, err);
 				return { text: 'error resolving channel', mention: true };

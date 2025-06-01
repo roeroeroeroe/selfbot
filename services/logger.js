@@ -47,7 +47,7 @@ for (const level in levels) {
 	cfg.file = null;
 	const color = cfg.color;
 	cfg.colorize =
-		config.logger.colorize && color
+		config.logger.colorize && color && ANSI[color]
 			? s => ANSI[color] + s + ANSI.reset
 			: s => s;
 }
@@ -83,7 +83,8 @@ openAllFiles(new Date().toISOString().slice(0, 10));
 scheduleRotation();
 
 const flushInterval = setInterval(() => {
-	for (const cfg of fileLevels) {
+	for (let i = 0, cfg; i < fileLevels.length; i++) {
+		if (!(cfg = fileLevels[i]).file.writableLength) continue;
 		cfg.file.uncork();
 		cfg.file.cork();
 	}

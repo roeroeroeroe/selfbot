@@ -47,10 +47,7 @@ export default {
 			? 'CHOSEN_SUB_EMOTE_UNLOCK'
 			: 'RANDOM_SUB_EMOTE_UNLOCK';
 
-		const channelName = utils.getEffectiveName(
-			channel.login,
-			channel.displayName
-		);
+		const channelName = utils.pickName(channel.login, channel.displayName);
 
 		const reward = (
 			res.user.channel?.communityPointsSettings?.automaticRewards ?? []

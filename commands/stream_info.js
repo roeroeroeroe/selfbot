@@ -37,10 +37,7 @@ export default {
 
 		if (!res.user) return { text: 'channel does not exist', mention: true };
 
-		const channelName = utils.getEffectiveName(
-			res.user.login,
-			res.user.displayName
-		);
+		const channelName = utils.pickName(res.user.login, res.user.displayName);
 		const age = utils.duration.createAge(Date.now());
 
 		if (!res.user.stream) {
@@ -73,7 +70,7 @@ export default {
 				const viewCountPart = topClip.viewCount
 					? ` (${topClip.viewCount} ${utils.format.plural(topClip.viewCount, 'view')})`
 					: '';
-				const clipCreator = utils.getEffectiveName(
+				const clipCreator = utils.pickName(
 					topClip.curator.login,
 					topClip.curator.displayName
 				);

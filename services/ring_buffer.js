@@ -73,7 +73,7 @@ export default class RingBuffer {
 	}
 
 	shift() {
-		if (!this.#size) return undefined;
+		if (!this.#size) return null;
 		const item = this.#buffer[this.#head];
 		this.#buffer[this.#head] = this.#clearValue;
 		this.#head = (this.#head + 1) & this.#mask;
@@ -82,11 +82,11 @@ export default class RingBuffer {
 	}
 
 	peekHead() {
-		return this.#size ? this.#buffer[this.#head] : undefined;
+		return this.#size ? this.#buffer[this.#head] : null;
 	}
 
 	peekTail() {
-		return this.#size ? this.#buffer[(this.#tail - 1) & this.#mask] : undefined;
+		return this.#size ? this.#buffer[(this.#tail - 1) & this.#mask] : null;
 	}
 
 	forcePush(item) {

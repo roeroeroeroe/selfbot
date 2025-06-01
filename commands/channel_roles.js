@@ -16,7 +16,7 @@ export default {
 			type: 'username',
 			required: false,
 			defaultValue: null,
-			description: 'lookup channel (default: current channel)',
+			description: 'target channel (default: current channel)',
 		},
 		{
 			name: 'timeout',
@@ -39,9 +39,9 @@ export default {
 			validator: v => v >= 100 && v <= 50000,
 		},
 	],
+	// prettier-ignore
 	execute: async msg => {
-		const channel = {};
-		const input = msg.commandFlags.channel || msg.args[0];
+		const channel = {}, input = msg.commandFlags.channel || msg.args[0];
 		if (input) {
 			try {
 				const user = await twitch.gql.user.resolve(input);
@@ -58,67 +58,30 @@ export default {
 			channel.login = msg.channelName;
 		}
 
-		// prettier-ignore
+		const { maxMods, timeout } = msg.commandFlags;
 		const results = await Promise.allSettled([
-			utils.withTimeout(twitch.gql.channel.getMods(channel.login, msg.commandFlags.maxMods), msg.commandFlags.timeout),
-			utils.withTimeout(twitch.gql.channel.getVips(channel.login), msg.commandFlags.timeout),
-			utils.withTimeout(twitch.gql.channel.getFounders(channel.login), msg.commandFlags.timeout),
-			utils.withTimeout(twitch.gql.channel.getArtists(channel.id), msg.commandFlags.timeout),
+			utils.withTimeout(twitch.gql.channel.getMods(channel.login, maxMods), timeout),
+			utils.withTimeout(twitch.gql.channel.getVips(channel.login), timeout),
+			utils.withTimeout(twitch.gql.channel.getFounders(channel.login), timeout),
+			utils.withTimeout(twitch.gql.channel.getArtists(channel.id), timeout),
 		]);
-		const [modsData, vipsData, foundersData, artistsData] = results.map(res =>
+		const [modEdges, vipEdges, founderEdges, artistEdges] = results.map(res =>
 			res.status === 'fulfilled' ? res.value : undefined
 		);
 
-		const list = [];
-		const responseParts = [];
+		const list = [], responseParts = [];
 
-		if (modsData?.length) {
-			const { lines: modsList, activeCount } = processRoles(modsData, {
-				prefixActive: true,
-			});
-			if (modsList.length) {
-				const modsInfo = `${modsList.length} ${utils.format.plural(modsList.length, 'mod')} (${activeCount} currently in chat)`;
-				list.push(`${modsInfo}:\n`);
-				responseParts.push(modsInfo);
-				for (const line of modsList) list.push(line);
-			}
-		}
-
-		if (vipsData?.length) {
-			const { lines: vipsList } = processRoles(vipsData);
-			if (vipsList.length) {
-				const vipsInfo = `${vipsList.length} ${utils.format.plural(vipsList.length, 'vip')}`;
-				list.push(`${list.length ? '\n' : ''}${vipsInfo}:\n`);
-				responseParts.push(vipsInfo);
-				for (const line of vipsList) list.push(line);
-			}
-		}
-
-		if (foundersData?.length) {
-			const { lines: foundersList, activeCount: subscribedCount } =
-				processRoles(foundersData, {
-					prefixActive: true,
-					activeKey: 'isSubscribed',
-				});
-			if (foundersList.length) {
-				const foundersInfo = `${foundersList.length} ${utils.format.plural(foundersList.length, 'founder')} (${subscribedCount} currently subscribed)`;
-				list.push(`${list.length ? '\n' : ''}${foundersInfo}:\n`);
-				responseParts.push(foundersInfo);
-				for (const line of foundersList) list.push(line);
-			}
-		}
-
-		if (artistsData?.usersByCommunityRole?.edges.length) {
-			const { lines: artistsList } = processRoles(
-				artistsData.usersByCommunityRole.edges
-			);
-			if (artistsList.length) {
-				const artistsInfo = `${artistsList.length} ${utils.format.plural(artistsList.length, 'artist')}`;
-				list.push(`${list.length ? '\n' : ''}${artistsInfo}:\n`);
-				responseParts.push(artistsInfo);
-				for (const line of artistsList) list.push(line);
-			}
-		}
+		if (modEdges?.length)
+			processEdges(modEdges, 'mod', 'grantedAt', list, responseParts,
+			             'isActive', 'currently in chat');
+		if (vipEdges?.length)
+			processEdges(vipEdges, 'vip', 'grantedAt', list, responseParts);
+		if (founderEdges?.length)
+			processEdges(founderEdges, 'founder', 'grantedAt', list,
+			             responseParts, 'isSubscribed', 'currently subscribed')
+		if (artistEdges?.length)
+			processEdges(artistEdges, 'artist', 'grantedAt', list,
+			             responseParts);
 
 		if (!list.length)
 			return {
@@ -138,23 +101,36 @@ export default {
 	},
 };
 
-function processRoles(
-	data,
-	{ prefixActive = false, timeKey = 'grantedAt', activeKey = 'isActive' } = {}
+function processEdges(
+	edges,
+	roleName,
+	timeKey,
+	list,
+	responseParts,
+	activeKey,
+	activeSuffix
 ) {
 	let activeCount = 0;
 	const lines = [];
-	for (const edge of data) {
-		if (!edge.node?.login) continue;
+	for (let i = 0; i < edges.length; i++) {
+		const e = edges[i];
+		if (!e.node?.login) continue;
 		let prefix = '';
-		if (prefixActive && edge[activeKey]) {
+		if (activeKey && e[activeKey]) {
 			activeCount++;
 			prefix = '* ';
 		}
 		lines.push(
-			`${prefix}${utils.getEffectiveName(edge.node.login, edge.node.displayName)}__ALIGN__granted at: ${utils.date.format(edge[timeKey])}`
+			`${prefix}${utils.pickName(e.node.login, e.node.displayName)}` +
+				`__ALIGN__granted at: ${utils.date.format(e[timeKey])}`
 		);
 	}
+	if (!lines.length) return;
 
-	return { lines, activeCount };
+	let roleInfo = `${lines.length} ${utils.format.plural(lines.length, roleName)}`;
+	if (activeCount) roleInfo += ` (${activeCount} ${activeSuffix})`;
+
+	responseParts.push(roleInfo);
+	list.push(`${list.length ? '\n' : ''}${roleInfo}:\n`);
+	for (let i = 0; i < lines.length; list.push(lines[i++]));
 }

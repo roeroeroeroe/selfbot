@@ -33,7 +33,7 @@ export default function send(body = {}) {
 			return body;
 		},
 		{
-			requestsCounter: metrics.names.counters.GQL_REQUESTS_SENT,
+			requestsCounter: metrics.names.counters.GQL_REQUESTS_TX,
 			retriesCounter: metrics.names.counters.GQL_RETRIES,
 			logLabel: 'GQL',
 		}

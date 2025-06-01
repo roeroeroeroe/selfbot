@@ -31,7 +31,7 @@ function get(url) {
 			return res.text();
 		},
 		{
-			requestsCounter: metrics.names.counters.HASTEBIN_REQUESTS_SENT,
+			requestsCounter: metrics.names.counters.HASTEBIN_REQUESTS_TX,
 			retriesCounter: metrics.names.counters.HASTEBIN_RETRIES,
 			logLabel: 'HASTEBIN-GET',
 		}
@@ -77,7 +77,7 @@ function create(
 			return raw ? `${instance}/raw/${body.key}` : `${instance}/${body.key}`;
 		},
 		{
-			requestsCounter: metrics.names.counters.HASTEBIN_REQUESTS_SENT,
+			requestsCounter: metrics.names.counters.HASTEBIN_REQUESTS_TX,
 			retriesCounter: metrics.names.counters.HASTEBIN_RETRIES,
 			logLabel: 'HASTEBIN-CREATE',
 		}

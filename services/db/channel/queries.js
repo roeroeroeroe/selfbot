@@ -15,6 +15,11 @@ SELECT id, login, display_name, log, prefix, suspended, privileged, joined_at
 FROM channels
 WHERE id = $1`;
 
+export const SELECT_CHANNEL_BY_LOGIN = `
+SELECT id, login, display_name, log, prefix, suspended, privileged, joined_at
+FROM channels
+WHERE login = $1`;
+
 export const DELETE_CHANNEL = `
 DELETE FROM channels
 WHERE id = $1`;

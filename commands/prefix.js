@@ -10,6 +10,7 @@ export default {
 	description: 'change bot prefix',
 	unsafe: false,
 	lock: 'NONE',
+	exclusiveFlagGroups: [['channel', 'global']],
 	flags: [
 		{
 			name: 'channel',
@@ -69,22 +70,26 @@ export default {
 				return { text: 'error updating prefix', mention: true };
 			}
 		}
-		const input = (msg.commandFlags.channel || msg.channelName).toLowerCase();
+		const channelInput = msg.commandFlags.channel || msg.channelName;
 		try {
-			// prettier-ignore
-			const channel = (await db.query('SELECT id, prefix FROM channels WHERE login = $1', [input]))[0];
-			if (!channel) return { text: `not in ${input}, aborting`, mention: true };
+			const channel = (
+				await db.query('SELECT id, prefix FROM channels WHERE login = $1', [
+					channelInput,
+				])
+			)[0];
+			if (!channel)
+				return { text: `not in ${channelInput}, aborting`, mention: true };
 
 			if (channel.prefix === newPrefix)
 				return { text: 'prefix did not change, aborting', mention: true };
 
 			await db.channel.update(channel.id, 'prefix', newPrefix);
 			return {
-				text: `changed prefix from "${channel.prefix}" to "${newPrefix}" in #${input}`,
+				text: `changed prefix from "${channel.prefix}" to "${newPrefix}" in #${channelInput}`,
 				mention: true,
 			};
 		} catch (err) {
-			logger.error(`error updating prefix for ${input}:`, err);
+			logger.error(`error updating prefix for ${channelInput}:`, err);
 			return { text: 'error updating prefix', mention: true };
 		}
 	},

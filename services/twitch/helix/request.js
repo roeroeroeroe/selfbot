@@ -44,7 +44,7 @@ export default function send({
 			return body;
 		},
 		{
-			requestsCounter: metrics.names.counters.HELIX_REQUESTS_SENT,
+			requestsCounter: metrics.names.counters.HELIX_REQUESTS_TX,
 			retriesCounter: metrics.names.counters.HELIX_RETRIES,
 			logLabel: 'HELIX',
 		}

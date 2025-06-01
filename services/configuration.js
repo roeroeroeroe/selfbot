@@ -41,6 +41,7 @@ const validators = {
 	'autoAcknowledgeChatWarnings': v => assertBool(v),
 	'autoJoinWatching': v => assertBool(v),
 	'shell': v => assertNonEmptyString(v),
+	'cache': v => assertStringOneOf(v, ['redis', 'valkey', 'inMemory']),
 	'ircClientTransport': v => assertStringOneOf(v, ['tcp', 'websocket']),
 	'chatServiceTransport': v => assertStringOneOf(v, ['irc', 'gql']),
 	'retries': v => assertNonNegativeInt(v),
@@ -126,12 +127,12 @@ function validateConfig() {
 		try {
 			validators[k](traverse(k).value);
 		} catch (err) {
-			throw new Error(`${k} ${err.message}`);
+			throw new Error(`'${k}' ${err.message}`);
 		}
 }
 
 async function updateConfig(pathStr, newValue) {
-	logger.debug(`[CONFIGURATION] updating ${pathStr}, setting ${newValue}`);
+	logger.debug(`[CONFIGURATION] updating '${pathStr}', setting ${newValue}`);
 	const { parent, key } = traverse(pathStr);
 
 	const validator = validators[pathStr];

@@ -1,10 +1,7 @@
 import config from '../../config.json' with { type: 'json' };
 import startServer from './prometheus.js';
 import logger from '../logger.js';
-import {
-	counters as counterNames,
-	gauges as gaugeNames,
-} from './metric_names.js';
+import names from './metric_names.js';
 
 const counters = new Map(),
 	gauges = new Map(),
@@ -18,8 +15,8 @@ let lastSampleTs = Date.now(),
 function init() {
 	if (initialized || !config.metrics.enabled) return;
 	initialized = true;
-	for (const k in counterNames) createCounter(counterNames[k]);
-	for (const k in gaugeNames) createGauge(gaugeNames[k]);
+	for (const k in names.counters) createCounter(names.counters[k]);
+	for (const k in names.gauges) createGauge(names.gauges[k]);
 	setInterval(() => {
 		const now = Date.now();
 		const invDeltaSec = 1000 / (now - lastSampleTs);
@@ -102,11 +99,7 @@ function getMetrics() {
 let metrics;
 if (config.metrics.enabled)
 	metrics = {
-		names: {
-			counters: counterNames,
-			gauges: gaugeNames,
-		},
-
+		names,
 		init,
 		counter: {
 			create: createCounter,

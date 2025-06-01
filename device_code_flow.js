@@ -33,9 +33,7 @@ async function oauthRequest(url, urlParams) {
 	const res = await fetch(url, {
 		method: 'POST',
 		body: urlParams,
-		headers: {
-			'Content-Type': 'application/x-www-form-urlencoded',
-		},
+		headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
 	});
 	if (!res.ok) throw new Error(await res.text());
 
@@ -47,29 +45,30 @@ async function main() {
 	try {
 		deviceCodeResponse = await oauthRequest(
 			'https://id.twitch.tv/oauth2/device',
-			new URLSearchParams({
-				client_id: CLIENT_ID,
-				scopes: SCOPES,
-			})
+			new URLSearchParams({ client_id: CLIENT_ID, scopes: SCOPES })
 		);
 	} catch (err) {
 		fatal(`error getting device code: ${err.message}`);
 	}
 
-	const userCode = deviceCodeResponse.user_code || '';
-	const deviceCode = deviceCodeResponse.device_code || '';
-	const verificationUrl =
-		deviceCodeResponse.verification_uri || 'https://www.twitch.tv/activate';
+	const {
+		user_code: userCode,
+		device_code: deviceCode,
+		verification_uri: verificationUrl = 'https://www.twitch.tv/activate',
+	} = deviceCodeResponse;
+	// seconds
+	let { expires_in: expiresIn = 1800 } = deviceCodeResponse;
 
 	if (!userCode || !deviceCode)
 		fatal(
-			`unexpected response format: no user_code or device_code: ${JSON.stringify(deviceCodeResponse)}`
+			'unexpected response format: no user_code or device_code: ' +
+				JSON.stringify(deviceCodeResponse)
 		);
 
-	const expiresIn = (deviceCodeResponse.expires_in || 1800) * 1000;
-	const expiresAt = Date.now() + expiresIn;
+	const expiresAt = Date.now() + (expiresIn *= 1000);
 	log(
-		`${verificationUrl}\ncode: ${userCode} (expires in ${expiresIn / 1000 / 60} minutes)`
+		`${verificationUrl}\ncode: ${userCode} ` +
+			`(expires in ${expiresIn / 1000 / 60} minutes)`
 	);
 
 	const tokenPayload = new URLSearchParams({
@@ -78,7 +77,7 @@ async function main() {
 		grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
 	});
 
-	while (true) {
+	for (;;) {
 		if (Date.now() >= expiresAt) fatal('code expired');
 		try {
 			const tokenResponse = await oauthRequest(
@@ -87,10 +86,12 @@ async function main() {
 			);
 			if (!tokenResponse.access_token)
 				fatal(
-					`unexpected response format: no access_token: ${JSON.stringify(tokenResponse)}`
+					'unexpected response format: no access_token: ' +
+						JSON.stringify(tokenResponse)
 				);
 			log(
-				`${JSON.stringify(tokenResponse)}\n\naccess_token: ${tokenResponse.access_token}`
+				JSON.stringify(tokenResponse) +
+					`\n\naccess_token: ${tokenResponse.access_token}`
 			);
 			break;
 		} catch (err) {

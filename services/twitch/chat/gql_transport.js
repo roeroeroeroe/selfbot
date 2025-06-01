@@ -17,7 +17,7 @@ export default function createGqlTransport(botNonce) {
 					);
 					if (res.sendChatMessage?.dropReason) {
 						metrics.counter.increment(
-							metrics.names.counters.GQL_TX_DROPPED_MESSAGES
+							metrics.names.counters.GQL_MESSAGES_DROPPED
 						);
 						const err = new Error(`dropped: ${res.sendChatMessage.dropReason}`);
 						err.retryable = true;

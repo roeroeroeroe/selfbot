@@ -75,11 +75,8 @@ export default {
 		}
 
 		const { limit, order, sort, raw } = msg.commandFlags;
-		const userLogin = (
-			msg.commandFlags.user ||
-			msg.args[0] ||
-			msg.senderUsername
-		).toLowerCase();
+		const userLogin =
+			msg.commandFlags.user || msg.args[0]?.toLowerCase() || msg.senderUsername;
 
 		let result,
 			countStr,
@@ -155,7 +152,7 @@ function processEdges(edges, raw) {
 	}
 
 	for (const e of edges) {
-		const parts = [utils.getEffectiveName(e.node.login, e.node.displayName)];
+		const parts = [utils.pickName(e.node.login, e.node.displayName)];
 		const followers = e.node.followers?.totalCount;
 		if (followers) {
 			parts.push(`${followers} ${utils.format.plural(followers, 'follower')}`);

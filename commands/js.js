@@ -8,7 +8,7 @@ import db from '../services/db/index.js';
 import metrics from '../services/metrics/index.js';
 import utils from '../utils/index.js';
 import cooldown from '../services/cooldown.js';
-import redis from '../services/redis.js';
+import cache from '../services/cache/index.js';
 import commands from '../services/commands.js';
 import customCommands from '../services/custom_commands.js';
 
@@ -25,7 +25,7 @@ const context = {
 	metrics,
 	utils,
 	cooldown,
-	redis,
+	cache,
 	commands,
 	customCommands,
 };

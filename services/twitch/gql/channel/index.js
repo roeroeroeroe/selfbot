@@ -44,7 +44,7 @@ async function getArtists(channelId) {
 		variables: { id: channelId },
 	});
 
-	return res.data;
+	return res.data.usersByCommunityRole?.edges ?? [];
 }
 
 async function getChatters(channelLogin) {

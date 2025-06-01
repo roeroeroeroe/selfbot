@@ -32,22 +32,21 @@ async function insertCustomCommand(
 		mention,
 	]);
 }
-
-async function updateCustomCommand(commandName, newValues = {}) {
+// prettier-ignore
+function updateCustomCommand(commandName, newValues = {}) {
 	const keys = Object.keys(newValues);
-	logger.debug(
-		`[DB] updating custom command ${commandName}, setting`,
-		`${keys.length} new values`
-	);
-	const values = [];
-	let queryStr = 'UPDATE customcommands SET ',
-		i = 1;
-	for (const k of keys) {
-		queryStr += `${k} = $${i++}, `;
-		values.push(newValues[k]);
+	if (!keys.length)
+		return;
+	const setClauses = [], values = [];
+	for (const key of keys) {
+		if (!db.VALID_CUSTOMCOMMANDS_COLUMNS.has(key))
+			throw new Error(`invalid column name: ${key}`);
+		setClauses.push(`${key} = $${values.push(newValues[key])}`);
 	}
-	values.push(commandName);
-	await db.query(`${queryStr.slice(0, -2)} WHERE name = $${i}`, values);
+	return db.query(`
+		UPDATE customcommands
+		SET ${setClauses.join(', ')}
+		WHERE name = $${values.push(commandName)}`, values);
 }
 
 async function deleteCustomCommand(commandName) {

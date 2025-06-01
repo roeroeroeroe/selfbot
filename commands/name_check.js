@@ -6,7 +6,7 @@ import hastebin from '../services/hastebin.js';
 const MAX_USERNAMES_PRE_FILTER = 100000;
 const MAX_USERNAMES_POST_FILTER = 2500;
 const BATCH_SIZE = 50;
-const BATCH_DELAY = 1000;
+const BATCH_DELAY_MS = 1000;
 const LATENCY_SAMPLE_SIZE = 5;
 
 export default {
@@ -94,7 +94,7 @@ export default {
 			if (progress)
 				msg.send(progress, false, true);
 			if (queue.length)
-				await utils.sleep(BATCH_DELAY);
+				await utils.sleep(BATCH_DELAY_MS);
 		}
 
 		if (!available.length) {
@@ -184,7 +184,7 @@ function getProgressMessage(silent, i, latencies, t0, t1, totalBatches,
 	const latency = utils.stats.median(latencies),
 		stdDev = utils.stats.stdDev(latencies, true);
 	const eta = utils.duration.format(
-		(totalBatches - (i + 1)) * (BATCH_DELAY + latency),
+		(totalBatches - (i + 1)) * (BATCH_DELAY_MS + latency),
 		{ shortForm: false }
 	);
 	return `checking ${totalUsernames} usernames ` +

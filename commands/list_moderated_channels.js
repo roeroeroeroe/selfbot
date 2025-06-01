@@ -38,7 +38,7 @@ export default {
 
 		for (const e of moderatedChannelsEdges) {
 			const lineParts = [
-				utils.getEffectiveName(e.node.login, e.node.displayName),
+				utils.pickName(e.node.login, e.node.displayName),
 			];
 			if (e.isLive) {
 				const viewers = e.node.stream?.viewersCount || 0;

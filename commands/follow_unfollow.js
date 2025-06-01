@@ -44,7 +44,7 @@ export default {
 			if (!res?.user)
 				return { text: `channel ${input} does not exist`, mention: true };
 			user = res.user;
-			user.name = utils.getEffectiveName(user.login, user.displayName);
+			user.name = utils.pickName(user.login, user.displayName);
 			if (user.self?.follower?.followedAt) {
 				followedAt = user.self.follower.followedAt;
 				followAge = utils.duration.format(Date.now() - Date.parse(followedAt));

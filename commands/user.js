@@ -82,7 +82,7 @@ export default {
 
 function constructUserSummary(user, banned, ageFn) {
 	const parts = [];
-	parts.push(`@${utils.getEffectiveName(user.login, user.displayName)}`);
+	parts.push(`@${utils.pickName(user.login, user.displayName)}`);
 	parts.push(`id: ${user.id}`);
 	if (banned?.reason) {
 		let suspendedSummary = `suspended (${banned.reason}`;
