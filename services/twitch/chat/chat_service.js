@@ -8,8 +8,8 @@ import config from '../../../config.json' with { type: 'json' };
 
 export default class ChatService {
 	static DEFAULT_SLOW_MODE_MS =
-		config.chatServiceTransport === 'gql' ? 1250 : 1100;
-	static CAN_BYPASS_FOLLOWERS_ONLY_MODE = config.rateLimits === 'verified';
+		config.twitch.sender.transport === 'gql' ? 1250 : 1100;
+	static CAN_BYPASS_FOLLOWERS_ONLY_MODE = config.bot.rateLimits === 'verified';
 	#queues = new Map();
 	#sendStates = new Map();
 
@@ -66,7 +66,7 @@ export default class ChatService {
 				`${channelLogin || channelId}, user: ${userLogin || 'N/A'}):\n` +
 					utils.regex.pointer(tosMatch.match)
 			);
-			text = config.againstTOS;
+			text = config.messages.tosViolationPlaceholder;
 			parentId = '';
 		}
 
@@ -125,7 +125,7 @@ export default class ChatService {
 	// prettier-ignore
 	#initRateLimiters() {
 		this.rateLimiters = {};
-		if (config.rateLimits === 'regular') {
+		if (config.bot.rateLimits === 'regular') {
 			this.rateLimiters.normal = new SlidingWindowRateLimiter(
 				constants.MESSAGES_WINDOW_MS,
 				constants.REGULAR_MAX_MESSAGES_PER_WINDOW
@@ -164,7 +164,7 @@ export default class ChatService {
 				await this.#dispatchMessage(state, channelId, channelLogin,
 					userLogin, text, privileged, mention, parentId);
 			};
-		} else if (config.rateLimits === 'verified') {
+		} else if (config.bot.rateLimits === 'verified') {
 			this.rateLimiters.verified = new SlidingWindowRateLimiter(
 				constants.MESSAGES_WINDOW_MS,
 				constants.VERIFIED_MAX_MESSAGES_PER_WINDOW
@@ -194,7 +194,7 @@ export default class ChatService {
 				await this.#dispatchMessage(state, channelId, channelLogin,
 					userLogin, text, privileged, mention, parentId);
 			};
-		} else throw new Error(`unknown rate limits preset: ${config.rateLimits}`);
+		} else throw new Error(`unknown rate limits preset: ${config.bot.rateLimits}`);
 	}
 
 	#enqueue(job) {

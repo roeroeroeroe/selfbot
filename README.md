@@ -14,43 +14,56 @@ vi config.json
 ```
 ```jsonc
 {
-  "logMessagesByDefault": true,          // applies to newly joined channels at runtime
-  "loadUnsafeCommands": true,            // enable insecure commands
-  "getClosestCommand": true,             // suggest closest valid command on typo
-  "autoJoinRaids": true,                 // auto-join raids
-  "autoAcknowledgeChatWarnings": true,   // auto-acknowledge chat warnings
-  "autoJoinWatching": true,              // auto-join watched channels detected via presence
-  "shell": "/bin/bash",                  // shell used by the `shell` command
-  "cache": "redis",                      // "redis" | "valkey" | "inMemory" -- "valkey" is an alias for "redis"
-  "ircClientTransport": "websocket",     // "tcp" | "websocket"
-  "chatServiceTransport": "irc",         // "irc" | "gql" - sender
-  "retries": 3,                          // max retry attempts on failure
-  "defaultPrefix": "!",                  // command prefix
-  "responsePartsSeparator": " · ",       // separator for parts of command output
-  "againstTOS": "message goes against twitch TOS", // message shown if content triggered internal banphrase
-  "hastebinInstance": "https://paste.ivr.fi", // base URL of the hastebin server (POST to /documents, GET from /{key}, /raw/{key})
-  "maxPasteLength": 1500000,             // 0 for unlimited
-  "rateLimits": "regular",               // "regular" | "verified" - https://dev.twitch.tv/docs/chat/#verified-bots
-  "authedTmiClientConnectionsPoolSize": 10, // create N authenticated tmi connections (irc transport only)
-  "maxHermesConnections": 20,            // max amount of WS hermes connections to create
-  "maxHermesTopicsPerConnection": 50,    // max amount of topics a single connection can be subscribed to
-  "messagesFlushIntervalMs": 2500,       // how often to flush queued messages
-  "maxMessagesPerChannelFlush": 150,     // max amount of messages to flush per channel at once
   "bot": {
+    "rateLimits": "regular",            // "regular" | "verified" - https://dev.twitch.tv/docs/chat/#verified-bots
+    "entryChannelLogin": "",            // first channel to join
     "login": "",
     "id": "0"
   },
-  "entry_channel": {
-    "login": ""                          // first channel to join
+  "commands": {
+    "defaultPrefix": "!",
+    "loadUnsafe": true,                 // enable insecure commands
+    "suggestClosest": true              // suggest closest valid command on typo
   },
-  "logger": {
-    "level": "info",                     // "debug" | "info" | "warning" | "error" | "none"
-    "colorize": true                     // enable colored terminal output
+  "messages": {
+    "tosViolationPlaceholder": "message goes against twitch TOS",  // replaces messages that match one of the TOS patterns
+    "responsePartsSeparator": " · ",    // separator for parts of command output
+    "logByDefault": true                // applies to newly joined channels at runtime
+  },
+  "twitch": {
+    "ircTransport": "websocket",        // "tcp" | "websocket"
+    "sender": {
+      "transport": "irc",               // "irc" | "gql"
+      "irc": {                          // applies to "irc" transport
+        "connectionsPoolSize": 10
+      }
+    },
+    "hermes": {
+      "maxConnections": 20,             // max amount of WS connections to hermes
+      "maxTopicsPerConnection": 50,     // max amount of topics per hermes connection
+      "autoJoinRaids": true,
+      "autoAcknowledgeChatWarnings": true,
+      "autoJoinWatching": true          // auto-join watched channels detected via presence
+    }
+  },
+  "retry": {
+    "maxRetries": 3,                    // max retry attempts on failure
+    "baseDelayMs": 200,
+    "jitter": 0.5
+  },
+  "cache": "redis",                     // "redis" | "valkey" | "inMemory" -- "valkey" is an alias for "redis"
+  "db": {
+    "messagesFlushIntervalMs": 2500,    // how often to flush queued messages
+    "maxMessagesPerChannelFlush": 150   // max amount of messages to flush per channel at once
+  },
+  "hastebin": {
+    "instance": "https://paste.ivr.fi", // base URL of the hastebin server (POST to /documents, GET from /{key}, /raw/{key})
+    "maxPasteLength": 1500000           // 0 for unlimited
   },
   "metrics": {
     "enabled": false,
-    "sampleIntervalMs": 5000,            // how often to sample and compute rates
-    "logIntervalMs": 1800000,            // how often to log the latest snapshot (0 to disable)
+    "sampleIntervalMs": 5000,           // how often to sample and compute rates
+    "logIntervalMs": 1800000,           // how often to log the latest snapshot (0 to disable)
     "prometheus": {
       "enabled": false,
       "host": "127.0.0.1",
@@ -58,6 +71,11 @@ vi config.json
       "endpoint": "/metrics",
       "prefix": "selfbot_"
     }
+  },
+  "shell": "/bin/bash",
+  "logger": {
+    "level": "info",                    // "debug" | "info" | "warning" | "error" | "none"
+    "colorize": true                    // enable colored terminal output
   }
 }
 ```

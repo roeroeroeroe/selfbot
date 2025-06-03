@@ -27,11 +27,8 @@ export default {
 				unique: true,
 				minItems: 1,
 				maxItems: validRRTypes.size,
-				itemValidator: v => {
-					if ((v = v.toUpperCase()) === 'ALL') return true;
-					if (!validRRTypes.has(v)) return false;
-					return true;
-				},
+				itemValidator: v =>
+					(v = v.toUpperCase()) === 'ALL' || validRRTypes.has(v),
 			},
 			defaultValue: 'A AAAA',
 			required: false,

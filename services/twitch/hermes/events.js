@@ -46,7 +46,7 @@ export default {
 			message += `, reason: ${utils.format.trim(msg.data.reason)}`;
 		logger.info(message);
 
-		if (action === 'warn' && config.autoAcknowledgeChatWarnings)
+		if (action === 'warn' && config.twitch.hermes.autoAcknowledgeChatWarnings)
 			try {
 				const res = await twitch.gql.channel.acknowledgeChatWarning(
 					msg.data.channel_id
@@ -111,7 +111,7 @@ export default {
 		}
 		logger.info(message);
 
-		if (config.autoJoinRaids)
+		if (config.twitch.hermes.autoJoinRaids)
 			try {
 				const res = await twitch.gql.channel.joinRaid(msg.raid.id);
 				if (res?.joinRaid?.raidID) {
@@ -139,7 +139,7 @@ export default {
 		logger.info(
 			`[Hermes] presence: watching ${channelName} (category: ${activity.game || 'N/A'})`
 		);
-		if (!config.autoJoinWatching) return;
+		if (!config.twitch.hermes.autoJoinWatching) return;
 		const channel = await db.channel.get(activity.channel_id);
 		if (channel) return;
 		try {

@@ -16,12 +16,12 @@ import utils from '../../../utils/index.js';
 const BOT_NONCE = utils.randomString('0123456789abcdef', 32);
 
 let transport;
-switch (config.chatServiceTransport) {
+switch (config.twitch.sender.transport) {
 	case 'irc':
 		const authed = new ChatClient({
 			username: config.bot.login,
 			password: process.env.TWITCH_ANDROID_TOKEN,
-			connection: { type: config.ircClientTransport, secure: true },
+			connection: { type: config.twitch.ircTransport, secure: true },
 			installDefaultMixins: false,
 		});
 		authed.on('error', err => {
@@ -30,10 +30,10 @@ switch (config.chatServiceTransport) {
 			else logger.error('[IRC-TX] error:', err.message);
 		});
 		authed.on('close', err => err && logger.fatal('[IRC-TX] closed:', err));
-		if (config.authedTmiClientConnectionsPoolSize >= 2)
+		if (config.twitch.sender.irc.connectionsPoolSize >= 2)
 			authed.use(
 				new ConnectionPool(authed, {
-					poolSize: config.authedTmiClientConnectionsPoolSize,
+					poolSize: config.twitch.sender.irc.connectionsPoolSize,
 				})
 			);
 		transport = createIrcTransport(authed, BOT_NONCE);
@@ -43,7 +43,7 @@ switch (config.chatServiceTransport) {
 		break;
 	default:
 		throw new Error(
-			`unknown chat service transport: ${config.chatServiceTransport}`
+			`unknown chat service transport: ${config.twitch.sender.transport}`
 		);
 }
 

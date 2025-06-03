@@ -26,7 +26,7 @@ export default {
 			aliases: ['l', 'log'],
 			type: 'boolean',
 			required: false,
-			defaultValue: config.logMessagesByDefault,
+			defaultValue: config.messages.logByDefault,
 			description: 'log incoming messages (join only)',
 		},
 		{
@@ -34,7 +34,7 @@ export default {
 			aliases: ['p', 'prefix'],
 			type: 'string',
 			required: false,
-			defaultValue: config.defaultPrefix,
+			defaultValue: config.commands.defaultPrefix,
 			description: 'bot prefix (join only)',
 			validator: utils.isValidPrefix,
 		},

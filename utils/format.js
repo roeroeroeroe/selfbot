@@ -11,7 +11,7 @@ function trimString(str, lim = twitch.MAX_MESSAGE_LENGTH) {
 	return str.length > lim ? str.slice(0, lim - 1) + '…' : str;
 }
 
-function joinParts(arr, separator = config.responsePartsSeparator) {
+function joinParts(arr, separator = config.messages.responsePartsSeparator) {
 	return arr.join(separator);
 }
 
@@ -27,6 +27,7 @@ function formatBytes(bytes, base = 1024, precision = 1) {
 			break;
 		default:
 			logger.warning('formatBytes: invalid base:', base);
+			base = 1024;
 			prefixes = IEC_PREFIXES;
 	}
 	let i = 0;

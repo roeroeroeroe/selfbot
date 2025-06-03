@@ -3,7 +3,8 @@ import hastebin from '../hastebin.js';
 import logger from '../logger.js';
 import utils from '../../utils/index.js';
 
-const normalizedHastebinUrl = config.hastebinInstance.replace(/\/+$/, '') + '/';
+const normalizedHastebinUrl =
+	config.hastebin.instance.replace(/\/+$/, '') + '/';
 
 const EXCLUSIVE_GROUPS = [
 	['quiet', 'timeExec'],
@@ -88,7 +89,7 @@ const postFlagHandlers = [
 			? (execT1 - msg.execT0).toFixed(3) + 'ms'
 			: 'N/A';
 		if (result.text)
-			result.text += ` ${config.responsePartsSeparator} took ${duration}`;
+			result.text += ` ${config.messages.responsePartsSeparator} took ${duration}`;
 		else result.text = `took ${duration}`;
 		return result;
 	},

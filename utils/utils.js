@@ -233,8 +233,9 @@ export function getMaxMessageLength(login, reply, mention) {
 export async function retry(
 	fn,
 	{
-		maxRetries = config.retries,
-		baseDelay = 200,
+		maxRetries = config.retry.maxRetries,
+		baseDelay = config.retry.baseDelayMs,
+		jitter = config.retry.jitter,
 		requestsCounter,
 		retriesCounter,
 		logLabel = '',
@@ -247,7 +248,7 @@ export async function retry(
 	for (let i = 0; i <= maxRetries; i++) {
 		const attempt = i + 1;
 		if (i > 0) {
-			const backoff = baseDelay * 2 ** (i - 1) * (1 + Math.random() * 0.5);
+			const backoff = baseDelay * 2 ** (i - 1) * (1 + Math.random() * jitter);
 			logger.debug(
 				`${logPrefix}retry ${i}, backing off ${Math.round(backoff)}ms`
 			);
@@ -290,4 +291,9 @@ export function isValidHttpUrl(str) {
 	} catch {
 		return false;
 	}
+}
+
+export function safeToFixed(n, fractionDigits) {
+	if (Math.abs(n) < 0.5 * 10 ** -fractionDigits) n = 0;
+	return n.toFixed(fractionDigits);
 }

@@ -5,8 +5,8 @@ CREATE TABLE IF NOT EXISTS channels (
 	id           VARCHAR(15) PRIMARY KEY,
 	login        VARCHAR(25) UNIQUE NOT NULL,
 	display_name TEXT        NOT NULL,
-	log          BOOLEAN     NOT NULL DEFAULT ${config.logMessagesByDefault},
-	prefix       VARCHAR(15) NOT NULL DEFAULT '${config.defaultPrefix}',
+	log          BOOLEAN     NOT NULL DEFAULT ${config.messages.logByDefault},
+	prefix       VARCHAR(15) NOT NULL DEFAULT '${config.commands.defaultPrefix}',
 	suspended    BOOLEAN     NOT NULL DEFAULT false,
 	privileged   BOOLEAN     NOT NULL DEFAULT false,
 	joined_at    TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP

@@ -1,36 +1,49 @@
 {
-	"logMessagesByDefault": true,
-	"loadUnsafeCommands": true,
-	"getClosestCommand": true,
-	"autoJoinRaids": true,
-	"autoAcknowledgeChatWarnings": true,
-	"autoJoinWatching": true,
-	"shell": "/bin/bash",
-	"cache": "redis",
-	"ircClientTransport": "websocket",
-	"chatServiceTransport": "irc",
-	"retries": 3,
-	"defaultPrefix": "!",
-	"responsePartsSeparator": " · ",
-	"againstTOS": "message goes against twitch TOS",
-	"hastebinInstance": "https://paste.ivr.fi",
-	"maxPasteLength": 1500000,
-	"rateLimits": "regular",
-	"authedTmiClientConnectionsPoolSize": 10,
-	"maxHermesConnections": 20,
-	"maxHermesTopicsPerConnection": 50,
-	"messagesFlushIntervalMs": 2500,
-	"maxMessagesPerChannelFlush": 150,
 	"bot": {
+		"rateLimits": "regular",
+		"entryChannelLogin": "",
 		"login": "",
 		"id": "0"
 	},
-	"entry_channel": {
-		"login": ""
+	"commands": {
+		"defaultPrefix": "!",
+		"loadUnsafe": true,
+		"suggestClosest": true
 	},
-	"logger": {
-		"level": "info",
-		"colorize": true
+	"messages": {
+		"tosViolationPlaceholder": "message goes against twitch TOS",
+		"responsePartsSeparator": " · ",
+		"logByDefault": true
+	},
+	"twitch": {
+		"ircTransport": "websocket",
+		"sender": {
+			"transport": "irc",
+			"irc": {
+				"connectionsPoolSize": 10
+			}
+		},
+		"hermes": {
+			"maxConnections": 20,
+			"maxTopicsPerConnection": 50,
+			"autoAcknowledgeChatWarnings": true,
+			"autoJoinRaids": true,
+			"autoJoinWatching": true
+		}
+	},
+	"retry": {
+		"maxRetries": 3,
+		"baseDelayMs": 200,
+		"jitter": 0.5
+	},
+	"cache": "redis",
+	"db": {
+		"messagesFlushIntervalMs": 2500,
+		"maxMessagesPerChannelFlush": 150
+	},
+	"hastebin": {
+		"instance": "https://paste.ivr.fi",
+		"maxPasteLength": 1500000
 	},
 	"metrics": {
 		"enabled": false,
@@ -43,5 +56,10 @@
 			"endpoint": "/metrics",
 			"prefix": "selfbot_"
 		}
+	},
+	"shell": "/bin/bash",
+	"logger": {
+		"level": "info",
+		"colorize": true
 	}
 }

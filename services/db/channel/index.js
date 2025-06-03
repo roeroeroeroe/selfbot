@@ -8,8 +8,8 @@ function insertChannel(
 	id,
 	login,
 	displayName,
-	log = config.logMessagesByDefault,
-	prefix = config.defaultPrefix,
+	log = config.messages.logByDefault,
+	prefix = config.commands.defaultPrefix,
 	suspended = false,
 	privileged = false
 ) {

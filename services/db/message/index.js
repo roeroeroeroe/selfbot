@@ -76,51 +76,55 @@ function searchMessages(channelId, userId, excludeChannelIds = [],
 }
 
 async function flushMessages() {
-	const c = await db.pool.connect();
+	const maxPerChannelFlush = config.db.maxMessagesPerChannelFlush;
+	let c, stream;
 	try {
-		await c.query('BEGIN');
-		const stream = c.query(pgStreams.from(queries.COPY_MESSAGES_STREAM));
 		for (const [channelId, entry] of messageQueueEntries.entries()) {
 			const buffer = entry.buffer;
+			if (!buffer.size) {
+				if (++entry.emptyStreak >= db.MAX_MESSAGE_QUEUE_EMPTY_STREAKS) {
+					messageQueueEntries.delete(channelId);
+					logger.debug(
+						`[DB] queued messages buffer for channel ${channelId}`,
+						'deleted after reaching empty streak limit',
+						`(${db.MAX_MESSAGE_QUEUE_EMPTY_STREAKS})`
+					);
+				}
+				continue;
+			}
+			if (!c) {
+				c = await db.pool.connect();
+				await c.query('BEGIN');
+				stream = c.query(pgStreams.from(queries.COPY_MESSAGES_STREAM));
+			}
 			let count = 0;
-			while (count < config.maxMessagesPerChannelFlush && buffer.size) {
+			for (; count < maxPerChannelFlush && buffer.size; count++)
 				if (!stream.write(`${channelId}\t${buffer.shift()}\n`))
 					await new Promise(res => stream.once('drain', res));
-				count++;
-			}
+			if (count) entry.emptyStreak = 0;
 			if (buffer.size)
 				logger.warning(
 					`[DB] queued messages buffer for channel ${channelId}`,
-					`exceeded max size (${config.maxMessagesPerChannelFlush})`,
+					`exceeded max size (${maxPerChannelFlush})`,
 					`by ${buffer.size} messages, consider decreasing`,
-					"'messagesFlushIntervalMs' or increasing 'maxMessagesPerChannelFlush'"
+					"'db.messagesFlushIntervalMs' or increasing 'db.maxMessagesPerChannelFlush'"
 				);
-			if (count) {
-				entry.emptyStreak = 0;
-				continue;
-			}
-			if (++entry.emptyStreak >= db.MAX_MESSAGE_QUEUE_EMPTY_STREAKS) {
-				messageQueueEntries.delete(channelId);
-				logger.debug(
-					`[DB] queued messages buffer for channel ${channelId}`,
-					'deleted after reaching empty streak limit',
-					`(${db.MAX_MESSAGE_QUEUE_EMPTY_STREAKS})`
-				);
-			}
 		}
-		stream.end();
-		await new Promise((res, rej) => {
-			stream.on('finish', res);
-			stream.on('error', rej);
-		});
-		await c.query('COMMIT');
-		metrics.counter.increment(metrics.names.counters.PG_QUERIES);
+		if (stream) {
+			stream.end();
+			await new Promise((res, rej) => {
+				stream.on('finish', res);
+				stream.on('error', rej);
+			});
+			await c.query('COMMIT');
+			metrics.counter.increment(metrics.names.counters.PG_QUERIES);
+		}
 	} catch (err) {
-		await c.query('ROLLBACK').catch(() => {});
 		logger.error('[DB] error flushing messages:', err);
+		if (c) await c.query('ROLLBACK').catch(() => {});
 	} finally {
-		c.release();
-		setTimeout(flushMessages, config.messagesFlushIntervalMs);
+		if (c) c.release();
+		setTimeout(flushMessages, config.db.messagesFlushIntervalMs);
 	}
 }
 

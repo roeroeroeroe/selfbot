@@ -41,8 +41,8 @@ function get(url) {
 function create(
 	content,
 	raw = true,
-	instance = config.hastebinInstance,
-	maxLength = config.maxPasteLength
+	instance = config.hastebin.instance,
+	maxLength = config.hastebin.maxPasteLength
 ) {
 	if (typeof content !== 'string' || !content)
 		throw new Error('content must be a non-empty string');

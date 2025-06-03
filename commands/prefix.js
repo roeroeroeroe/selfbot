@@ -54,10 +54,10 @@ export default {
 					i++;
 				}
 
-				if (config.defaultPrefix !== newPrefix) {
+				if (config.commands.defaultPrefix !== newPrefix) {
 					await configuration.update('defaultPrefix', newPrefix);
 					await db.query(
-						`ALTER TABLE channels ALTER COLUMN prefix SET DEFAULT '${config.defaultPrefix}'`
+						`ALTER TABLE channels ALTER COLUMN prefix SET DEFAULT '${config.commands.defaultPrefix}'`
 					);
 				}
 

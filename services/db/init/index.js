@@ -19,18 +19,18 @@ export default async function init() {
 
 	const { exists } = (
 		await db.query(db.channel.queries.CHECK_CHANNEL_EXISTS, [
-			config.entry_channel.login,
+			config.bot.entryChannelLogin,
 		])
 	)[0];
 	if (!exists) {
-		const user = await twitch.gql.user.resolve(config.entry_channel.login);
+		const user = await twitch.gql.user.resolve(config.bot.entryChannelLogin);
 		if (!user)
 			throw new Error(
-				`entry channel "${config.entry_channel.login}" does not exist`
+				`entry channel "${config.bot.entryChannelLogin}" does not exist`
 			);
 
 		await db.channel.insert(user.id, user.login, user.displayName);
 	}
 
-	setTimeout(db.message.initFlushMessages, config.messagesFlushIntervalMs);
+	setTimeout(db.message.initFlushMessages, config.db.messagesFlushIntervalMs);
 }

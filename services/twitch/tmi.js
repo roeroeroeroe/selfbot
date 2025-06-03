@@ -9,7 +9,7 @@ import handle from '../message_handler.js';
 export default function init(chatService) {
 	logger.debug('[TMI] initializing...');
 	const tmi = new ChatClient({
-		connection: { type: config.ircClientTransport, secure: true },
+		connection: { type: config.twitch.ircTransport, secure: true },
 		installDefaultMixins: false,
 	});
 	const channelManager = new ChannelManager(tmi);

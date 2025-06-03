@@ -134,7 +134,7 @@ async function load() {
 			const command = (await import(path.join(__dirname, `../commands/${f}`)))
 				.default;
 			const t1 = performance.now();
-			if (!config.loadUnsafeCommands && command.unsafe) {
+			if (!config.commands.loadUnsafe && command.unsafe) {
 				logger.debug(
 					`[COMMANDS] skipping unsafe command ${f}: ${command.name}`
 				);
@@ -143,9 +143,9 @@ async function load() {
 			add(command);
 			const t2 = performance.now();
 			logger.debug(
-				`[COMMANDS] loaded ${f} in ${(t2 - t0).toFixed(3)}ms ` +
-					`(import: ${(t1 - t0).toFixed(3)}ms, add: ${(t2 - t1).toFixed(3)}ms): ` +
-					command.name +
+				`[COMMANDS] loaded ${f} in ${(t2 - t0).toFixed(3)}ms`,
+				`(import: ${(t1 - t0).toFixed(3)}ms, add: ${(t2 - t1).toFixed(3)}ms):`,
+				command.name +
 					(command.aliases.length ? `, ${command.aliases.join(', ')}` : '')
 			);
 			c++;

@@ -34,41 +34,40 @@ function assertStringOneOf(v, arr) {
 }
 // prettier-ignore
 const validators = {
-	'logMessagesByDefault': v => assertBool(v),
-	'loadUnsafeCommands': v => assertBool(v),
-	'getClosestCommand': v => assertBool(v),
-	'autoJoinRaids': v => assertBool(v),
-	'autoAcknowledgeChatWarnings': v => assertBool(v),
-	'autoJoinWatching': v => assertBool(v),
-	'shell': v => assertNonEmptyString(v),
-	'cache': v => assertStringOneOf(v, ['redis', 'valkey', 'inMemory']),
-	'ircClientTransport': v => assertStringOneOf(v, ['tcp', 'websocket']),
-	'chatServiceTransport': v => assertStringOneOf(v, ['irc', 'gql']),
-	'retries': v => assertNonNegativeInt(v),
-	'defaultPrefix': v => assert(utils.isValidPrefix(v), 'must be a valid prefix'),
-	'responsePartsSeparator': v => assertNonEmptyString(v),
-	'againstTOS': v => assertNonEmptyString(v),
-	'hastebinInstance': v => assert(utils.isValidHttpUrl(v), 'must be a valid URL'),
-	'maxPasteLength': v => assertNonNegativeInt(v),
-	'rateLimits': v => assertStringOneOf(v, ['regular', 'verified']),
-	'authedTmiClientConnectionsPoolSize': v => {
-		if (config.chatServiceTransport !== 'irc') return;
-		assertNonNegativeInt(v);
-		const max =
-			config.rateLimits === 'verified'
-				? twitch.chat.VERIFIED_MAX_CONNECTIONS_POOL_SIZE
-				: twitch.chat.REGULAR_MAX_CONNECTIONS_POOL_SIZE;
-		assert(v <= max, `cannot exceed ${max} with ${config.rateLimits} rateLimits`);
-	},
-	'maxHermesConnections': v => assertIntBetween(v, 1, twitch.hermes.MAX_CONNECTIONS),
-	'maxHermesTopicsPerConnection': v => assertIntBetween(v, 1, twitch.hermes.MAX_TOPICS_PER_CONNECTION),
-	'messagesFlushIntervalMs': v => assertIntBetween(v, 100, db.MAX_MESSAGES_FLUSH_INTERVAL_MS),
-	'maxMessagesPerChannelFlush': v => assertIntBetween(v, 1, db.MAX_MESSAGES_PER_CHANNEL_FLUSH),
+	'bot.rateLimits': v => assertStringOneOf(v, ['regular', 'verified']),
+	'bot.entryChannelLogin': v => assert(typeof v === 'string' && utils.regex.patterns.username.test(v), 'must be a valid username'),
 	'bot.login': v => assert(typeof v === 'string' && utils.regex.patterns.username.test(v), 'must be a valid username'),
 	'bot.id': v => assert(typeof v === 'string' && utils.regex.patterns.id.test(v), 'must be a valid id'),
-	'entry_channel.login': v => assert(typeof v === 'string' && utils.regex.patterns.username.test(v), 'must be a valid username'),
-	'logger.level': v => assertStringOneOf(v, ['debug', 'info', 'warning', 'error', 'none']),
-	'logger.colorize': v => assertBool(v),
+	'commands.defaultPrefix': v => assert(utils.isValidPrefix(v), 'must be a valid prefix'),
+	'commands.loadUnsafe': v => assertBool(v),
+	'commands.suggestClosest': v => assertBool(v),
+	'messages.tosViolationPlaceholder': v => assertNonEmptyString(v),
+	'messages.responsePartsSeparator': v => assertNonEmptyString(v),
+	'messages.logByDefault': v => assertBool(v),
+	'twitch.ircTransport': v => assertStringOneOf(v, ['tcp', 'websocket']),
+	'twitch.sender.transport': v => assertStringOneOf(v, ['irc', 'gql']),
+	'twitch.sender.irc.connectionsPoolSize': v => {
+		if (config.twitch.sender.transport !== 'irc') return;
+		assertNonNegativeInt(v);
+		const max =
+			config.bot.rateLimits === 'verified'
+				? twitch.chat.VERIFIED_MAX_CONNECTIONS_POOL_SIZE
+				: twitch.chat.REGULAR_MAX_CONNECTIONS_POOL_SIZE;
+		assert(v <= max, `cannot exceed ${max} with ${config.bot.rateLimits} bot.rateLimits`);
+	},
+	'twitch.hermes.maxConnections': v => assertIntBetween(v, 1, twitch.hermes.MAX_CONNECTIONS),
+	'twitch.hermes.maxTopicsPerConnection': v => assertIntBetween(v, 1, twitch.hermes.MAX_TOPICS_PER_CONNECTION),
+	'twitch.hermes.autoAcknowledgeChatWarnings': v => assertBool(v),
+	'twitch.hermes.autoJoinRaids': v => assertBool(v),
+	'twitch.hermes.autoJoinWatching': v => assertBool(v),
+	'retry.maxRetries': v => assertNonNegativeInt(v),
+	'retry.baseDelayMs': v => assertNonNegativeInt(v),
+	'retry.jitter': v => assert(typeof v === 'number' && v >= 0 && v <= 1, 'must be between 0 and 1'),
+	'cache': v => assertStringOneOf(v, ['redis', 'valkey', 'inMemory']),
+	'db.messagesFlushIntervalMs': v => assertIntBetween(v, 100, db.MAX_MESSAGES_FLUSH_INTERVAL_MS),
+	'db.maxMessagesPerChannelFlush': v => assertIntBetween(v, 1, db.MAX_MESSAGES_PER_CHANNEL_FLUSH),
+	'hastebin.instance': v => assert(utils.isValidHttpUrl(v), 'must be a valid URL'),
+	'hastebin.maxPasteLength': v => assertNonNegativeInt(v),
 	'metrics.enabled': v => assertBool(v),
 	'metrics.sampleIntervalMs': v => {
 		if (!config.metrics.enabled) return;
@@ -98,6 +97,9 @@ const validators = {
 		if (!config.metrics.enabled || !config.metrics.prometheus.enabled) return;
 		assert(typeof v === 'string', 'must be a string');
 	},
+	'shell': v => assertNonEmptyString(v),
+	'logger.level': v => assertStringOneOf(v, ['debug', 'info', 'warning', 'error', 'none']),
+	'logger.colorize': v => assertBool(v),
 };
 
 function traverse(pathStr) {
@@ -132,7 +134,7 @@ function validateConfig() {
 }
 
 async function updateConfig(pathStr, newValue) {
-	logger.debug(`[CONFIGURATION] updating '${pathStr}', setting ${newValue}`);
+	logger.debug(`[CONFIGURATION] updating '${pathStr}', setting`, newValue);
 	const { parent, key } = traverse(pathStr);
 
 	const validator = validators[pathStr];

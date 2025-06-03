@@ -21,7 +21,7 @@ export default async function handle(msg) {
 
 	if (msg.senderUserID === config.bot.id) {
 		buildArgs(msg);
-		msg.prefix = msg.query.prefix || config.defaultPrefix;
+		msg.prefix = msg.query.prefix || config.commands.defaultPrefix;
 		const trigger = msg.args.shift()?.toLowerCase() || '';
 		if (trigger.startsWith(msg.prefix)) {
 			msg.commandName =
@@ -67,7 +67,7 @@ export default async function handle(msg) {
 		return;
 	}
 
-	if (!ccTriggered && msg.commandName && config.getClosestCommand) {
+	if (!ccTriggered && msg.commandName && config.commands.suggestClosest) {
 		logger.debug(
 			`[HANDLER] unknown command ${msg.commandName}, trying to get closest match`
 		);

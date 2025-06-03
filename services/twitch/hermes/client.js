@@ -38,7 +38,8 @@ function subscribe(sub, channelId) {
 		}
 	if (
 		topicsById.size >=
-		config.maxHermesConnections * config.maxHermesTopicsPerConnection
+		config.twitch.hermes.maxConnections *
+			config.twitch.hermes.maxTopicsPerConnection
 	)
 		return logger.debug(
 			'[Hermes] subscribe: max connections reached, not subscribing to',
@@ -98,7 +99,7 @@ async function processTask({ type, topic }) {
 			for (const conn of connections.values())
 				if (
 					conn.topicIds.size + conn.pending.subscribe <
-					config.maxHermesTopicsPerConnection
+					config.twitch.hermes.maxTopicsPerConnection
 				) {
 					c = conn;
 					logger.debug(
@@ -107,7 +108,7 @@ async function processTask({ type, topic }) {
 					break;
 				}
 			if (!c) {
-				if (connections.size >= config.maxHermesConnections) {
+				if (connections.size >= config.twitch.hermes.maxConnections) {
 					logger.debug(
 						`[Hermes] max connections reached, not subscribing to ${topic.topicString}`
 					);
