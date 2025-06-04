@@ -3,6 +3,8 @@ import { IN_MEMORY_SWEEP_INTERVAL_MS } from './constants.js';
 const values = new Map();
 const expirations = new Map();
 
+let sweepInterval;
+
 function sweepExpired() {
 	const now = performance.now();
 	for (const [k, expiresAt] of expirations.entries())
@@ -16,7 +18,7 @@ let initialized = false;
 function init() {
 	if (initialized) throw new Error('already initialized');
 	initialized = true;
-	setInterval(() => sweepExpired(), IN_MEMORY_SWEEP_INTERVAL_MS);
+	sweepInterval = setInterval(sweepExpired, IN_MEMORY_SWEEP_INTERVAL_MS);
 	// eslint-disable-next-line require-await
 	async function get(key) {
 		const v = values.get(key);
@@ -53,7 +55,14 @@ function init() {
 		return values.size;
 	}
 
-	return { get, set, del, dbsize };
+	function cleanup() {
+		if (sweepInterval) {
+			clearInterval(sweepInterval);
+			sweepInterval = null;
+		}
+	}
+
+	return { get, set, del, dbsize, cleanup };
 }
 
 export default {

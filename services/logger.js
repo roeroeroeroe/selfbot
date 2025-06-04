@@ -52,6 +52,8 @@ for (const level in levels) {
 			: s => s;
 }
 
+let rotationTimeout, tickTimeout;
+
 function openAllFiles(dateString) {
 	for (const cfg of fileLevels) {
 		if (cfg.file) cfg.file.end();
@@ -63,6 +65,7 @@ function openAllFiles(dateString) {
 		);
 	}
 }
+
 // prettier-ignore
 function scheduleRotation() {
 	const now = Date.now();
@@ -73,7 +76,7 @@ function scheduleRotation() {
 		today.getUTCDate() + 1,
 		0, 0, 0
 	);
-	setTimeout(() => {
+	rotationTimeout = setTimeout(() => {
 		openAllFiles(new Date().toISOString().slice(0, 10));
 		scheduleRotation();
 	}, nextMidnight - now);
@@ -92,7 +95,7 @@ const flushInterval = setInterval(() => {
 
 function formatArgs(args) {
 	if (!args.length) return '';
-	let stack = null;
+	let stack;
 	for (let i = 0; i < args.length; i++) {
 		const arg = args[i];
 		if (arg instanceof Error) {
@@ -122,7 +125,7 @@ let ts = ''; // YYYY-MM-DD HH:MM:SS
 (function tick() {
 	const iso = new Date().toISOString();
 	ts = iso.slice(0, 10) + ' ' + iso.slice(11, 19);
-	setTimeout(tick, 1000 - (Date.now() % 1000));
+	tickTimeout = setTimeout(tick, 1000 - (Date.now() % 1000));
 })();
 
 function makeLogger(level) {
@@ -142,27 +145,39 @@ function makeLogger(level) {
 	};
 }
 
+async function cleanup() {
+	clearInterval(flushInterval);
+	if (tickTimeout) {
+		clearTimeout(tickTimeout);
+		tickTimeout = null;
+	}
+	if (rotationTimeout) {
+		clearTimeout(rotationTimeout);
+		rotationTimeout = null;
+	}
+	const streams = fileLevels.map(l => l.file).filter(Boolean);
+	if (!streams.length) return;
+	for (const stream of streams) stream.uncork();
+	await Promise.all(
+		streams.map(
+			stream =>
+				new Promise(res => {
+					stream.once('finish', res);
+					stream.end();
+				})
+		)
+	);
+}
+
 const debug = makeLogger('debug');
 const info = makeLogger('info');
 const warning = makeLogger('warning');
 const error = makeLogger('error');
 function fatal(...args) {
-	clearInterval(flushInterval);
 	error(...args);
-	const streams = fileLevels.map(l => l.file).filter(Boolean);
-
-	let remaining = streams.length;
-	if (!remaining) return process.exit(1);
-
-	for (const stream of streams) {
-		stream.uncork();
-		stream.once('finish', () => {
-			if (!--remaining) process.exit(1);
-		});
-		stream.end();
-	}
-
-	setTimeout(() => process.exit(1), 500);
+	cleanup()
+		.catch(err => error('logger cleanup error:', err))
+		.finally(() => process.exit(1));
 }
 
 export default {
@@ -171,4 +186,5 @@ export default {
 	warning,
 	error,
 	fatal,
+	cleanup,
 };

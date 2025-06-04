@@ -28,5 +28,6 @@ export default function createGqlTransport(botNonce) {
 				{ logLabel: 'GQL-TX' }
 			);
 		},
+		cleanup() {},
 	};
 }

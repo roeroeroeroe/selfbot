@@ -1,8 +1,8 @@
 const cooldown = new Map();
 
 function set(key, ttl) {
-	const id = cooldown.get(key);
-	if (id) clearTimeout(id);
+	const timeout = cooldown.get(key);
+	if (timeout) clearTimeout(timeout);
 	if (ttl <= 0) {
 		cooldown.delete(key);
 		return;
@@ -14,9 +14,9 @@ function set(key, ttl) {
 }
 
 function deleteCooldown(key) {
-	const id = cooldown.get(key);
-	if (!id) return;
-	clearTimeout(id);
+	const timeout = cooldown.get(key);
+	if (!timeout) return;
+	clearTimeout(timeout);
 	cooldown.delete(key);
 }
 
@@ -24,8 +24,13 @@ function has(key) {
 	return cooldown.has(key);
 }
 
+function cleanup() {
+	for (const timeout of cooldown.values()) clearTimeout(timeout);
+}
+
 export default {
 	set,
 	delete: deleteCooldown,
 	has,
+	cleanup,
 };

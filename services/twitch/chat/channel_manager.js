@@ -8,6 +8,7 @@ import utils from '../../../utils/index.js';
 
 export default class ChannelManager {
 	#joinControllers = new Map();
+	#loadInterval;
 	constructor(anonClient) {
 		this.anon = anonClient;
 		this.joinQueue = new AsyncQueue(job => this.#joinWorker(job));
@@ -57,7 +58,10 @@ export default class ChannelManager {
 
 	init() {
 		this.load();
-		setInterval(() => this.load(), constants.LOAD_INTERVAL_MS);
+		this.#loadInterval = setInterval(
+			() => this.load(),
+			constants.LOAD_INTERVAL_MS
+		);
 	}
 
 	async #joinWorker({ channel: c, controller }) {
@@ -92,7 +96,7 @@ export default class ChannelManager {
 			.catch(err => {
 				if (err.message === 'aborted')
 					logger.debug(`[ChannelManager] join ${c} canceled`);
-				else logger.error(`[ChannelManager] failed to join ${c}:`, err);
+				else logger.error(`failed to join ${c}:`, err);
 			})
 			.finally(() => this.#joinControllers.delete(c));
 	}
@@ -117,6 +121,15 @@ export default class ChannelManager {
 			await this.anon.part(c);
 		} catch (err) {
 			logger.error(`error parting ${c}:`, err);
+		}
+	}
+
+	async cleanup() {
+		await this.joinQueue.clear();
+		this.#joinControllers.clear();
+		if (this.#loadInterval) {
+			clearInterval(this.#loadInterval);
+			this.#loadInterval = null;
 		}
 	}
 }

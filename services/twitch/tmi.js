@@ -22,7 +22,7 @@ export default function init(chatService) {
 	tmi.on('error', err => {
 		if (err instanceof ReconnectError)
 			logger.debug('[TMI] server requested reconnect');
-		else logger.error('[TMI] error:', err.message);
+		else logger.error('tmi error:', err.message);
 	});
 	tmi.on('close', err => err && logger.fatal('[TMI] closed:', err));
 	tmi.on('NOTICE', msg => logger.debug('[TMI] NOTICE:', msg));
@@ -87,5 +87,9 @@ export default function init(chatService) {
 		handle(msg);
 	});
 
-	return { tmi, channelManager };
+	function cleanup() {
+		tmi.close();
+	}
+
+	return { tmi, channelManager, cleanup };
 }

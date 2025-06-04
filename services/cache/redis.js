@@ -14,7 +14,7 @@ function init() {
 	});
 
 	client.on('connect', () => logger.info('[REDIS] connected'));
-	client.on('error', err => logger.error('[REDIS] error:', err));
+	client.on('error', err => logger.error('redis error:', err));
 
 	function get(key) {
 		return client.get(key).then(v => {
@@ -44,7 +44,11 @@ function init() {
 		return client.dbsize();
 	}
 
-	return { get, set, del, dbsize };
+	async function cleanup() {
+		await client.quit().then(() => logger.debug('[REDIS] client closed'));
+	}
+
+	return { get, set, del, dbsize, cleanup };
 }
 
 export default {

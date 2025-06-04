@@ -21,19 +21,19 @@ async function shell(command, timeout = 5000) {
 		return {
 			stdout: result.stdout.trim(),
 			stderr: result.stderr.trim(),
-			exitStatus: 0,
+			exitCode: 0,
 			timedOut: false,
 		};
 	} catch (err) {
 		logger.error(
-			`shell command "${command}" failed (exit status ${err.code}):`,
+			`shell command "${command}" failed (exit code ${err.code}):`,
 			err
 		);
 
 		return {
 			stdout: err.stdout?.trim() || '',
 			stderr: err.stderr?.trim() || '',
-			exitStatus: err.code,
+			exitCode: err.code,
 			timedOut: err.killed && err.signal === 'SIGTERM',
 		};
 	}

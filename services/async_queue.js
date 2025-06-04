@@ -7,6 +7,7 @@ export default class AsyncQueue {
 	#buffer;
 	#minCapacity;
 	#processing = false;
+	#canceled = false;
 	#mu = new Mutex();
 
 	constructor(worker, initialCapacity = 16) {
@@ -39,13 +40,11 @@ export default class AsyncQueue {
 
 	async #process() {
 		this.#processing = true;
+		this.#canceled = false;
 		for (;;) {
 			await this.#mu.lock();
-			if (!this.#buffer.size) {
+			if (this.#canceled || !this.#buffer.size) {
 				if (this.#buffer.capacity > this.#minCapacity) this.#buffer.shrink();
-				logger.debug(
-					'[AsyncQueue] process: no more items, stopping processing loop'
-				);
 				this.#processing = false;
 				this.#mu.unlock();
 				return;
@@ -57,6 +56,16 @@ export default class AsyncQueue {
 			} catch (err) {
 				logger.error('queue worker error:', err);
 			}
+		}
+	}
+
+	async clear() {
+		await this.#mu.lock();
+		try {
+			this.#buffer = new RingBuffer(this.#minCapacity);
+			this.#canceled = true;
+		} finally {
+			this.#mu.unlock();
 		}
 	}
 

@@ -7,6 +7,7 @@ import metrics from '../../metrics/index.js';
 import logger from '../../logger.js';
 
 const messageQueueEntries = new Map();
+let flushTimeout;
 
 function getMessageQueueEntry(channelId) {
 	if (!messageQueueEntries.has(channelId))
@@ -75,8 +76,10 @@ function searchMessages(channelId, userId, excludeChannelIds = [],
 		LIMIT $${finalLimitIndex}`, values);
 }
 
-async function flushMessages() {
-	const maxPerChannelFlush = config.db.maxMessagesPerChannelFlush;
+async function flushMessages(
+	scheduleNext = true,
+	maxPerChannelFlush = config.db.maxMessagesPerChannelFlush
+) {
 	let c, stream;
 	try {
 		for (const [channelId, entry] of messageQueueEntries.entries()) {
@@ -120,12 +123,26 @@ async function flushMessages() {
 			metrics.counter.increment(metrics.names.counters.PG_QUERIES);
 		}
 	} catch (err) {
-		logger.error('[DB] error flushing messages:', err);
+		logger.error('error flushing messages:', err);
 		if (c) await c.query('ROLLBACK').catch(() => {});
 	} finally {
 		if (c) c.release();
-		setTimeout(flushMessages, config.db.messagesFlushIntervalMs);
+		if (scheduleNext)
+			flushTimeout = setTimeout(
+				flushMessages,
+				config.db.messagesFlushIntervalMs
+			);
 	}
+}
+
+async function cleanup() {
+	clearTimeout(flushTimeout);
+	flushTimeout = null;
+	for (const entry of messageQueueEntries.values())
+		if (entry.buffer.size) {
+			await flushMessages(false, db.MAX_MESSAGES_PER_CHANNEL_FLUSH);
+			return;
+		}
 }
 
 export default {
@@ -135,4 +152,5 @@ export default {
 	queueInsert: queueMessageInsert,
 	search: searchMessages,
 	initFlushMessages: flushMessages,
+	cleanup,
 };

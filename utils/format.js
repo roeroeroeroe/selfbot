@@ -41,9 +41,17 @@ function toPlural(n, single, plural = `${single}s`) {
 }
 
 function align(lines, separator = '__ALIGN__', padding = 3) {
-	if (!Number.isInteger(padding) || padding < 1) padding = 3;
+	if (!Number.isInteger(padding) || padding < 1) {
+		logger.warning('align: invalid padding:', padding);
+		padding = 3;
+	}
 	if (typeof lines === 'string') lines = lines.split('\n');
 	else if (!Array.isArray(lines)) return '';
+	if (!lines.length) return '';
+	if (typeof separator !== 'string' || !separator) {
+		logger.warning('align: invalid separator:', separator);
+		separator = '__ALIGN__';
+	}
 
 	const rows = new Array(lines.length);
 	let maxColumns = 0;
@@ -52,10 +60,12 @@ function align(lines, separator = '__ALIGN__', padding = 3) {
 		rows[i] = cells;
 		if (cells.length > maxColumns) maxColumns = cells.length;
 	}
+	if (maxColumns < 2) return lines.join('\n');
 
 	const columnWidths = new Array(maxColumns - 1).fill(0);
 	for (let i = 0; i < lines.length; i++) {
 		const cells = rows[i];
+		if (cells.length < 2) continue;
 		for (let j = 0; j < cells.length && j < columnWidths.length; j++) {
 			const cellLen = cells[j].length;
 			if (cellLen > columnWidths[j]) columnWidths[j] = cellLen;
@@ -65,10 +75,6 @@ function align(lines, separator = '__ALIGN__', padding = 3) {
 	const alignedLines = new Array(lines.length);
 	for (let i = 0; i < lines.length; i++) {
 		const cells = rows[i];
-		if (cells.length === 0) {
-			alignedLines[i] = '';
-			continue;
-		}
 		if (cells.length === 1) {
 			alignedLines[i] = cells[0];
 			continue;

@@ -10,5 +10,8 @@ export default function createIrcTransport(chatClient, botNonce) {
 			logger.debug('[IRC-TX]', ircCommand);
 			await chatClient.sendRaw(ircCommand);
 		},
+		cleanup() {
+			chatClient.close();
+		},
 	};
 }

@@ -132,10 +132,10 @@ function constructUserSummary(user, banned, ageFn) {
 	if (user.chatColor) {
 		const color = utils.color.get(user.chatColor);
 		if (color) {
-			const { hex, shorthandHex, rgb, lab, name: colorName } = color;
-			const L = utils.safeToFixed(lab.L, 2),
-				a = utils.safeToFixed(lab.a, 2),
-				b = utils.safeToFixed(lab.b, 2);
+			const { hex, shorthandHex, rgb, Lab, name: colorName } = color;
+			const L = utils.safeToFixed(Lab.L, 2),
+				a = utils.safeToFixed(Lab.a, 2),
+				b = utils.safeToFixed(Lab.b, 2);
 			parts.push(
 				`color: #${shorthandHex || hex} ${colorName} ` +
 					`rgb(${rgb.r}, ${rgb.g}, ${rgb.b}) Lab(${L}, ${a}, ${b})`

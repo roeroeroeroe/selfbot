@@ -24,14 +24,14 @@ export default {
 	execute: async msg => {
 		if (!msg.args.length) return { text: 'no command provided', mention: true };
 		const command = msg.args.join(' ');
-		const { stdout, stderr, exitStatus, timedOut } = await exec.shell(
+		const { stdout, stderr, exitCode, timedOut } = await exec.shell(
 			command,
 			msg.commandFlags.timeout
 		);
 
 		const responseParts = [];
 		if (timedOut) responseParts.push('command timed out');
-		if (exitStatus) responseParts.push(`exit status: ${exitStatus}`);
+		if (exitCode) responseParts.push(`exit code: ${exitCode}`);
 		if (stdout) responseParts.push(`stdout: ${stdout}`);
 		if (stderr) responseParts.push(`stderr: ${stderr}`);
 

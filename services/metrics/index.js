@@ -10,14 +10,16 @@ const counters = new Map(),
 let lastSampleTs = Date.now(),
 	latestSnapshot = { timestamp: lastSampleTs, counters: {}, gauges: {} },
 	server = null,
-	initialized = false;
+	initialized = false,
+	snapshotInterval = null,
+	logInterval = null;
 
 function init() {
 	if (initialized || !config.metrics.enabled) return;
 	initialized = true;
 	for (const k in names.counters) createCounter(names.counters[k]);
 	for (const k in names.gauges) createGauge(names.gauges[k]);
-	setInterval(() => {
+	snapshotInterval = setInterval(() => {
 		const now = Date.now();
 		const invDeltaSec = 1000 / (now - lastSampleTs);
 
@@ -38,7 +40,7 @@ function init() {
 	}, config.metrics.sampleIntervalMs);
 
 	if (config.metrics.logIntervalMs)
-		setInterval(
+		logInterval = setInterval(
 			() => logger.info('[METRICS]', latestSnapshot),
 			config.metrics.logIntervalMs
 		);
@@ -96,6 +98,28 @@ function getMetrics() {
 	return latestSnapshot;
 }
 
+async function cleanup() {
+	if (snapshotInterval) {
+		clearInterval(snapshotInterval);
+		snapshotInterval = null;
+	}
+	if (logInterval) {
+		clearInterval(logInterval);
+		logInterval = null;
+	}
+	if (!server) return;
+	await new Promise(res =>
+		server.close(err => {
+			if (err) {
+				logger.error('error closing prometheus server:', err);
+				res();
+			}
+			logger.debug('[PROMETHEUS] server closed');
+			res();
+		})
+	);
+}
+
 let metrics;
 if (config.metrics.enabled)
 	metrics = {
@@ -114,6 +138,7 @@ if (config.metrics.enabled)
 			get: getGauge,
 		},
 		get: getMetrics,
+		cleanup,
 
 		get prometheusServer() {
 			return server;
@@ -137,6 +162,7 @@ else {
 			get: () => 0,
 		},
 		get: () => ({ timestamp: Date.now(), counters: {}, gauges: {} }),
+		cleanup: noop,
 		get prometheusServer() {
 			return null;
 		},

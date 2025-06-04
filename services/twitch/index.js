@@ -5,6 +5,11 @@ import hermes from './hermes/client.js';
 import oauth from './oauth.js';
 import chat from './chat/index.js';
 
+async function cleanup() {
+	await chat.cleanup();
+	await hermes.cleanup();
+}
+
 export default {
 	...constants,
 	gql,
@@ -12,4 +17,5 @@ export default {
 	hermes,
 	oauth,
 	chat,
+	cleanup,
 };

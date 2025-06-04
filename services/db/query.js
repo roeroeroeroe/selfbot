@@ -12,7 +12,7 @@ export default async function query(sql, values = []) {
 		logger.debug('[DB] query took', (t1 - t0).toFixed(3) + 'ms');
 		return res.rows;
 	} catch (err) {
-		logger.error('[DB] query failed:', err);
+		logger.error('db query failed:', err);
 		throw err;
 	}
 }

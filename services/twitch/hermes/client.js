@@ -376,6 +376,21 @@ function cleanupTopic(topic, c = connections.get(topic.connectionId)) {
 	metrics.gauge.set(metrics.names.gauges.HERMES_TOPICS, topicsById.size);
 }
 
+async function cleanup() {
+	await taskQueue.clear();
+	for (const c of connections.values()) {
+		if (c.healthInterval) {
+			clearInterval(c.healthInterval);
+			c.healthInterval = null;
+		}
+		c.topicIds.clear();
+		if (c.ws.readyState === WebSocket.OPEN) c.ws.close();
+	}
+	connections.clear();
+	topicsById.clear();
+	topicsByName.clear();
+}
+
 export default {
 	...constants,
 
@@ -385,4 +400,5 @@ export default {
 	init,
 	subscribe,
 	unsubscribe,
+	cleanup,
 };

@@ -8,11 +8,16 @@ import db from './services/db/index.js';
 import commands from './services/commands.js';
 import customCommands from './services/custom_commands.js';
 import utils from './utils/index.js';
+import shutdown from './services/shutdown.js';
+import cache from './services/cache/index.js';
+import cooldown from './services/cooldown.js';
 // prettier-ignore
 (async () => {
 	try {
+		const t0 = performance.now();
 		logger.debug('[INIT] validating configuration object:', config);
 		configuration.validate();
+		const t1 = performance.now();
 
 		logger.debug('[INIT] validating token...');
 		await twitch.oauth.validateToken(
@@ -21,28 +26,49 @@ import utils from './utils/index.js';
 			config.bot.login,
 			config.bot.id
 		);
+		const t2 = performance.now();
 		logger.info('[INIT] validated token');
 
 		logger.debug('[INIT] initializing metrics');
 		metrics.init();
+		const t3 = performance.now();
 
 		logger.debug('[INIT] initializing db');
 		await db.init();
+		const t4 = performance.now();
 
 		logger.debug('[INIT] initializing hermes');
 		let c = await twitch.hermes.init();
+		const t5 = performance.now();
 		logger.info(`[INIT] subscribing to ${c} hermes ${utils.format.plural(c, 'topic')}...`);
 
 		logger.debug('[INIT] loading commands');
 		c = await commands.load();
+		const t6 = performance.now();
 		logger.info(`[INIT] loaded ${c} ${utils.format.plural(c, 'command')}`);
 
 		logger.debug('[INIT] loading custom commands');
 		c = await customCommands.load();
+		const t7 = performance.now();
 		logger.info(`[INIT] loaded ${c} ${utils.format.plural(c, 'custom command')}`);
 
 		await twitch.chat.connect();
-		logger.debug('[INIT] done');
+		shutdown.register(twitch.cleanup);
+		shutdown.register(db.cleanup);
+		shutdown.register(cache.cleanup);
+		shutdown.register(metrics.cleanup);
+		shutdown.register(cooldown.cleanup);
+		shutdown.register(logger.cleanup);
+		const t8 = performance.now();
+		logger.info(`[INIT] finished in ${(t8 - t0).toFixed(3)}ms`,
+		            `(config: ${(t1 - t0).toFixed(3)}ms,`,
+		            `token: ${(t2 - t1).toFixed(3)}ms,`,
+		            `metrics: ${(t3 - t2).toFixed(3)}ms,`,
+		            `db: ${(t4 - t3).toFixed(3)}ms,`,
+		            `hermes: ${(t5 - t4).toFixed(3)}ms,`,
+		            `commands: ${(t6 - t5).toFixed(3)}ms,`,
+		            `custom commands: ${(t7 - t6).toFixed(3)}ms,`,
+		            `chat: ${(t8 - t7).toFixed(3)}ms)`);
 	} catch (err) {
 		logger.fatal('init error:', err);
 	}

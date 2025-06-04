@@ -27,9 +27,9 @@ switch (config.twitch.sender.transport) {
 		authed.on('error', err => {
 			if (err instanceof ReconnectError)
 				logger.debug('[IRC-TX] server requested reconnect');
-			else logger.error('[IRC-TX] error:', err.message);
+			else logger.error('irc-tx error:', err.message);
 		});
-		authed.on('close', err => err && logger.fatal('[IRC-TX] closed:', err));
+		authed.on('close', err => err && logger.fatal('irc-tx closed:', err));
 		if (config.twitch.sender.irc.connectionsPoolSize >= 2)
 			authed.use(
 				new ConnectionPool(authed, {
@@ -48,7 +48,13 @@ switch (config.twitch.sender.transport) {
 }
 
 const chatService = new ChatService(transport, BOT_NONCE);
-const { tmi, channelManager } = initTMI(chatService);
+const { tmi, channelManager, cleanup: cleanupTMI } = initTMI(chatService);
+async function cleanup() {
+	await channelManager.cleanup();
+	await chatService.cleanup();
+	cleanupTMI();
+	transport.cleanup();
+}
 // prettier-ignore
 export default {
 	...constants,
@@ -65,6 +71,7 @@ export default {
 	part: c => channelManager.part(c),
 	connect: () => tmi.connect(),
 	ping: () => tmi.ping(),
+	cleanup,
 	get connections() { return tmi.connections; },
 	get joinedChannels() { return tmi.joinedChannels; },
 };

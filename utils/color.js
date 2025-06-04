@@ -34,7 +34,7 @@ const DEG_TO_RAD = Math.PI / 180;
 const RAD_TO_DEG = 180 / Math.PI;
 
 const points = new Array(colors.length);
-const pointIndices = new Uint32Array(colors.length);
+const pointIndices = new Uint16Array(colors.length);
 const hexToPointIndex = new Map();
 
 for (let i = 0; i < colors.length; pointIndices[i] = i++) {
@@ -93,44 +93,43 @@ function quickSelect(distances, indices, left, right, k) {
 }
 
 const t0 = performance.now();
-const vpTreeRoot = (function buildVpTree(indices) {
-	if (!indices.length) return null;
-	const pivot = indices[0];
-	if (indices.length === 1)
-		return { index: pivot, radius: 0, inner: null, outer: null };
+const vpTreeRoot = (function buildVpTree(indices, start, end, iBuf, dBuf) {
+	if (start >= end) return null;
+	const pivotIndex = indices[start];
+	const count = end - start;
+	if (count === 1)
+		return { index: pivotIndex, radius: 0, inner: null, outer: null };
 
-	const otherCount = indices.length - 1;
-	const remaining = new Array(otherCount);
-	const distances = new Array(otherCount);
-
-	const center = points[pivot];
-	for (let i = 1; i < indices.length; i++) {
-		const index = indices[i];
-		remaining[i - 1] = index;
-		distances[i - 1] = deltaE00(center, points[index]);
+	const center = points[pivotIndex];
+	for (let si = start + 1, bi = 0; si < end; si++, bi++) {
+		const index = indices[si];
+		iBuf[bi] = index;
+		dBuf[bi] = deltaE00(center, points[index]);
 	}
 
-	const mid = otherCount >>> 1;
-	quickSelect(distances, remaining, 0, otherCount - 1, mid);
-	const radius = distances[mid];
+	const mid = (count - 1) >>> 1;
+	quickSelect(dBuf, iBuf, 0, count - 2, mid);
+	const radius = dBuf[mid];
 
-	let closerCount = 0;
-	for (let i = 0; i < otherCount; i++)
-		if (distances[i] <= radius) closerCount++;
-
-	const closer = new Array(closerCount);
-	const farther = new Array(otherCount - closerCount);
-	for (let i = 0, ci = 0, fi = 0; i < otherCount; i++)
-		if (distances[i] <= radius) closer[ci++] = remaining[i];
-		else farther[fi++] = remaining[i];
+	let iPtr = start + 1,
+		oPtr = end - 1;
+	for (let i = 0; i < count - 1; i++)
+		if (dBuf[i] <= radius) indices[iPtr++] = iBuf[i];
+		else indices[oPtr--] = iBuf[i];
 
 	return {
-		index: pivot,
-		radius: radius,
-		inner: buildVpTree(closer),
-		outer: buildVpTree(farther),
+		index: pivotIndex,
+		radius,
+		inner: buildVpTree(indices, start + 1, iPtr, iBuf, dBuf),
+		outer: buildVpTree(indices, iPtr, end, iBuf, dBuf),
 	};
-})(pointIndices);
+})(
+	pointIndices,
+	0,
+	colors.length,
+	new Uint16Array(colors.length),
+	new Float64Array(colors.length)
+);
 const t1 = performance.now();
 logger.debug(
 	`[COLOR] built VP tree in ${(t1 - t0).toFixed(3)}ms`,
@@ -146,8 +145,7 @@ function vpNearest(node, target, best = { distance: Infinity, index: -1 }) {
 		best.index = node.index;
 	}
 
-	let nearer = null,
-		farther = null;
+	let nearer, farther;
 	if (dVp <= node.radius) {
 		nearer = node.inner;
 		farther = node.outer;
@@ -280,14 +278,25 @@ function isValidRgb(rgb) {
 		b >= 0 && b <= 255
 	);
 }
+// prettier-ignore
+function isValidXyz(XYZ) {
+	if (typeof XYZ !== 'object' || XYZ === null) return false;
+	const { X, Y, Z } = XYZ;
+	return (
+		X === +X && Y === +Y && Z === +Z &&
+		X >= 0 && X <= D65_Xn &&
+		Y >= 0 && Y <= D65_Yn &&
+		Z >= 0 && Z <= D65_Zn
+	);
+}
 
 function hexToName(hex, validated = false, normalized = false) {
 	if (!validated && !isValidHex(hex)) return null;
 	if (!normalized) hex = normalizeHex(hex);
 	const index = hexToPointIndex.get(hex);
 	if (index !== undefined) return points[index].name;
-	const lab = rgbToLab(hexToRgb(hex, true, true), true);
-	return points[vpNearest(vpTreeRoot, lab).index].name;
+	const Lab = rgbToLab(hexToRgb(hex, true, true), true);
+	return points[vpNearest(vpTreeRoot, Lab).index].name;
 }
 
 function hexToRgb(hex, validated = false, normalized = false) {
@@ -298,6 +307,12 @@ function hexToRgb(hex, validated = false, normalized = false) {
 		g: (ASCII_TO_HEX[hex.charCodeAt(2)] << 4) | ASCII_TO_HEX[hex.charCodeAt(3)],
 		b: (ASCII_TO_HEX[hex.charCodeAt(4)] << 4) | ASCII_TO_HEX[hex.charCodeAt(5)],
 	};
+}
+
+function hexToXyz(hex, validated = false, normalized = false) {
+	if (!validated && !isValidHex(hex)) return null;
+	if (!normalized) hex = normalizeHex(hex);
+	return rgbToXyz(hexToRgb(hex, true, true), true);
 }
 
 function hexToLab(hex, validated = false, normalized = false) {
@@ -331,15 +346,26 @@ function rgbToHex(rgb, validated = false) {
 	);
 }
 
-function rgbToLab(rgb, validated = false) {
+function rgbToXyz(rgb, validated = false) {
 	if (!validated && !isValidRgb(rgb)) return null;
 	const R = srgbToLinear(rgb.r / 255);
 	const G = srgbToLinear(rgb.g / 255);
 	const B = srgbToLinear(rgb.b / 255);
+	return {
+		X: R * R_TO_X_COEFF + G * G_TO_X_COEFF + B * B_TO_X_COEFF,
+		Y: R * R_TO_Y_COEFF + G * G_TO_Y_COEFF + B * B_TO_Y_COEFF,
+		Z: R * R_TO_Z_COEFF + G * G_TO_Z_COEFF + B * B_TO_Z_COEFF,
+	};
+}
 
-	const X = R * R_TO_X_COEFF + G * G_TO_X_COEFF + B * B_TO_X_COEFF;
-	const Y = R * R_TO_Y_COEFF + G * G_TO_Y_COEFF + B * B_TO_Y_COEFF;
-	const Z = R * R_TO_Z_COEFF + G * G_TO_Z_COEFF + B * B_TO_Z_COEFF;
+function rgbToLab(rgb, validated = false) {
+	if (!validated && !isValidRgb(rgb)) return null;
+	return xyzToLab(rgbToXyz(rgb, true), true);
+}
+
+function xyzToLab(XYZ, validated = false) {
+	if (!validated && !isValidXyz(XYZ)) return null;
+	const { X, Y, Z } = XYZ;
 
 	const xBar = X / D65_Xn;
 	const yBar = Y / D65_Yn;
@@ -352,32 +378,49 @@ function rgbToLab(rgb, validated = false) {
 	const fz =
 		zBar > LAB_EPSILON ? Math.cbrt(zBar) : (LAB_KAPPA * zBar + 16) / 116;
 
-	return { L: 116 * fy - 16, a: 500 * (fx - fy), b: 200 * (fy - fz) };
+	return {
+		L: 116 * fy - 16,
+		a: 500 * (fx - fy),
+		b: 200 * (fy - fz),
+	};
 }
 
+/**
+ * @param {string | { r: number, g: number, b: number }} hexOrRgb
+ * @returns {{
+ *   hex: string,
+ *   shorthandHex: string | null,
+ *   rgb: { r: number, g: number, b: number },
+ *   XYZ: { X: number, Y: number, Z: number },
+ *   Lab: { L: number, a: number, b: number },
+ *   name: string
+ * } | null}
+ */
 function getColor(hexOrRgb) {
 	if (isValidHex(hexOrRgb)) {
 		const color = { hex: normalizeHex(hexOrRgb) };
 		color.shorthandHex = hexToShorthand(color.hex, true, true);
 		color.rgb = hexToRgb(color.hex, true, true);
-		color.lab = rgbToLab(color.rgb, true);
+		color.XYZ = rgbToXyz(color.rgb, true);
+		color.Lab = xyzToLab(color.XYZ, true);
 		const index = hexToPointIndex.get(color.hex);
 		color.name =
 			index !== undefined
 				? points[index].name
-				: points[vpNearest(vpTreeRoot, color.lab).index].name;
+				: points[vpNearest(vpTreeRoot, color.Lab).index].name;
 		return color;
 	}
 	if (isValidRgb(hexOrRgb)) {
 		const color = { hex: rgbToHex(hexOrRgb, true) };
 		color.shorthandHex = hexToShorthand(color.hex, true, true);
 		color.rgb = hexOrRgb;
-		color.lab = rgbToLab(hexOrRgb, true);
+		color.XYZ = rgbToXyz(hexOrRgb, true);
+		color.Lab = xyzToLab(color.XYZ, true);
 		const index = hexToPointIndex.get(color.hex);
 		color.name =
 			index !== undefined
 				? points[index].name
-				: points[vpNearest(vpTreeRoot, color.lab).index].name;
+				: points[vpNearest(vpTreeRoot, color.Lab).index].name;
 		return color;
 	}
 
@@ -389,10 +432,13 @@ export default {
 	isValidRgb,
 	hexToName,
 	hexToRgb,
+	hexToXyz,
 	hexToLab,
 	hexToShorthand,
 	rgbToName,
 	rgbToHex,
+	rgbToXyz,
 	rgbToLab,
+	xyzToLab,
 	get: getColor,
 };
