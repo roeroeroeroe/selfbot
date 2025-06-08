@@ -183,6 +183,59 @@ query($login: String!) {
 	}
 }`;
 
+export const GET_CUSTOM_REWARDS = `
+query($login: String!) {
+	user(login: $login) {
+		...BasicUserFragment
+		self {
+			isModerator
+			subscriptionBenefit {
+				id
+			}
+		}
+		channel {
+			self {
+				communityPoints {
+					balance
+					canRedeemRewardsForFree
+				}
+			}
+			communityPointsSettings {
+				isAvailable
+				isEnabled
+				name
+				customRewards {
+					id
+					cost
+					title
+					prompt
+					isEnabled
+					isInStock
+					isPaused
+					isSubOnly
+					isUserInputRequired
+					cooldownExpiresAt
+					redemptionsRedeemedCurrentStream
+					shouldRedemptionsSkipRequestQueue
+					globalCooldownSetting {
+						isEnabled
+						globalCooldownSeconds
+					}
+					maxPerStreamSetting {
+						isEnabled
+						maxPerStream
+					}
+					maxPerUserPerStreamSetting {
+						isEnabled
+						maxPerUserPerStream
+					}
+				}
+			}
+		}
+	}
+}
+${BASIC_USER}`;
+
 export const UNLOCK_CHOSEN_EMOTE = `
 mutation ($input: UnlockChosenSubscriberEmoteInput!) {
 	unlockChosenSubscriberEmote(input: $input) {
@@ -246,5 +299,26 @@ export const JOIN_RAID = `
 mutation($input: JoinRaidInput!) {
 	joinRaid(input: $input) {
 		raidID
+	}
+}`;
+
+export const REDEEM_CUSTOM_REWARD = `
+mutation($input: RedeemCommunityPointsCustomRewardInput!) {
+	redeemCommunityPointsCustomReward(input: $input) {
+		error {
+			code
+		}
+		redemption {
+			id
+		}
+	}
+}`;
+
+export const REFUND_CUSTOM_REWARD_REDEMPTION = `
+mutation ($input: UpdateCommunityPointsCustomRewardRedemptionStatusInput!) {
+	updateCommunityPointsCustomRewardRedemptionStatus(input: $input) {
+		error {
+			code
+		}
 	}
 }`;

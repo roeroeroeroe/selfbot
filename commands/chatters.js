@@ -3,6 +3,8 @@ import hastebin from '../services/hastebin.js';
 import utils from '../utils/index.js';
 import twitch from '../services/twitch/index.js';
 
+const chatterTypes = ['broadcasters', 'moderators', 'vips', 'viewers'];
+
 export default {
 	name: 'chatters',
 	aliases: [],
@@ -73,7 +75,7 @@ export default {
 			totalCount = 0;
 		const chatters = {
 			broadcasters: new Set(),
-			mods: new Set(),
+			moderators: new Set(),
 			vips: new Set(),
 			viewers: new Set(),
 		};
@@ -142,17 +144,22 @@ export default {
 	},
 };
 
-const chattersTypes = ['broadcasters', 'mods', 'vips', 'viewers'];
-
 function addChatters(chatters, data) {
-	for (const t of chattersTypes)
-		if (data[t]) for (const c of data[t]) if (c.login) chatters[t].add(c.login);
+	for (let i = 0; i < chatterTypes.length; i++) {
+		const t = chatterTypes[i],
+			existing = chatters[t],
+			incoming = data[t];
+		for (let j = 0; j < incoming.length; j++) {
+			const c = incoming[j];
+			if (c.login) existing.add(c.login);
+		}
+	}
 }
 
 function getTotalChatters(chatters) {
 	return (
 		chatters.broadcasters.size +
-		chatters.mods.size +
+		chatters.moderators.size +
 		chatters.vips.size +
 		chatters.viewers.size
 	);

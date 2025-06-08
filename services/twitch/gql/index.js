@@ -6,6 +6,7 @@ import channel from './channel/index.js';
 import stream from './stream/index.js';
 import video from './video/index.js';
 import chat from './chat/index.js';
+import team from './team/index.js';
 
 export default {
 	...constants,
@@ -16,4 +17,5 @@ export default {
 	stream,
 	video,
 	chat,
+	team,
 };

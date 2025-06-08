@@ -131,7 +131,7 @@ async function canSend(channelId, channelLogin, privileged = false) {
 		return {
 			allowed: false,
 			slowMode,
-			error: `subscribers-only chat is enabled for ${channelLogin}`,
+			error: `sub-only chat is enabled for ${channelLogin}`,
 			selfBanStatus,
 		};
 	}

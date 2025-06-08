@@ -4,20 +4,20 @@ function isValidArray(arr) {
 	return (Array.isArray(arr) || ArrayBuffer.isView(arr)) && arr.length > 0;
 }
 
-function getSum(arr) {
-	if (!isValidArray(arr)) return null;
+function getSum(arr, validated = false) {
+	if (!validated && !isValidArray(arr)) return null;
 	let sum = 0;
 	for (let i = 0; i < arr.length; sum += arr[i++]);
 	return sum;
 }
 
-function getAverage(arr) {
-	if (!isValidArray(arr)) return null;
-	return getSum(arr) / arr.length;
+function getMean(arr, validated = false) {
+	if (!validated && !isValidArray(arr)) return null;
+	return getSum(arr, true) / arr.length;
 }
 
-function getMinMax(arr) {
-	if (!isValidArray(arr)) return [null, null];
+function getMinMax(arr, validated = false) {
+	if (!validated && !isValidArray(arr)) return [null, null];
 	let min = arr[0],
 		max = arr[0];
 	for (let i = 1; i < arr.length; i++) {
@@ -28,21 +28,22 @@ function getMinMax(arr) {
 	return [min, max];
 }
 
-function getMin(arr) {
-	return getMinMax(arr)[0];
+function getMin(arr, validated = false) {
+	return getMinMax(arr, validated)[0];
 }
 
-function getMax(arr) {
-	return getMinMax(arr)[1];
+function getMax(arr, validated = false) {
+	return getMinMax(arr, validated)[1];
 }
 
-function getRange(arr) {
-	const [min, max] = getMinMax(arr);
+function getRange(arr, validated = false) {
+	if (!validated && !isValidArray(arr)) return null;
+	const [min, max] = getMinMax(arr, true);
 	return max - min;
 }
 
-function getVariance(arr, sample = false) {
-	if (!isValidArray(arr)) return null;
+function getVariance(arr, sample = false, validated = false) {
+	if (!validated && !isValidArray(arr)) return null;
 	let mean = arr[0],
 		M2 = 0;
 	for (let i = 1; i < arr.length; i++) {
@@ -54,8 +55,8 @@ function getVariance(arr, sample = false) {
 	return M2 / arr.length;
 }
 
-function getStdDev(arr, sample = false) {
-	const variance = getVariance(arr, sample);
+function getStdDev(arr, sample = false, validated = false) {
+	const variance = getVariance(arr, sample, validated);
 	return variance === null ? null : Math.sqrt(variance);
 }
 
@@ -82,8 +83,8 @@ function quickSelect(arr, k) {
 	}
 }
 
-function getMedian(arr) {
-	if (!isValidArray(arr)) return null;
+function getMedian(arr, validated = false) {
+	if (!validated && !isValidArray(arr)) return null;
 	const len = arr.length,
 		mid = len >>> 1;
 	if (len <= MEDIAN_SORT_THRESHOLD) {
@@ -98,8 +99,8 @@ function getMedian(arr) {
 	);
 }
 
-function getMode(arr) {
-	if (!isValidArray(arr)) return null;
+function getMode(arr, validated = false) {
+	if (!validated && !isValidArray(arr)) return null;
 	const freq = new Map(),
 		half = arr.length >>> 1;
 	let mode = arr[0],
@@ -119,7 +120,7 @@ function getMode(arr) {
 
 export default {
 	sum: getSum,
-	average: getAverage,
+	mean: getMean,
 	minMax: getMinMax,
 	min: getMin,
 	max: getMax,

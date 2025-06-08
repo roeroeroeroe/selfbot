@@ -32,6 +32,7 @@ export default class RingBuffer {
 		this.#head = this.#tail = this.#size = 0;
 		if (ArrayBuffer.isView(this.#buffer))
 			switch (this.#buffer.constructor) {
+				// case Float16Array: // nodejs v24.0.0
 				case Float32Array:
 				case Float64Array:
 					this.#clearValue = NaN;

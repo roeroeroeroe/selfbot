@@ -123,10 +123,10 @@ async function handleCommand(msg, command) {
 		if (pre) return pre;
 
 		if (errors.length) {
-			let errorString = errors[0];
+			let errorResponse = errors[0];
 			if (errors.length > 1)
-				errorString += ` (${errors.length - 1} more ${utils.format.plural(errors.length - 1, 'error')})`;
-			return { text: errorString, mention: true };
+				errorResponse += ` (${errors.length - 1} more ${utils.format.plural(errors.length - 1, 'error')}...)`;
+			return { text: errorResponse, mention: true };
 		}
 		logger.debug(`[HANDLER] trying to execute command ${msg.commandName}`);
 		return await flag.globalFlags.postHandle(msg, await command.execute(msg));

@@ -9,10 +9,10 @@ const counters = new Map(),
 
 let lastSampleTs = Date.now(),
 	latestSnapshot = { timestamp: lastSampleTs, counters: {}, gauges: {} },
-	server = null,
+	server,
 	initialized = false,
-	snapshotInterval = null,
-	logInterval = null;
+	snapshotInterval,
+	logInterval;
 
 function init() {
 	if (initialized || !config.metrics.enabled) return;

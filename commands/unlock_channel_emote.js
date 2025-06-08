@@ -65,7 +65,7 @@ export default {
 			};
 
 		const balance = res.user.channel.self?.communityPoints?.balance;
-		if (balance === null || balance === undefined)
+		if (typeof balance !== 'number')
 			return { text: 'failed to get current balance', mention: true };
 
 		const cost = reward.cost ?? reward.defaultCost;
@@ -101,16 +101,16 @@ export default {
 			}
 
 			if (!matchingNode) {
-				let errorString = `emote "${msg.commandFlags.emoteToken}" not found`;
+				let errorResponse = `emote "${msg.commandFlags.emoteToken}" not found`;
 				if (unlockableEmoteSuffixes.length) {
 					const closestSuffix = utils.getClosestString(
 						msg.commandFlags.emoteToken.slice(prefixLength),
 						unlockableEmoteSuffixes
 					);
 					if (closestSuffix)
-						errorString += `, most similar emote: ${emotePrefix}${closestSuffix}`;
+						errorResponse += `, most similar emote: ${emotePrefix}${closestSuffix}`;
 				}
-				return { text: errorString, mention: true };
+				return { text: errorResponse, mention: true };
 			}
 			if (!matchingNode.isUnlockable)
 				return {

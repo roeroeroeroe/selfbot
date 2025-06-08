@@ -72,11 +72,7 @@ export default {
 		}
 		const channelInput = msg.commandFlags.channel || msg.channelName;
 		try {
-			const channel = (
-				await db.query('SELECT id, prefix FROM channels WHERE login = $1', [
-					channelInput,
-				])
-			)[0];
+			const channel = await db.channel.getByLogin(channelInput);
 			if (!channel)
 				return { text: `not in ${channelInput}, aborting`, mention: true };
 

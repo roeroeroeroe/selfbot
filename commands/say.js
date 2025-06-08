@@ -22,7 +22,7 @@ export default {
 		},
 		{
 			name: 'count',
-			aliases: [null, 'count'],
+			aliases: ['C', 'count'],
 			type: 'int',
 			required: false,
 			defaultValue: 1,
@@ -48,7 +48,7 @@ export default {
 		},
 		{
 			name: 'reverse',
-			aliases: [null, 'reverse'],
+			aliases: ['R', 'reverse'],
 			type: 'boolean',
 			required: false,
 			defaultValue: false,
@@ -127,9 +127,10 @@ export default {
 		const phrase = msg.args.join(' ');
 		let text;
 		if (msg.commandFlags.fill) text = fill(phrase);
-		if (msg.commandFlags.repeat) text = repeat(phrase, msg.commandFlags.repeat);
+		else if (msg.commandFlags.repeat)
+			text = repeat(phrase, msg.commandFlags.repeat);
 		if (msg.commandFlags.upper) text = text.toUpperCase();
-		if (msg.commandFlags.lower) text = text.toLowerCase();
+		else if (msg.commandFlags.lower) text = text.toLowerCase();
 		if (msg.commandFlags.reverse) text = text.split('').reverse().join('');
 
 		for (let i = 0; i < msg.commandFlags.count; i++)
@@ -146,7 +147,7 @@ export default {
 };
 
 function maxRepeats(phrase) {
-	return (501 / (phrase.length + 1)) | 0;
+	return ((twitch.MAX_MESSAGE_LENGTH + 1) / (phrase.length + 1)) | 0;
 }
 
 function fill(phrase) {

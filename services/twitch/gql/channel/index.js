@@ -119,6 +119,15 @@ async function getUnlockableEmotes(channelLogin) {
 	return res.data;
 }
 
+async function getCustomRewards(channelLogin) {
+	const res = await gql.request({
+		query: queries.GET_CUSTOM_REWARDS,
+		variables: { login: channelLogin },
+	});
+
+	return res.data;
+}
+
 async function unlockChosenEmote(channelId, cost, emoteId) {
 	const res = await gql.request({
 		query: queries.UNLOCK_CHOSEN_EMOTE,
@@ -187,6 +196,41 @@ async function joinRaid(raidId) {
 
 	return res.data;
 }
+// prettier-ignore
+async function redeemCustomReward(channelId, rewardId, title, cost, prompt,
+                                  textInput) {
+	const res = await gql.request({
+		query: queries.REDEEM_CUSTOM_REWARD,
+		variables: {
+			input: {
+				channelID: channelId,
+				rewardID: rewardId,
+				title,
+				cost,
+				prompt,
+				textInput,
+				transactionID: utils.randomString(null, 10),
+			},
+		},
+	});
+
+	return res.data;
+}
+
+async function refundCustomRewardRedemption(channelId, redemptionId) {
+	const res = await gql.request({
+		query: queries.REFUND_CUSTOM_REWARD_REDEMPTION,
+		variables: {
+			input: {
+				channelID: channelId,
+				newStatus: 'CANCELED',
+				redemptionID: redemptionId,
+			},
+		},
+	});
+
+	return res.data;
+}
 
 export default {
 	queries,
@@ -201,6 +245,7 @@ export default {
 	isSelfPrivileged,
 	getChannelViewer,
 	getUnlockableEmotes,
+	getCustomRewards,
 
 	unlockChosenEmote,
 	unlockRandomEmote,
@@ -208,4 +253,6 @@ export default {
 	shareResubscription,
 	createRaid,
 	joinRaid,
+	redeemCustomReward,
+	refundCustomRewardRedemption,
 };
