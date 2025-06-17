@@ -36,8 +36,9 @@ function formatBytes(bytes, base = 1024, precision = 1) {
 	return `${bytes.toFixed(precision)} ${prefixes[i]}`;
 }
 
-function toPlural(n, single, plural = `${single}s`) {
-	return n === 1 ? single : plural;
+function toPlural(n, single, plural) {
+	if (n === 1) return single;
+	return plural ?? single + 's';
 }
 
 function align(lines, separator = '__ALIGN__', padding = 3) {

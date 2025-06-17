@@ -57,7 +57,6 @@ export default {
 			case 'part':
 				action = 'part';
 				op = part;
-				break;
 		}
 
 		if (!msg.args.length)
@@ -159,16 +158,12 @@ async function join(msg, c) {
 		msg.commandFlags.log,
 		msg.commandFlags.prefix
 	);
-
-	for (const sub of twitch.hermes.CHANNEL_SUBS)
-		twitch.hermes.subscribe(sub, c.id);
+	twitch.hermes.subscribeToChannel(c.id);
 	twitch.chat.join(c.login);
 }
 
 async function part(_, c) {
 	await db.channel.delete(c.id);
-
-	for (const sub of twitch.hermes.CHANNEL_SUBS)
-		twitch.hermes.unsubscribe(sub, c.id);
+	twitch.hermes.unsubscribeFromChannel(c.id);
 	twitch.chat.part(c.login);
 }

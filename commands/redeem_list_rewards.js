@@ -2,7 +2,7 @@ import config from '../config.json' with { type: 'json' };
 import logger from '../services/logger.js';
 import twitch from '../services/twitch/index.js';
 import utils from '../utils/index.js';
-import hastebin from '../services/hastebin.js';
+import paste from '../services/paste/index.js';
 
 const ERR_REDEEM_NO_REDEMPTION_ID = 'NO_REDEMPTION_ID';
 const ERR_REDEEM_RPC = 'RPC_ERROR';
@@ -61,7 +61,7 @@ export default {
 			required: false,
 			defaultValue: 1,
 			description:
-				'redeem the reward N times (min: 1, max: 100, default: 1) (redeem only)',
+				'redeem the reward N times (default: 1, min: 1, max: 100) (redeem only)',
 			validator: v => v >= 1 && v <= 100,
 		},
 		{
@@ -91,7 +91,6 @@ export default {
 				break;
 			case 'listrewards':
 				action = 'list';
-				break;
 		}
 		const channelInput =
 			msg.commandFlags.channel || msg.args[0] || msg.channelName;
@@ -146,9 +145,7 @@ export default {
 					` (${redeemable.length} redeemable)`,
 			];
 			try {
-				const link = await hastebin.create(
-					getFormattedList(rewards, redeemable)
-				);
+				const link = await paste.create(getFormattedList(rewards, redeemable));
 				responseParts.push(link);
 			} catch (err) {
 				logger.error('error creating paste:', err);
@@ -220,7 +217,7 @@ export default {
 					new Date(reward.cooldownExpiresAt) - Date.now()
 				);
 				return {
-					text: `reward "${rewardTitle}" is on cooldown (will be available in ${fmtAvail})`,
+					text: `reward "${rewardTitle}" is on cooldown (will become available in ${fmtAvail})`,
 					mention: true,
 				};
 			}
@@ -272,10 +269,12 @@ export default {
 
 		let newBalance;
 		try {
-			res = await twitch.gql.channel.getCustomRewards(channelInput);
-			newBalance = res.user.channel.self.communityPoints.balance;
+			newBalance =
+				await twitch.gql.channel.getSelfChannelPointsBalance(channelInput);
+			if (newBalance === null)
+				return { text: 'failed to get new balance', mention: true };
 		} catch (err) {
-			logger.error('error getting custom rewards:', err);
+			logger.error('error getting channel points balance:', err);
 			return { text: 'error getting new balance', mention: true };
 		}
 

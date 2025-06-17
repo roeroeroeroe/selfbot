@@ -128,6 +128,24 @@ async function getCustomRewards(channelLogin) {
 	return res.data;
 }
 
+async function getSelfChannelPointsBalance(channelLogin) {
+	const res = await gql.request({
+		query: queries.GET_SELF_CHANNEL_POINTS_BALANCE,
+		variables: { login: channelLogin },
+	});
+
+	return res.data?.channel?.self?.communityPoints?.balance ?? null;
+}
+
+async function getPredictionEvent(eventId) {
+	const res = await gql.request({
+		query: queries.GET_PREDICTION_EVENT,
+		variables: { id: eventId },
+	});
+
+	return res.data;
+}
+
 async function unlockChosenEmote(channelId, cost, emoteId) {
 	const res = await gql.request({
 		query: queries.UNLOCK_CHOSEN_EMOTE,
@@ -232,6 +250,22 @@ async function refundCustomRewardRedemption(channelId, redemptionId) {
 	return res.data;
 }
 
+async function placePredictionBet(predictionId, outcomeId, points) {
+	const res = await gql.request({
+		query: queries.PLACE_PREDICTION_BET,
+		variables: {
+			input: {
+				eventID: predictionId,
+				outcomeID: outcomeId,
+				points,
+				transactionID: utils.randomString(null, 10),
+			},
+		},
+	});
+
+	return res.data;
+}
+
 export default {
 	queries,
 
@@ -246,6 +280,8 @@ export default {
 	getChannelViewer,
 	getUnlockableEmotes,
 	getCustomRewards,
+	getSelfChannelPointsBalance,
+	getPredictionEvent,
 
 	unlockChosenEmote,
 	unlockRandomEmote,
@@ -255,4 +291,5 @@ export default {
 	joinRaid,
 	redeemCustomReward,
 	refundCustomRewardRedemption,
+	placePredictionBet,
 };

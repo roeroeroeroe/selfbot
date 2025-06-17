@@ -1,5 +1,5 @@
 import logger from '../services/logger.js';
-import hastebin from '../services/hastebin.js';
+import paste from '../services/paste/index.js';
 import utils from '../utils/index.js';
 import twitch from '../services/twitch/index.js';
 
@@ -130,7 +130,7 @@ export default {
 
 		const responseParts = [totalCount];
 		try {
-			const link = await hastebin.create(list.join('\n'));
+			const link = await paste.create(list.join('\n'));
 			const collectedChattersCount = getTotalChatters(chatters);
 			if (collectedChattersCount !== totalCount)
 				responseParts.push(`collected: ${collectedChattersCount}`);

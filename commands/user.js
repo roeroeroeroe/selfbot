@@ -1,8 +1,9 @@
 import logger from '../services/logger.js';
-import hastebin from '../services/hastebin.js';
+import paste from '../services/paste/index.js';
 import utils from '../utils/index.js';
 import twitch from '../services/twitch/index.js';
 
+const MAX_USERS = 5000;
 const MAX_DESCRIPTION_LENGTH = 75;
 const MAX_TEAM_NAME_LENGTH = 25;
 
@@ -19,38 +20,63 @@ export default {
 			type: 'boolean',
 			required: false,
 			defaultValue: false,
-			description: 'treat input as IDs',
+			description:
+				'treat input as IDs; "-i 1" parses "1" ' +
+				'as flag value (true), not ID -- ' +
+				'use "-i true 1" or "... 1 -i" to avoid',
 		},
 	],
 	execute: async msg => {
 		const summaries = [];
+		const input = [];
+		const unique = new Set();
+		if (msg.commandFlags.idLookup) {
+			for (let i = 0; i < msg.args.length; i++) {
+				const id = msg.args[i];
+				if (unique.has(id)) continue;
+				if (!utils.regex.patterns.id.test(id)) continue;
+				unique.add(id);
+				input.push(id);
+				if (unique.size >= MAX_USERS) break;
+			}
+			if (!input.length) input.push(msg.senderUserID);
+		} else {
+			for (let i = 0; i < msg.args.length; i++) {
+				const u = msg.args[i];
+				if (unique.has(u)) continue;
+				if (!utils.regex.patterns.username.test(u)) continue;
+				unique.add(u);
+				input.push(u);
+				if (unique.size >= MAX_USERS) break;
+			}
+			if (!input.length) input.push(msg.senderUsername);
+		}
 		const ageFn = utils.duration.createAge(Date.now());
 		try {
-			if (msg.args.length > 1) {
+			if (input.length > 1) {
 				const usersMap = msg.commandFlags.idLookup
-					? await twitch.gql.user.getMany(null, msg.args)
-					: await twitch.gql.user.getMany(msg.args);
+					? await twitch.gql.user.getMany(null, input)
+					: await twitch.gql.user.getMany(input);
 
 				const idPrefix = msg.commandFlags.idLookup ? 'with id ' : '';
-				for (const arg of msg.args) {
-					const user = usersMap.get(arg);
+				for (let i = 0; i < input.length; i++) {
+					const user = usersMap.get(input[i]);
 					summaries.push(
 						user
 							? constructUserSummary(user, null, ageFn)
-							: `user ${idPrefix}${arg} does not exist`
+							: `user ${idPrefix}${input[i]} does not exist`
 					);
 				}
 			} else {
-				const input = msg.args[0] || msg.senderUsername;
 				const result = msg.commandFlags.idLookup
-					? await twitch.gql.user.getUserWithBanReason(null, input)
-					: await twitch.gql.user.getUserWithBanReason(input);
+					? await twitch.gql.user.getUserWithBanReason(null, input[0])
+					: await twitch.gql.user.getUserWithBanReason(input[0]);
 				if (result?.user)
 					summaries.push(
 						constructUserSummary(result.user, result.banned, ageFn)
 					);
 				else if (!msg.commandFlags.idLookup) {
-					const res = await twitch.gql.user.search(input);
+					const res = await twitch.gql.user.search(input[0]);
 					const suggestion = res.searchUsers.edges[0]?.node.login;
 					summaries.push(
 						suggestion
@@ -62,16 +88,17 @@ export default {
 		} catch (err) {
 			logger.error('error getting users:', err);
 			return {
-				text: `error getting ${utils.format.plural(msg.args.length || 1, 'user')}`,
+				text: `error getting ${utils.format.plural(input.length, 'user')}`,
 				mention: true,
 			};
 		}
 
-		if (utils.canFitAll(summaries, 497 - msg.senderUsername.length, 2))
+		const maxLen = twitch.MAX_MESSAGE_LENGTH - 3 - msg.senderUsername.length;
+		if (utils.canFitAll(summaries, maxLen, 2))
 			return { text: utils.format.join(summaries, '; '), mention: true };
 
 		try {
-			const link = await hastebin.create(utils.format.join(summaries, '\n'));
+			const link = await paste.create(utils.format.join(summaries, '\n'));
 			return { text: link, mention: true };
 		} catch (err) {
 			logger.error('error creating paste:', err);
@@ -106,7 +133,7 @@ function constructUserSummary(user, banned, ageFn) {
 					: `panels: ${panelsCount.DEFAULT}`
 			);
 		else if (panelsCount.EXTENSION)
-			parts.push(`extenstion panels: ${panelsCount.EXTENSION}`);
+			parts.push(`extension panels: ${panelsCount.EXTENSION}`);
 	}
 	if (user.channel.chatters.count)
 		parts.push(`chatters: ${user.channel.chatters.count}`);
@@ -132,13 +159,10 @@ function constructUserSummary(user, banned, ageFn) {
 	if (user.chatColor) {
 		const color = utils.color.get(user.chatColor);
 		if (color) {
-			const { hex, shorthandHex, rgb, Lab, name: colorName } = color;
-			const L = utils.safeToFixed(Lab.L, 2),
-				a = utils.safeToFixed(Lab.a, 2),
-				b = utils.safeToFixed(Lab.b, 2);
+			const { hex, shorthandHex, rgb, name: colorName } = color;
 			parts.push(
 				`color: #${shorthandHex || hex} ${colorName} ` +
-					`rgb(${rgb.r}, ${rgb.g}, ${rgb.b}) Lab(${L}, ${a}, ${b})`
+					`rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`
 			);
 		} else parts.push(`color: ${user.chatColor}`);
 	} else parts.push('default color (never set)');

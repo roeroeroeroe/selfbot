@@ -1,9 +1,10 @@
 import { inspect } from 'util';
 import exec from '../services/exec.js';
 import config from '../config.json' with { type: 'json' };
+import configuration from '../services/configuration.js';
 import logger from '../services/logger.js';
 import twitch from '../services/twitch/index.js';
-import hastebin from '../services/hastebin.js';
+import paste from '../services/paste/index.js';
 import db from '../services/db/index.js';
 import metrics from '../services/metrics/index.js';
 import utils from '../utils/index.js';
@@ -18,9 +19,10 @@ const context = {
 	fetch,
 
 	config,
+	configuration,
 	logger,
 	twitch,
-	hastebin,
+	paste,
 	db,
 	metrics,
 	utils,

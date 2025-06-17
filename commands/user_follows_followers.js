@@ -1,5 +1,5 @@
 import logger from '../services/logger.js';
-import hastebin from '../services/hastebin.js';
+import paste from '../services/paste/index.js';
 import utils from '../utils/index.js';
 import twitch from '../services/twitch/index.js';
 
@@ -71,7 +71,6 @@ export default {
 			case 'followers':
 			case 'listfollowers':
 				action = 'followers';
-				break;
 		}
 
 		const { limit, order, sort, raw } = msg.commandFlags;
@@ -101,10 +100,8 @@ export default {
 				result = await twitch.gql.user.getFollowers(userLogin, limit, order);
 				if (!result.totalCount)
 					return { text: `${userLogin} has 0 followers`, mention: true };
-
 				countStr = `${result.totalCount} ${utils.format.plural(result.totalCount, 'follower')}`;
 				edges = result.followerEdges;
-				break;
 		}
 
 		responseParts.push(countStr);
@@ -133,7 +130,7 @@ export default {
 		// in case all edges are missing node.login
 		if (list.length)
 			try {
-				const link = await hastebin.create(utils.format.align(list));
+				const link = await paste.create(utils.format.align(list));
 				responseParts.push(link);
 			} catch (err) {
 				logger.error('error creating paste:', err);

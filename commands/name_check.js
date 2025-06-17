@@ -1,7 +1,7 @@
 import logger from '../services/logger.js';
 import twitch from '../services/twitch/index.js';
 import utils from '../utils/index.js';
-import hastebin from '../services/hastebin.js';
+import paste from '../services/paste/index.js';
 
 const MAX_USERNAMES_PRE_FILTER = 100000;
 const MAX_USERNAMES_POST_FILTER = 2500;
@@ -130,7 +130,7 @@ export default {
 		}
 
 		try {
-			const link = await hastebin.create(lines.join('\n'));
+			const link = await paste.create(lines.join('\n'));
 			responseParts.push(link);
 		} catch (err) {
 			logger.error('error creating paste:', err);

@@ -10,18 +10,22 @@ const counters = {
 	GQL_REQUESTS_TX: 'gql_requests_sent',
 	GQL_RETRIES: 'gql_retries',
 
-	HASTEBIN_REQUESTS_TX: 'hastebin_requests_sent',
-	HASTEBIN_RETRIES: 'hastebin_retries',
-
 	HELIX_REQUESTS_TX: 'helix_requests_sent',
 	HELIX_RETRIES: 'helix_retries',
 
-	HERMES_ACKNOWLEDGED_WARNINGS: 'hermes_acknowledged_warnings',
-	HERMES_JOINED_RAIDS: 'hermes_joined_raids',
+	HERMES_ACKNOWLEDGED_WARNINGS: 'hermes_warnings_acknowledged',
+	HERMES_JOINED_RAIDS: 'hermes_raids_joined',
 	HERMES_MISSED_KEEPALIVES: 'hermes_keepalives_missed',
 	HERMES_NOTIFICATIONS_PROCESSED: 'hermes_notifications_processed',
 	HERMES_NOTIFICATIONS_RX: 'hermes_notifications_received',
+	HERMES_PREDICTIONS_BETS_PLACED: 'hermes_predictions_bets_placed',
+	HERMES_PREDICTIONS_LOST: 'hermes_predictions_lost',
+	HERMES_PREDICTIONS_REFUNDED: 'hermes_predictions_refunded',
+	HERMES_PREDICTIONS_WON: 'hermes_predictions_won',
 	HERMES_RECONNECTS_RX: 'hermes_reconnects_received',
+
+	PASTE_REQUESTS_TX: 'paste_requests_sent',
+	PASTE_RETRIES: 'paste_retries',
 
 	PG_QUERIES: 'postgres_queries',
 

@@ -107,7 +107,7 @@ async function flushMessages(
 			if (count) entry.emptyStreak = 0;
 			if (buffer.size)
 				logger.warning(
-					`[DB] queued messages buffer for channel ${channelId}`,
+					`[DB] queued messages buffer for channel ${channelId} (id)`,
 					`exceeded max size (${maxPerChannelFlush})`,
 					`by ${buffer.size} messages, consider decreasing`,
 					"'db.messagesFlushIntervalMs' or increasing 'db.maxMessagesPerChannelFlush'"

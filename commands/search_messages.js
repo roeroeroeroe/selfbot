@@ -2,7 +2,7 @@ import logger from '../services/logger.js';
 import db from '../services/db/index.js';
 import twitch from '../services/twitch/index.js';
 import utils from '../utils/index.js';
-import hastebin from '../services/hastebin.js';
+import paste from '../services/paste/index.js';
 
 export default {
 	name: 'searchmessages',
@@ -38,7 +38,7 @@ export default {
 			list: { unique: true, minItems: 1 },
 			defaultValue: null,
 			required: false,
-			description: 'usernames to exclude from the search',
+			description: 'users to exclude from the search',
 		},
 		{
 			name: 'notChannels',
@@ -167,7 +167,7 @@ export default {
 				`found ${rows.length} ${utils.format.plural(rows.length, 'message')}`,
 			];
 		try {
-			const link = await hastebin.create(lines.join('\n'));
+			const link = await paste.create(lines.join('\n'));
 			responseParts.push(link);
 		} catch (err) {
 			logger.error('error creating paste:', err);

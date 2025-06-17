@@ -9,6 +9,7 @@ import utils from '../../../utils/index.js';
 export default class ChannelManager {
 	#joinControllers = new Map();
 	#loadInterval;
+	#joinedChannelsCache = { channels: null, expiresAt: 0 };
 	constructor(anonClient) {
 		this.anon = anonClient;
 		this.joinQueue = new AsyncQueue(job => this.#joinWorker(job));
@@ -16,6 +17,9 @@ export default class ChannelManager {
 			constants.JOINS_WINDOW_MS,
 			constants.MAX_JOINS_PER_WINDOW
 		);
+		this.#joinedChannelsCache.channels = anonClient.joinedChannels;
+		this.#joinedChannelsCache.expiresAt =
+			performance.now() + constants.JOINED_CHANNELS_CACHE_TTL_MS;
 	}
 
 	async load() {
@@ -65,7 +69,7 @@ export default class ChannelManager {
 	}
 
 	async #joinWorker({ channel: c, controller }) {
-		if (this.anon.joinedChannels.has(c)) {
+		if (this.joinedChannels.has(c)) {
 			this.#joinControllers.delete(c);
 			return;
 		}
@@ -92,7 +96,10 @@ export default class ChannelManager {
 					canRetry: err => err.retryable !== false,
 				}
 			)
-			.then(() => logger.debug(`[ChannelManager] joined ${c}`))
+			.then(() => {
+				logger.debug(`[ChannelManager] joined ${c}`);
+				this.#joinedChannelsCache.expiresAt = 0;
+			})
 			.catch(err => {
 				if (err.message === 'aborted')
 					logger.debug(`[ChannelManager] join ${c} canceled`);
@@ -102,7 +109,7 @@ export default class ChannelManager {
 	}
 
 	join(c) {
-		if (this.#joinControllers.has(c) || this.anon.joinedChannels.has(c)) return;
+		if (this.#joinControllers.has(c)) return;
 		const controller = new AbortController();
 		this.#joinControllers.set(c, controller);
 		this.joinQueue.enqueue({ channel: c, controller });
@@ -119,6 +126,7 @@ export default class ChannelManager {
 		logger.debug('[ChannelManager] trying to part', c);
 		try {
 			await this.anon.part(c);
+			this.#joinedChannelsCache.expiresAt = 0;
 		} catch (err) {
 			logger.error(`error parting ${c}:`, err);
 		}
@@ -127,9 +135,21 @@ export default class ChannelManager {
 	async cleanup() {
 		await this.joinQueue.clear();
 		this.#joinControllers.clear();
+		this.#joinedChannelsCache.channels.clear();
 		if (this.#loadInterval) {
 			clearInterval(this.#loadInterval);
 			this.#loadInterval = null;
 		}
+	}
+
+	get joinedChannels() {
+		const now = performance.now();
+		if (now < this.#joinedChannelsCache.expiresAt)
+			return this.#joinedChannelsCache.channels;
+		const channels = this.anon.joinedChannels;
+		this.#joinedChannelsCache.channels = channels;
+		this.#joinedChannelsCache.expiresAt =
+			now + constants.JOINED_CHANNELS_CACHE_TTL_MS;
+		return channels;
 	}
 }

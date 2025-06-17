@@ -34,7 +34,6 @@ export default {
 				break;
 			case 'unfollow':
 				action = 'unfollow';
-				break;
 		}
 
 		const input = msg.commandFlags.channel || msg.args[0] || msg.channelName;

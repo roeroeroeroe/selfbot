@@ -1,5 +1,5 @@
 import logger from '../services/logger.js';
-import hastebin from '../services/hastebin.js';
+import paste from '../services/paste/index.js';
 import utils from '../utils/index.js';
 import twitch from '../services/twitch/index.js';
 
@@ -88,7 +88,7 @@ export default {
 
 		if (!msg.commandFlags.info)
 			try {
-				const link = await hastebin.create(utils.format.align(list));
+				const link = await paste.create(utils.format.align(list));
 				responseParts.push(link);
 			} catch (err) {
 				logger.error('error creating paste:', err);

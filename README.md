@@ -16,7 +16,7 @@ vi config.json
 {
   "bot": {
     "rateLimits": "regular",            // "regular" | "verified" - https://dev.twitch.tv/docs/chat/#verified-bots
-    "entryChannelLogin": "",            // first channel to join
+    "entryChannelLogin": "",            // initial channel to join
     "login": "",
     "id": "0"
   },
@@ -26,24 +26,45 @@ vi config.json
     "suggestClosest": true              // suggest closest valid command on typo
   },
   "messages": {
-    "tosViolationPlaceholder": "message goes against twitch TOS",  // replaces messages that match one of the TOS patterns
+    "tosViolationPlaceholder": "message goes against twitch TOS", // replaces messages that match one of the TOS patterns
     "responsePartsSeparator": " · ",    // separator for parts of command output
     "logByDefault": true                // applies to newly joined channels at runtime
   },
   "twitch": {
-    "ircTransport": "websocket",        // "tcp" | "websocket"
     "sender": {
-      "transport": "irc",               // "irc" | "gql"
-      "irc": {                          // applies to "irc" transport
-        "connectionsPoolSize": 10
-      }
+      "transport": "irc"                // "irc" | "gql"
+    },
+    "irc": {
+      "transport": "websocket",         // "tcp" | "websocket"
+      "maxChannelCountPerConnection": 100,
+      "connectionsPoolSize": 10
     },
     "hermes": {
-      "maxConnections": 20,             // max amount of WS connections to hermes
-      "maxTopicsPerConnection": 50,     // max amount of topics per hermes connection
+      "maxConnections": 200,            // max number of WS connections to hermes
+      "maxTopicsPerConnection": 50,     // max number of topics per hermes connection
       "autoJoinRaids": true,
       "autoAcknowledgeChatWarnings": true,
-      "autoJoinWatching": true          // auto-join watched channels detected via presence
+      "autoJoinWatching": true,         // auto-join watched channels detected via presence
+      "autoBet": {
+        "enabled": true,                // auto-bet on predictions
+        "ignoreOwnPredictions": true,
+        "minRequiredBalance": 10,       // min balance required to place a bet
+        "strategy": {
+          "betDelayPercent": 80,        // delay bet until this percentage of the prediction window has passed
+          "outcomeSelection": "mostPopular", // "mostPopular" | "highestMultiplier" | "poolMedian" | "random"
+                                             // "mostPopular"       - outcome with the most users participating
+                                             // "highestMultiplier" - outcome with the highest potential payout (fewest points)
+                                             // "poolMedian"        - outcome with the median total points
+                                             // "random"            - pick a random outcome
+          "bet": {
+            "min": 10,                  // min number of points to bet
+            "max": 50000,               // max number of points to bet
+            "poolFraction": 0.3,        // target bet is this fraction of the total prediction pool
+            "maxBalanceFraction": 0.1,  // cap bet to this fraction of the balance
+            "onInsufficientFunds": "betAll" // "betAll" | "abort" -- what to do if the bet exceeds the balance
+          }
+        }
+      }
     }
   },
   "retry": {
@@ -54,16 +75,23 @@ vi config.json
   "cache": "redis",                     // "redis" | "valkey" | "inMemory" -- "valkey" is an alias for "redis"
   "db": {
     "messagesFlushIntervalMs": 2500,    // how often to flush queued messages
-    "maxMessagesPerChannelFlush": 150   // max amount of messages to flush per channel at once
+    "maxMessagesPerChannelFlush": 150   // max messages to flush per channel at once
   },
-  "hastebin": {
-    "instance": "https://paste.ivr.fi", // base URL of the hastebin server (POST to /documents, GET from /{key}, /raw/{key})
-    "maxPasteLength": 1500000           // 0 for unlimited
+  "paste": {
+    "service": "hastebin",              // "hastebin" | "nullPtr"
+    "maxLength": 500000,                // 0 for unlimited
+    "hastebin": {
+      "instance": "https://h.roe.lol/hb", // POST: /documents, GET: /{key}, /raw/{key}
+      "raw": true
+    },
+    "nullPtr": {
+      "instance": "https://0x0.st",     // recommended maxLength: 15000
+      "secret": false                   // generate hard-to-guess URLs
+    }
   },
   "metrics": {
     "enabled": false,
     "sampleIntervalMs": 5000,           // how often to sample and compute rates
-    "logIntervalMs": 1800000,           // how often to log the latest snapshot (0 to disable)
     "prometheus": {
       "enabled": false,
       "host": "127.0.0.1",

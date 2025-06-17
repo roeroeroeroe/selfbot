@@ -21,61 +21,137 @@ function assertBool(v) {
 function assertNonEmptyString(v) {
 	assert(typeof v === 'string' && v.trim(), 'must be a non-empty string');
 }
+// prettier-ignore
+function assertUsername(v) {
+	assert(typeof v === 'string' && utils.regex.patterns.username.test(v),
+	       'must be a valid username');
+}
+// prettier-ignore
+function assertId(v) {
+	assert(typeof v === 'string' && utils.regex.patterns.id.test(v),
+	       'must be a valid id');
+}
 function assertNonNegativeInt(v) {
 	assert(Number.isInteger(v) && v >= 0, 'must be a non-negative integer');
 }
+// prettier-ignore
 function assertIntBetween(v, a, b) {
-	// prettier-ignore
-	assert(Number.isInteger(v) && v >= a && v <= b, `must be an integer between ${a} and ${b}`);
+	assert(Number.isInteger(v) && v >= a && v <= b,
+	       `must be an integer between ${a} and ${b}`);
 }
+// prettier-ignore
+function assertFloatBetween(v, a, b) {
+	assert(typeof v === 'number' && !Number.isNaN(v) && v >= a && v <= b,
+	       `must be a float between ${a} and ${b}`);
+}
+// prettier-ignore
 function assertStringOneOf(v, arr) {
-	// prettier-ignore
-	assert(typeof v === 'string' && arr.includes(v), `must be one of: ${arr.join(', ')}`);
+	assert(typeof v === 'string' && arr.includes(v),
+	       `must be one of: ${arr.join(', ')}`);
+}
+function assertHttpUrl(v) {
+	assert(utils.isValidHttpUrl(v) && !v.endsWith('/'),
+	       'must be a valid HTTP url with no trailing slashes');
 }
 // prettier-ignore
 const validators = {
 	'bot.rateLimits': v => assertStringOneOf(v, ['regular', 'verified']),
-	'bot.entryChannelLogin': v => assert(typeof v === 'string' && utils.regex.patterns.username.test(v), 'must be a valid username'),
-	'bot.login': v => assert(typeof v === 'string' && utils.regex.patterns.username.test(v), 'must be a valid username'),
-	'bot.id': v => assert(typeof v === 'string' && utils.regex.patterns.id.test(v), 'must be a valid id'),
+	'bot.entryChannelLogin': v => assertUsername(v),
+	'bot.login': v => assertUsername(v),
+	'bot.id': v => assertId(v),
 	'commands.defaultPrefix': v => assert(utils.isValidPrefix(v), 'must be a valid prefix'),
 	'commands.loadUnsafe': v => assertBool(v),
 	'commands.suggestClosest': v => assertBool(v),
 	'messages.tosViolationPlaceholder': v => assertNonEmptyString(v),
 	'messages.responsePartsSeparator': v => assertNonEmptyString(v),
 	'messages.logByDefault': v => assertBool(v),
-	'twitch.ircTransport': v => assertStringOneOf(v, ['tcp', 'websocket']),
 	'twitch.sender.transport': v => assertStringOneOf(v, ['irc', 'gql']),
-	'twitch.sender.irc.connectionsPoolSize': v => {
+	'twitch.irc.transport': v => assertStringOneOf(v, ['tcp', 'websocket']),
+	'twitch.irc.maxChannelCountPerConnection': v => assertNonNegativeInt(v),
+	'twitch.irc.connectionsPoolSize': v => {
 		if (config.twitch.sender.transport !== 'irc') return;
 		assertNonNegativeInt(v);
 		const max =
 			config.bot.rateLimits === 'verified'
 				? twitch.chat.VERIFIED_MAX_CONNECTIONS_POOL_SIZE
 				: twitch.chat.REGULAR_MAX_CONNECTIONS_POOL_SIZE;
-		assert(v <= max, `cannot exceed ${max} with ${config.bot.rateLimits} bot.rateLimits`);
+		assert(v <= max, `cannot exceed ${max} with ${config.bot.rateLimits} 'bot.rateLimits'`);
 	},
-	'twitch.hermes.maxConnections': v => assertIntBetween(v, 1, twitch.hermes.MAX_CONNECTIONS),
-	'twitch.hermes.maxTopicsPerConnection': v => assertIntBetween(v, 1, twitch.hermes.MAX_TOPICS_PER_CONNECTION),
+	'twitch.hermes.maxConnections': v =>
+		assertIntBetween(v, 1, twitch.hermes.MAX_CONNECTIONS),
+	'twitch.hermes.maxTopicsPerConnection': v =>
+		assertIntBetween(v, 1, twitch.hermes.MAX_TOPICS_PER_CONNECTION),
 	'twitch.hermes.autoAcknowledgeChatWarnings': v => assertBool(v),
 	'twitch.hermes.autoJoinRaids': v => assertBool(v),
 	'twitch.hermes.autoJoinWatching': v => assertBool(v),
+	'twitch.hermes.autoBet.enabled': v => assertBool(v),
+	'twitch.hermes.autoBet.ignoreOwnPredictions': v => {
+		if (!config.twitch.hermes.autoBet.enabled) return;
+		assertBool(v);
+	},
+	'twitch.hermes.autoBet.minRequiredBalance': v => {
+		if (!config.twitch.hermes.autoBet.enabled) return;
+		assertNonNegativeInt(v);
+		assert(v >= twitch.MIN_PREDICTION_BET, `must be >= ${twitch.MIN_PREDICTION_BET}`);
+	},
+	'twitch.hermes.autoBet.strategy.betDelayPercent': v => {
+		if (!config.twitch.hermes.autoBet.enabled) return;
+		assertIntBetween(v, 1, 99);
+	},
+	'twitch.hermes.autoBet.strategy.outcomeSelection': v => {
+		if (!config.twitch.hermes.autoBet.enabled) return;
+		assertStringOneOf(v, ['mostPopular', 'highestMultiplier', 'poolMedian', 'random']);
+	},
+	'twitch.hermes.autoBet.strategy.bet.min': v => {
+		if (!config.twitch.hermes.autoBet.enabled) return;
+		assertIntBetween(v, twitch.MIN_PREDICTION_BET, twitch.MAX_PREDICTION_BET);
+	},
+	'twitch.hermes.autoBet.strategy.bet.max': v => {
+		if (!config.twitch.hermes.autoBet.enabled) return;
+		assertIntBetween(v, twitch.MIN_PREDICTION_BET, twitch.MAX_PREDICTION_BET);
+		assert(v >= config.twitch.hermes.autoBet.strategy.bet.min,
+		       "must be >= 'twitch.hermes.autoBet.strategy.bet.min'");
+	},
+	'twitch.hermes.autoBet.strategy.bet.poolFraction': v => {
+		if (!config.twitch.hermes.autoBet.enabled) return;
+		assertFloatBetween(v, 0.001, 1);
+	},
+	'twitch.hermes.autoBet.strategy.bet.maxBalanceFraction': v => {
+		if (!config.twitch.hermes.autoBet.enabled) return;
+		assertFloatBetween(v, 0.001, 1);
+	},
+	'twitch.hermes.autoBet.strategy.bet.onInsufficientFunds': v => {
+		if (!config.twitch.hermes.autoBet.enabled) return;
+		assertStringOneOf(v, ['betAll', 'abort']);
+	},
 	'retry.maxRetries': v => assertNonNegativeInt(v),
 	'retry.baseDelayMs': v => assertNonNegativeInt(v),
-	'retry.jitter': v => assert(typeof v === 'number' && v >= 0 && v <= 1, 'must be between 0 and 1'),
+	'retry.jitter': v => assertFloatBetween(v, 0, 1),
 	'cache': v => assertStringOneOf(v, ['redis', 'valkey', 'inMemory']),
 	'db.messagesFlushIntervalMs': v => assertIntBetween(v, 100, db.MAX_MESSAGES_FLUSH_INTERVAL_MS),
 	'db.maxMessagesPerChannelFlush': v => assertIntBetween(v, 1, db.MAX_MESSAGES_PER_CHANNEL_FLUSH),
-	'hastebin.instance': v => assert(utils.isValidHttpUrl(v), 'must be a valid URL'),
-	'hastebin.maxPasteLength': v => assertNonNegativeInt(v),
+	'paste.service': v => assertStringOneOf(v, ['hastebin', 'nullPtr']),
+	'paste.maxLength': v => assertNonNegativeInt(v),
+	'paste.hastebin.instance': v => {
+		if (config.paste.service !== 'hastebin') return;
+		assertHttpUrl(v);
+	},
+	'paste.hastebin.raw': v => {
+		if (config.paste.service !== 'hastebin') return;
+		assertBool(v);
+	},
+	'paste.nullPtr.instance': v => {
+		if (config.paste.service !== 'nullPtr') return;
+		assertHttpUrl(v);
+	},
+	'paste.nullPtr.secret': v => {
+		if (config.paste.service !== 'nullPtr') return;
+		assertBool(v);
+	},
 	'metrics.enabled': v => assertBool(v),
 	'metrics.sampleIntervalMs': v => {
 		if (!config.metrics.enabled) return;
 		assert(Number.isInteger(v) && v >= 1000, 'must be a >= 1000 integer');
-	},
-	'metrics.logIntervalMs': v => {
-		if (!config.metrics.enabled) return;
-		assertNonNegativeInt(v);
 	},
 	'metrics.prometheus.enabled': v => {
 		if (!config.metrics.enabled) return;
@@ -87,7 +163,7 @@ const validators = {
 	},
 	'metrics.prometheus.port': v => {
 		if (!config.metrics.enabled || !config.metrics.prometheus.enabled) return;
-		assertIntBetween(v, 1, 65535)
+		assertIntBetween(v, 1, 65535);
 	},
 	'metrics.prometheus.endpoint': v => {
 		if (!config.metrics.enabled || !config.metrics.prometheus.enabled) return;

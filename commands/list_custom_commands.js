@@ -1,6 +1,6 @@
 import logger from '../services/logger.js';
 import customCommands from '../services/custom_commands.js';
-import hastebin from '../services/hastebin.js';
+import paste from '../services/paste/index.js';
 import utils from '../utils/index.js';
 import twitch from '../services/twitch/index.js';
 
@@ -49,7 +49,7 @@ export default {
 						mention: true,
 					};
 				commands = customCommands.getChannelCommands(user.id);
-				noCommandsMessage = `no commands found for channel ${utils.pickName(user.login, user.displayName)}`;
+				noCommandsMessage = `no commands found for #${utils.pickName(user.login, user.displayName)}`;
 			} catch (err) {
 				logger.error(`error resolving user ${msg.commandFlags.channel}:`, err);
 				return { text: 'error resolving channel', mention: true };
@@ -62,13 +62,13 @@ export default {
 			noCommandsMessage = 'no commands found';
 		} else {
 			commands = customCommands.getChannelCommands(msg.channelID);
-			noCommandsMessage = `no commands found for channel ${msg.channelName}`;
+			noCommandsMessage = `no commands found for #${msg.channelName}`;
 		}
 
 		if (!commands.length) return { text: noCommandsMessage, mention: true };
 
 		try {
-			const link = await hastebin.create(
+			const link = await paste.create(
 				JSON.stringify(
 					commands.map(c => ({ ...c, trigger: String(c.trigger) })),
 					null,

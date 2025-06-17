@@ -78,12 +78,46 @@ fragment UserFragment on User {
 
 export const FOLLOWER = `
 fragment FollowerFragment on User {
-	...BasicUserFragment
+	login
+	id
+	displayName
 	followers(first: 1) {
 		totalCount
 	}
 	stream {
 		viewersCount
 	}
-}
-${BASIC_USER}`;
+}`;
+
+export const PREDICTION_EVENT_ACTOR = `
+fragment PredictionEventActorFragment on PredictionEventActor {
+	... on ExtensionClient {
+		name
+	}
+	... on User {
+		login
+		id
+		displayName
+	}
+}`;
+
+export const PREDICTION_OUTCOME = `
+fragment PredictionOutcomeFragment on PredictionOutcome {
+	id
+	title
+	color
+	totalPoints
+	totalUsers
+	topPredictors {
+		id
+		points
+		pointsWon
+		predictedAt
+		updatedAt
+		user {
+			login
+			id
+			displayName
+		}
+	}
+}`;

@@ -1,7 +1,7 @@
 import logger from '../services/logger.js';
 import twitch from '../services/twitch/index.js';
 import utils from '../utils/index.js';
-import hastebin from '../services/hastebin.js';
+import paste from '../services/paste/index.js';
 
 const MAX_TEAM_DESCRIPTION_LENGTH = 50;
 const MAX_TEAM_DISPLAY_NAME_LENGTH = 50;
@@ -91,7 +91,7 @@ export default {
 				`live: ${liveMembers} (total viewers: ${totalViewers})`
 			);
 		try {
-			responseParts.push(await hastebin.create(list.join('\n')));
+			responseParts.push(await paste.create(list.join('\n')));
 		} catch (err) {
 			logger.error('error creating paste:', err);
 			responseParts.push('error creating paste');

@@ -7,6 +7,7 @@ export const INVIS_CHAR = ' \u{E0000}';
 export const LOAD_INTERVAL_MS = 1800000;
 export const JOINS_WINDOW_MS = 10000;
 export const MAX_JOINS_PER_WINDOW = 950;
+export const JOINED_CHANNELS_CACHE_TTL_MS = 500;
 
 // used for config validation
 export const REGULAR_MAX_CONNECTIONS_POOL_SIZE = 20;

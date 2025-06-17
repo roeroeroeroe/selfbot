@@ -1,10 +1,7 @@
 import config from '../../config.json' with { type: 'json' };
-import hastebin from '../hastebin.js';
+import paste from '../paste/index.js';
 import logger from '../logger.js';
 import utils from '../../utils/index.js';
-
-const normalizedHastebinUrl =
-	config.hastebin.instance.replace(/\/+$/, '') + '/';
 
 const EXCLUSIVE_GROUPS = [
 	['quiet', 'timeExec'],
@@ -51,15 +48,17 @@ const SCHEMA = [
 		type: 'boolean',
 		required: false,
 		defaultValue: false,
-		description: 'upload the result to hastebin and return the link',
+		description: `upload the result to ${config.paste.service} and return the link`,
 	},
 ];
+
+const pasteInstanceUrl = config.paste[config.paste.service].instance;
 
 async function preHandle(msg, command) {
 	if (msg.commandFlags.timeExec) msg.execT0 = performance.now();
 	if (msg.commandFlags.help)
 		try {
-			const link = await hastebin.create(command.helpPage);
+			const link = await paste.create(command.helpPage);
 			return { text: link, mention: true };
 		} catch (err) {
 			logger.error('error creating paste:', err);
@@ -68,7 +67,7 @@ async function preHandle(msg, command) {
 
 	if (msg.commandFlags.fromPaste)
 		try {
-			const content = await hastebin.get(msg.commandFlags.fromPaste);
+			const content = await paste.get(msg.commandFlags.fromPaste);
 			for (const arg of utils.tokenizeArgs(content)) msg.args.push(arg);
 		} catch (err) {
 			logger.error('error getting paste:', err);
@@ -106,11 +105,11 @@ const postFlagHandlers = [
 			result.mention
 		);
 
-		if (text.includes(normalizedHastebinUrl) && text.length <= maxLength)
+		if (text.includes(pasteInstanceUrl) && text.length <= maxLength)
 			return result;
 
 		try {
-			result.text = await hastebin.create(text);
+			result.text = await paste.create(text);
 			return result;
 		} catch (err) {
 			logger.error('error creating paste:', err);

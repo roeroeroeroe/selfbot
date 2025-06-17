@@ -16,19 +16,36 @@
 		"logByDefault": true
 	},
 	"twitch": {
-		"ircTransport": "websocket",
 		"sender": {
-			"transport": "irc",
-			"irc": {
-				"connectionsPoolSize": 10
-			}
+			"transport": "irc"
+		},
+		"irc": {
+			"transport": "websocket",
+			"maxChannelCountPerConnection": 100,
+			"connectionsPoolSize": 10
 		},
 		"hermes": {
-			"maxConnections": 20,
+			"maxConnections": 200,
 			"maxTopicsPerConnection": 50,
 			"autoAcknowledgeChatWarnings": true,
 			"autoJoinRaids": true,
-			"autoJoinWatching": true
+			"autoJoinWatching": true,
+			"autoBet": {
+				"enabled": true,
+				"ignoreOwnPredictions": true,
+				"minRequiredBalance": 10,
+				"strategy": {
+					"betDelayPercent": 80,
+					"outcomeSelection": "mostPopular",
+					"bet": {
+						"min": 10,
+						"max": 50000,
+						"poolFraction": 0.3,
+						"maxBalanceFraction": 0.1,
+						"onInsufficientFunds": "betAll"
+					}
+				}
+			}
 		}
 	},
 	"retry": {
@@ -41,14 +58,21 @@
 		"messagesFlushIntervalMs": 2500,
 		"maxMessagesPerChannelFlush": 150
 	},
-	"hastebin": {
-		"instance": "https://paste.ivr.fi",
-		"maxPasteLength": 1500000
+	"paste": {
+		"service": "hastebin",
+		"maxLength": 500000,
+		"hastebin": {
+			"instance": "https://h.roe.lol/hb",
+			"raw": true
+		},
+		"nullPtr": {
+			"instance": "https://0x0.st",
+			"secret": false
+		}
 	},
 	"metrics": {
 		"enabled": false,
 		"sampleIntervalMs": 5000,
-		"logIntervalMs": 1800000,
 		"prometheus": {
 			"enabled": false,
 			"host": "127.0.0.1",

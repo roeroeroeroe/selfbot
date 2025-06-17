@@ -1,4 +1,8 @@
-import { BASIC_USER } from '../fragments.js';
+import {
+	BASIC_USER,
+	PREDICTION_EVENT_ACTOR,
+	PREDICTION_OUTCOME,
+} from '../fragments.js';
 
 export const GET_MODS = `
 query($login: String!, $cursor: Cursor) {
@@ -236,8 +240,68 @@ query($login: String!) {
 }
 ${BASIC_USER}`;
 
+export const GET_SELF_CHANNEL_POINTS_BALANCE = `
+query($login: String!) {
+	channel(name: $login) {
+		self {
+			communityPoints {
+				balance
+			}
+		}
+	}
+}`;
+
+export const GET_PREDICTION_EVENT = `
+query($id: ID!) {
+	predictionEvent(id: $id) {
+		channel {
+			owner {
+				...BasicUserFragment
+			}
+		}
+		title
+		status
+		predictionWindowSeconds
+		createdAt
+		lockedAt
+		endedAt
+		self {
+			restriction
+			prediction {
+				id
+				result
+				points
+				pointsWon
+				predictedAt
+				updatedAt
+				outcome {
+					...PredictionOutcomeFragment
+				}
+			}
+		}
+		createdBy {
+			...PredictionEventActorFragment
+		}
+		lockedBy {
+			...PredictionEventActorFragment
+		}
+		endedBy {
+			...PredictionEventActorFragment
+		}
+		outcomes {
+			...PredictionOutcomeFragment
+		}
+		winningOutcome {
+			...PredictionOutcomeFragment
+		}
+	}
+}
+${BASIC_USER}
+${PREDICTION_OUTCOME}
+${PREDICTION_EVENT_ACTOR}`;
+
 export const UNLOCK_CHOSEN_EMOTE = `
-mutation ($input: UnlockChosenSubscriberEmoteInput!) {
+mutation($input: UnlockChosenSubscriberEmoteInput!) {
 	unlockChosenSubscriberEmote(input: $input) {
 		balance
 		error {
@@ -247,7 +311,7 @@ mutation ($input: UnlockChosenSubscriberEmoteInput!) {
 }`;
 
 export const UNLOCK_RANDOM_EMOTE = `
-mutation ($input: UnlockRandomSubscriberEmoteInput!) {
+mutation($input: UnlockRandomSubscriberEmoteInput!) {
 	unlockRandomSubscriberEmote(input: $input) {
 		balance
 		error {
@@ -315,10 +379,24 @@ mutation($input: RedeemCommunityPointsCustomRewardInput!) {
 }`;
 
 export const REFUND_CUSTOM_REWARD_REDEMPTION = `
-mutation ($input: UpdateCommunityPointsCustomRewardRedemptionStatusInput!) {
+mutation($input: UpdateCommunityPointsCustomRewardRedemptionStatusInput!) {
 	updateCommunityPointsCustomRewardRedemptionStatus(input: $input) {
 		error {
 			code
+		}
+	}
+}`;
+
+export const PLACE_PREDICTION_BET = `
+mutation($input: MakePredictionInput!) {
+	makePrediction(input: $input) {
+		error {
+			code
+			maxPointsPerEvent
+			userPointsSpent
+		}
+		prediction {
+			points
 		}
 	}
 }`;

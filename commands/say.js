@@ -109,11 +109,11 @@ export default {
 					const res = await twitch.gql.channel.acknowledgeChatWarning(
 						channel.id
 					);
-					const errorCode = res.acknowledgeChatWarning.error?.code;
-					if (errorCode) {
-						logger.error('error acknowledging warning:', errorCode);
+					const errCode = res.acknowledgeChatWarning.error?.code;
+					if (errCode) {
+						logger.error('error acknowledging warning:', errCode);
 						return {
-							text: `error acknowledging warning: ${errorCode}`,
+							text: `error acknowledging warning: ${errCode}`,
 							mention: true,
 						};
 					}

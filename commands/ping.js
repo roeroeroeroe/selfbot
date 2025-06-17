@@ -3,7 +3,7 @@ import os from 'os';
 import twitch from '../services/twitch/index.js';
 import utils from '../utils/index.js';
 import metrics from '../services/metrics/index.js';
-import hastebin from '../services/hastebin.js';
+import paste from '../services/paste/index.js';
 import logger from '../services/logger.js';
 import cache from '../services/cache/index.js';
 
@@ -69,7 +69,7 @@ async function getMetricsResponse() {
 	if (!lines.length) return { text: 'no metrics available', mention: true };
 
 	try {
-		const link = await hastebin.create(utils.format.join(lines, '\n'));
+		const link = await paste.create(utils.format.join(lines, '\n'));
 		return {
 			text: utils.format.join([
 				`snapshot from: ${utils.date.format(snapshot.timestamp)}`,

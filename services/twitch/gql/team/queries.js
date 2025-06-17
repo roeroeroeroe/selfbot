@@ -1,7 +1,7 @@
 import { BASIC_USER } from '../fragments.js';
 
 export const GET_TEAM = `
-query ($name: String! $cursor: Cursor) {
+query($name: String! $cursor: Cursor) {
 	team(name: $name) {
 		backgroundImageURL
 		bannerURL

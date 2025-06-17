@@ -21,7 +21,7 @@ switch (config.twitch.sender.transport) {
 		const authed = new ChatClient({
 			username: config.bot.login,
 			password: process.env.TWITCH_ANDROID_TOKEN,
-			connection: { type: config.twitch.ircTransport, secure: true },
+			connection: { type: config.twitch.irc.transport, secure: true },
 			installDefaultMixins: false,
 		});
 		authed.on('error', err => {
@@ -30,10 +30,10 @@ switch (config.twitch.sender.transport) {
 			else logger.error('irc-tx error:', err.message);
 		});
 		authed.on('close', err => err && logger.fatal('irc-tx closed:', err));
-		if (config.twitch.sender.irc.connectionsPoolSize >= 2)
+		if (config.twitch.irc.connectionsPoolSize >= 2)
 			authed.use(
 				new ConnectionPool(authed, {
-					poolSize: config.twitch.sender.irc.connectionsPoolSize,
+					poolSize: config.twitch.irc.connectionsPoolSize,
 				})
 			);
 		transport = createIrcTransport(authed, BOT_NONCE);

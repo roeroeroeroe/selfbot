@@ -34,8 +34,16 @@ export default {
 			required: false,
 			description: `DNS RR types to query, ALL to query every supported type (options: ${dns.SUPPORTED_RR_TYPES.join(', ')})`,
 		},
+		{
+			name: 'servers',
+			aliases: ['s', 'servers'],
+			type: 'string',
+			list: { unique: true, minItems: 1 },
+			defaultValue: null,
+			required: false,
+			description: 'custom DNS servers',
+		},
 	],
-
 	execute: async msg => {
 		const fqdn = msg.commandFlags.name || msg.args[0];
 		if (!fqdn) return { text: 'no domain provided', mention: true };
@@ -52,14 +60,19 @@ export default {
 
 		let records;
 		try {
-			records = await dns.resolve(fqdn, types);
+			records = await dns.resolve(fqdn, types, msg.commandFlags.servers);
 		} catch (err) {
-			if (err.code === 'ENOTFOUND')
-				return { text: `NXDOMAIN: ${fqdn}`, mention: true };
-			if (err.code === 'EINVAL')
-				return { text: `invalid name: ${fqdn}`, mention: true };
-			logger.error('dns error:', err);
-			return { text: `error resolving ${fqdn}`, mention: true };
+			switch (err.code) {
+				case 'ENOTFOUND':
+					return { text: `NXDOMAIN: ${fqdn}`, mention: true };
+				case 'EINVAL':
+					return { text: `invalid name: ${fqdn}`, mention: true };
+				case dns.ERR_INVALID_SERVERS:
+					return { text: 'invalid servers', mention: true };
+				default:
+					logger.error('dns error:', err);
+					return { text: `error resolving ${fqdn}`, mention: true };
+			}
 		}
 
 		const responseParts = [fqdn];

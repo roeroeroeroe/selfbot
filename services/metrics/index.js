@@ -11,8 +11,7 @@ let lastSampleTs = Date.now(),
 	latestSnapshot = { timestamp: lastSampleTs, counters: {}, gauges: {} },
 	server,
 	initialized = false,
-	snapshotInterval,
-	logInterval;
+	snapshotInterval;
 
 function init() {
 	if (initialized || !config.metrics.enabled) return;
@@ -38,12 +37,6 @@ function init() {
 		latestSnapshot = { timestamp: now, counters: ctrs, gauges: gs };
 		lastSampleTs = now;
 	}, config.metrics.sampleIntervalMs);
-
-	if (config.metrics.logIntervalMs)
-		logInterval = setInterval(
-			() => logger.info('[METRICS]', latestSnapshot),
-			config.metrics.logIntervalMs
-		);
 
 	const { enabled, host, port, endpoint, prefix } = config.metrics.prometheus;
 	if (enabled) server = startServer({ host, port, endpoint, prefix });
@@ -102,10 +95,6 @@ async function cleanup() {
 	if (snapshotInterval) {
 		clearInterval(snapshotInterval);
 		snapshotInterval = null;
-	}
-	if (logInterval) {
-		clearInterval(logInterval);
-		logInterval = null;
 	}
 	if (!server) return;
 	await new Promise(res =>

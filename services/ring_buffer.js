@@ -49,7 +49,6 @@ export default class RingBuffer {
 				case BigInt64Array:
 				case BigUint64Array:
 					this.#clearValue = 0n;
-					break;
 			}
 		else this.#clearValue = undefined;
 	}

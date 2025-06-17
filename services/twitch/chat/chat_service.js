@@ -5,6 +5,7 @@ import utils from '../../../utils/index.js';
 import logger from '../../logger.js';
 import metrics from '../../metrics/index.js';
 import config from '../../../config.json' with { type: 'json' };
+import { MAX_MESSAGE_LENGTH } from '../constants.js';
 
 export default class ChatService {
 	static DEFAULT_SLOW_MODE_MS =
@@ -104,7 +105,7 @@ export default class ChatService {
 				state.lastDuplicateKey === key &&
 				now - state.lastSend < constants.DUPLICATE_MESSAGE_THRESHOLD_MS
 			) {
-				const maxLen = 500 - (reply ? userLogin.length + 2 : 0);
+				const maxLen = MAX_MESSAGE_LENGTH - (reply ? userLogin.length + 2 : 0);
 				if (text.length + constants.INVIS_CHAR.length <= maxLen)
 					text += constants.INVIS_CHAR;
 				else
@@ -119,7 +120,8 @@ export default class ChatService {
 		metrics.counter.increment(metrics.names.counters.TMI_MESSAGES_TX);
 		logger.debug(`[CHAT] sending: #${channelLogin} ${text}`);
 		// prettier-ignore
-		await this.transport.send(channelId, channelLogin, text, this.botNonce, parentId);
+		await this.transport.send(channelId, channelLogin, text,
+		                          this.botNonce, parentId);
 	}
 
 	// prettier-ignore

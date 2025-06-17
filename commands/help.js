@@ -3,7 +3,7 @@ import { fileURLToPath } from 'url';
 import { readFileSync } from 'fs';
 import commands from '../services/commands.js';
 import logger from '../services/logger.js';
-import hastebin from '../services/hastebin.js';
+import paste from '../services/paste/index.js';
 import utils from '../utils/index.js';
 
 const packageName = (() => {
@@ -41,7 +41,7 @@ Commands:`;
 		usagePage += `\n${utils.format.align(usageLines)}\nUse "${msg.prefix} <command> --help" for help about a specific command`;
 
 		try {
-			const link = await hastebin.create(usagePage);
+			const link = await paste.create(usagePage);
 			return { text: link, mention: true };
 		} catch (err) {
 			logger.error('error creating paste:', err);
