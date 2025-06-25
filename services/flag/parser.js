@@ -164,7 +164,7 @@ function createParser(schema, exclusiveGroups) {
 		if (long) {
 			if (typeof long !== 'string' || long.length < 2)
 				throw new Error(`'long' for flag "${flag.name}" must be at ` +
-			                    'least 2 characters long');
+				                'least 2 characters long');
 			if (/\s/.test(long))
 				throw new Error(`'long' for flag "${flag.name}" must be a ` +
 				                'string with no spaces');

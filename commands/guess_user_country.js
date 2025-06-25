@@ -7,7 +7,7 @@ import utils from '../utils/index.js';
 import paste from '../services/paste/index.js';
 
 const FACTOR_LABELS = {
-	SUBSCRIPTION_SKUS: 'subscriptionSKUs',
+	SUBSCRIPTION_SKUS: 'subscriptionSkus',
 	UI_LANG: 'uiLang',
 	STREAM_LANG: 'streamLang',
 	USER_MESSAGES_LANG: 'userMessagesLang',
