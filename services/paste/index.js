@@ -8,9 +8,32 @@ import { GET_PASTE_FETCH_OPTIONS } from './constants.js';
 
 function getPaste(url) {
 	logger.debug(`[PASTE] getting paste: ${url}`);
+	let parsed;
+	try {
+		parsed = new URL(url);
+	} catch {
+		throw new Error(`invalid URL: ${url}`);
+	}
+	const { origin, pathname } = parsed;
+	const key = pathname.split('/').filter(Boolean).pop() || null;
+	const isNullPtr = config.paste.nullPtr.instance
+		? url.startsWith(config.paste.nullPtr.instance)
+		: false;
 	return utils.retry(
 		async () => {
-			let res = await fetch(url, GET_PASTE_FETCH_OPTIONS);
+			if (isNullPtr) {
+				const res = await fetch(url, GET_PASTE_FETCH_OPTIONS);
+				if (res.status >= 400 && res.status < 500)
+					throw new Error(`PASTE-GET ${res.status}: ${res.statusText}`);
+				if (!res.ok) {
+					const err = new Error(`PASTE-GET ${res.status}: ${await res.text()}`);
+					err.retryable = true;
+					throw err;
+				}
+				return res.text();
+			}
+
+			const res = await fetch(url, GET_PASTE_FETCH_OPTIONS);
 			if (res.status >= 400 && res.status < 500)
 				throw new Error(`PASTE-GET ${res.status}: ${res.statusText}`);
 			if (!res.ok) {
@@ -18,22 +41,35 @@ function getPaste(url) {
 				err.retryable = true;
 				throw err;
 			}
-			if (res.headers.get('content-type')?.includes('text/html')) {
-				if (url.includes('/raw/'))
-					throw new Error('invalid paste: expected plaintext, got html');
-				const parts = url.split('/');
-				url = `${parts.slice(0, parts.length - 1).join('/')}/raw/${parts[parts.length - 1]}`;
-				logger.debug('[PASTE] got html, retrying raw url:', url);
-				res = await fetch(url, GET_PASTE_FETCH_OPTIONS);
-				if (!res.ok) {
-					const err = new Error(`PASTE-GET ${res.status}: ${await res.text()}`);
-					err.retryable = true;
-					throw err;
+			if (!res.headers.get('content-type')?.includes('text/html'))
+				return res.text();
+
+			if (!key)
+				throw new Error('could not get plaintext from any known endpoint');
+
+			const apiUrl = `${origin}/documents/${key}`;
+			try {
+				logger.debug(`[PASTE] trying api: ${apiUrl}`);
+				const apiRes = await fetch(apiUrl, {
+					headers: GET_PASTE_FETCH_OPTIONS.headers,
+				});
+				if (apiRes.ok) {
+					const body = await apiRes.json();
+					if (typeof body.data === 'string') return body.data;
 				}
-				if (res.headers.get('content-type')?.includes('text/html'))
-					throw new Error('invalid paste: expected plaintext, got html');
-			}
-			return res.text();
+			} catch {}
+
+			const rawUrl = `${origin}/raw/${key}`;
+			try {
+				logger.debug(`[PASTE] trying raw: ${rawUrl}`);
+				const rawRes = await fetch(rawUrl, GET_PASTE_FETCH_OPTIONS);
+				if (
+					rawRes.ok &&
+					!rawRes.headers.get('content-type')?.includes('text/html')
+				)
+					return rawRes.text();
+			} catch {}
+			throw new Error('could not get plaintext from any known endpoint');
 		},
 		{
 			requestsCounter: metrics.names.counters.PASTE_REQUESTS_TX,

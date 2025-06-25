@@ -13,7 +13,8 @@ export default {
 	flags: [
 		{
 			name: 'name',
-			aliases: ['n', 'name'],
+			short: 'n',
+			long: 'name',
 			type: 'string',
 			defaultValue: '',
 			required: false,
@@ -21,7 +22,8 @@ export default {
 		},
 		{
 			name: 'rrtypes',
-			aliases: ['r', 'rrtypes'],
+			short: 'r',
+			long: 'rrtypes',
 			type: 'string',
 			list: {
 				unique: true,
@@ -36,7 +38,8 @@ export default {
 		},
 		{
 			name: 'servers',
-			aliases: ['s', 'servers'],
+			short: 's',
+			long: 'servers',
 			type: 'string',
 			list: { unique: true, minItems: 1 },
 			defaultValue: null,

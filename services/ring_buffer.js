@@ -109,24 +109,24 @@ export default class RingBuffer {
 		return c;
 	}
 
-	removeMatching(predicate) {
-		let write = 0;
+	removeMatching(predicate, max = Infinity) {
 		const oldSize = this.#size;
+		let write = 0,
+			c = 0;
 		for (let read = 0; read < oldSize; read++) {
 			const item = this.#buffer[(this.#head + read) & this.#mask];
 			try {
-				if (!predicate(item))
-					this.#buffer[(this.#head + write++) & this.#mask] = item;
+				if (c < max && predicate(item)) c++;
+				else this.#buffer[(this.#head + write++) & this.#mask] = item;
 			} catch (err) {
 				logger.error('removeMatching predicate error:', err);
+				this.#buffer[(this.#head + write++) & this.#mask] = item;
 			}
 		}
 		for (let i = write; i < oldSize; i++)
 			this.#buffer[(this.#head + i) & this.#mask] = this.#clearValue;
 		this.#size = write;
 		this.#tail = (this.#head + this.#size) & this.#mask;
-		const c = oldSize - write;
-		if (c) logger.debug(`[RingBuffer] removeMatching: removed ${c} items`);
 		return c;
 	}
 

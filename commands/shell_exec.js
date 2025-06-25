@@ -13,7 +13,8 @@ export default {
 	flags: [
 		{
 			name: 'timeout',
-			aliases: ['t', 'timeout'],
+			short: 't',
+			long: 'timeout',
 			type: 'duration',
 			required: false,
 			defaultValue: 5000,

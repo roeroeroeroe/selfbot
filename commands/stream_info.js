@@ -13,7 +13,8 @@ export default {
 	flags: [
 		{
 			name: 'channel',
-			aliases: ['c', 'channel'],
+			short: 'c',
+			long: 'channel',
 			type: 'username',
 			defaultValue: null,
 			required: false,

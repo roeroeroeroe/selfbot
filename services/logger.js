@@ -147,14 +147,10 @@ function makeLogger(level) {
 
 async function cleanup() {
 	clearInterval(flushInterval);
-	if (tickTimeout) {
-		clearTimeout(tickTimeout);
-		tickTimeout = null;
-	}
-	if (rotationTimeout) {
-		clearTimeout(rotationTimeout);
-		rotationTimeout = null;
-	}
+	clearTimeout(tickTimeout);
+	tickTimeout = null;
+	clearTimeout(rotationTimeout);
+	rotationTimeout = null;
 	const streams = fileLevels.map(l => l.file).filter(Boolean);
 	if (!streams.length) return;
 	for (const stream of streams) stream.uncork();

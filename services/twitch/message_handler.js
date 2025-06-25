@@ -1,11 +1,11 @@
-import config from '../config.json' with { type: 'json' };
-import logger from './logger.js';
-import cooldown from './cooldown.js';
-import commands from './commands.js';
-import customCommands from './custom_commands.js';
-import flag from './flag/index.js';
-import utils from '../utils/index.js';
-import metrics from './metrics/index.js';
+import config from '../../config.json' with { type: 'json' };
+import logger from '../logger.js';
+import cooldown from '../cooldown.js';
+import commands from '../commands.js';
+import customCommands from '../custom_commands.js';
+import flag from '../flag/index.js';
+import utils from '../../utils/index.js';
+import metrics from '../metrics/index.js';
 
 const CUSTOM_COMMAND_COOLDOWN_KEY_PREFIX = 'handler:customcommand';
 

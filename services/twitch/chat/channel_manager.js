@@ -21,39 +21,45 @@ export default class ChannelManager {
 		this.#joinedChannelsCache.expiresAt =
 			performance.now() + constants.JOINED_CHANNELS_CACHE_TTL_MS;
 	}
-
-	async load() {
+	// prettier-ignore
+	async #load() {
 		try {
+			const t0 = performance.now();
 			const channels = await db.query(
 				'SELECT id, login, display_name, suspended FROM channels'
 			);
+			const t1 = performance.now();
 			const usersMap = await twitch.helix.user.getMany(
-				null,
-				channels.map(c => c.id)
+				null, channels.map(c => c.id)
 			);
-			for (const c of channels) {
-				const user = usersMap.get(c.id);
-				if (!user) {
+			const t2 = performance.now();
+			logger.debug(`[ChannelManager] load: db: ${channels.length} in`,
+			             `${(t1 - t0).toFixed(3)}ms, twitch: ${usersMap.size}`,
+			             `in ${(t2 - t1).toFixed(3)}ms`);
+			for (let i = 0, c, u; i < channels.length; i++) {
+				if (!(u = usersMap.get((c = channels[i]).id))) {
 					if (!c.suspended) {
 						await db.channel.update(c.id, 'suspended', true);
-						logger.info(`[ChannelManager] channel suspended: ${c.login}`);
+						logger.info('[ChannelManager] channel suspended:',
+						            c.login);
 					}
 					continue;
 				}
 				if (c.suspended) {
 					await db.channel.update(c.id, 'suspended', false);
-					logger.info(`[ChannelManager] channel unsuspended: ${c.login}`);
+					logger.info('[ChannelManager] channel unsuspended:',
+					            c.login);
 				}
-				if (c.login !== user.login) {
-					await db.channel.update(c.id, 'login', user.login);
-					logger.info(
-						`[ChannelManager] name change: ${c.login} -> ${user.login}`
-					);
+				if (c.login !== u.login) {
+					await db.channel.update(c.id, 'login', u.login);
+					logger.info(`[ChannelManager] name change: ${c.login}`,
+					            `-> ${u.login}`);
 				}
-				if (c.display_name !== user.display_name)
-					await db.channel.update(c.id, 'display_name', user.display_name);
+				if (c.display_name !== u.display_name)
+					await db.channel.update(c.id, 'display_name', u.display_name);
 
-				this.join(user.login);
+				twitch.hermes.subscribeToChannel(c.id);
+				this.join(u.login);
 			}
 		} catch (err) {
 			logger.error('error loading channels:', err);
@@ -61,9 +67,9 @@ export default class ChannelManager {
 	}
 
 	init() {
-		this.load();
+		this.#load();
 		this.#loadInterval = setInterval(
-			() => this.load(),
+			() => this.#load(),
 			constants.LOAD_INTERVAL_MS
 		);
 	}
@@ -120,7 +126,7 @@ export default class ChannelManager {
 		if (controller) {
 			controller.abort();
 			this.#joinControllers.delete(c);
-			await this.joinQueue.removeMatching(job => job.channel === c);
+			this.joinQueue.removeMatching(job => job.channel === c);
 			return;
 		}
 		logger.debug('[ChannelManager] trying to part', c);
@@ -132,14 +138,12 @@ export default class ChannelManager {
 		}
 	}
 
-	async cleanup() {
-		await this.joinQueue.clear();
+	cleanup() {
+		this.joinQueue.clear();
 		this.#joinControllers.clear();
 		this.#joinedChannelsCache.channels.clear();
-		if (this.#loadInterval) {
-			clearInterval(this.#loadInterval);
-			this.#loadInterval = null;
-		}
+		clearInterval(this.#loadInterval);
+		this.#loadInterval = null;
 	}
 
 	get joinedChannels() {

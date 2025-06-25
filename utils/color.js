@@ -6,27 +6,31 @@ const INVALID_HEX = 0xff;
 const BASE16_CHARSET = '0123456789abcdef';
 
 const ASCII_TO_HEX = new Uint8Array(128).fill(INVALID_HEX);
-for (let i = 48; i <= 57; i++) ASCII_TO_HEX[i] = i - 48;
-for (let i = 65; i <= 70; i++) ASCII_TO_HEX[i] = i - 55;
-for (let i = 97; i <= 102; i++) ASCII_TO_HEX[i] = i - 87;
+for (let i = 48; i < 58; i++) ASCII_TO_HEX[i] = i - 48;
+for (let i = 65; i < 71; i++) ASCII_TO_HEX[i] = i - 55;
+for (let i = 97; i < 103; i++) ASCII_TO_HEX[i] = i - 87;
 
 const BYTE_TO_HEX_STRING = new Array(256);
 for (let i = 0; i < 256; i++)
 	BYTE_TO_HEX_STRING[i] = BASE16_CHARSET[i >> 4] + BASE16_CHARSET[i & 0xf];
 
-const SRGB_THRESHOLD = 0.04045;
-const SRGB_SLOPE = 12.92;
-const SRGB_OFFSET = 0.055;
-const SRGB_GAMMA = 1.055;
-const SRGB_EXPONENT = 2.4;
+const SRGB_BYTE_TO_LINEAR = new Float64Array(256);
+// sRGB <= 0.04045 (~10.3 in 8-bit)
+for (let i = 0; i < 11; i++) SRGB_BYTE_TO_LINEAR[i] = i / 255 / 12.92;
+for (let i = 11; i < 256; i++)
+	SRGB_BYTE_TO_LINEAR[i] = ((i / 255 + 0.055) / 1.055) ** 2.4;
+
 // prettier-ignore
 // illuminant=D65, observer=2 deg
-const R_TO_X_COEFF = 0.4124564, G_TO_X_COEFF = 0.3575761, B_TO_X_COEFF = 0.1804375,
-      R_TO_Y_COEFF = 0.2126729, G_TO_Y_COEFF = 0.7151522, B_TO_Y_COEFF = 0.072175,
-      R_TO_Z_COEFF = 0.0193339, G_TO_Z_COEFF = 0.119192,  B_TO_Z_COEFF = 0.9503041;
-const D65_Xn = 0.95047;
-const D65_Yn = 1.0;
-const D65_Zn = 1.08883;
+const M_XR = 0.4124564, M_XG = 0.3575761, M_XB = 0.1804375,
+      M_YR = 0.2126729, M_YG = 0.7151522, M_YB = 0.072175,
+      M_ZR = 0.0193339, M_ZG = 0.119192,  M_ZB = 0.9503041;
+const Xn_D65 = 0.95047;
+const Yn_D65 = 1.0;
+const Zn_D65 = 1.08883;
+const K_L = 1.0;
+const K_C = 1.0;
+const K_H = 1.0;
 const POWER_25_TO_7 = 25 ** 7;
 const LAB_EPSILON = 0.008856;
 const LAB_KAPPA = 903.3;
@@ -93,7 +97,7 @@ function quickSelect(distances, indices, left, right, k) {
 }
 
 const t0 = performance.now();
-const vpTreeRoot = (function buildVpTree(indices, start, end, iBuf, dBuf) {
+const vpTree = (function buildVpTree(indices, start, end, iBuf, dBuf) {
 	if (start >= end) return null;
 	const pivotIndex = indices[start];
 	const count = end - start;
@@ -161,13 +165,7 @@ function vpNearest(node, target, best = { distance: Infinity, index: -1 }) {
 	return best;
 }
 
-function srgbToLinear(channel) {
-	return channel <= SRGB_THRESHOLD
-		? channel / SRGB_SLOPE
-		: ((channel + SRGB_OFFSET) / SRGB_GAMMA) ** SRGB_EXPONENT;
-}
-
-function huePrime(ap, b) {
+function hPrime(ap, b) {
 	if (!ap && !b) return 0;
 	let h = Math.atan2(b, ap) * RAD_TO_DEG;
 	if (h < 0) h += 360;
@@ -189,8 +187,8 @@ function deltaE00(Lab1, Lab2) {
 	const C1p = Math.sqrt(a1p ** 2 + b1 ** 2);
 	const C2p = Math.sqrt(a2p ** 2 + b2 ** 2);
 
-	const h1p = huePrime(a1p, b1);
-	const h2p = huePrime(a2p, b2);
+	const h1p = hPrime(a1p, b1);
+	const h2p = hPrime(a2p, b2);
 
 	const deltaLp = L2 - L1;
 	const deltaCp = C2p - C1p;
@@ -236,15 +234,15 @@ function deltaE00(Lab1, Lab2) {
 	const SC = 1 + 0.045 * Cbarp;
 	const SH = 1 + 0.015 * Cbarp * T;
 
-	const deltaL_SL = deltaLp / SL; // kL=1
-	const deltaC_SC = deltaCp / SC; // kC=1
-	const deltaH_SH = deltaHp / SH; // kH=1
+	const deltaLp_SL = deltaLp / (K_L * SL);
+	const deltaCp_SC = deltaCp / (K_C * SC);
+	const deltaHp_SH = deltaHp / (K_H * SH);
 
 	return Math.sqrt(
-		deltaL_SL ** 2 +
-			deltaC_SC ** 2 +
-			deltaH_SH ** 2 +
-			RT * deltaC_SC * deltaH_SH
+		deltaLp_SL ** 2 +
+			deltaCp_SC ** 2 +
+			deltaHp_SH ** 2 +
+			RT * deltaCp_SC * deltaHp_SH
 	);
 }
 
@@ -284,9 +282,9 @@ function isValidXyz(XYZ) {
 	const { X, Y, Z } = XYZ;
 	return (
 		X === +X && Y === +Y && Z === +Z &&
-		X >= 0 && X <= D65_Xn &&
-		Y >= 0 && Y <= D65_Yn &&
-		Z >= 0 && Z <= D65_Zn
+		X >= 0 && X <= Xn_D65 &&
+		Y >= 0 && Y <= Yn_D65 &&
+		Z >= 0 && Z <= Zn_D65
 	);
 }
 
@@ -296,7 +294,7 @@ function hexToName(hex, validated = false, normalized = false) {
 	const index = hexToPointIndex.get(hex);
 	if (index !== undefined) return points[index].name;
 	const Lab = rgbToLab(hexToRgb(hex, true, true), true);
-	return points[vpNearest(vpTreeRoot, Lab).index].name;
+	return points[vpNearest(vpTree, Lab).index].name;
 }
 
 function hexToRgb(hex, validated = false, normalized = false) {
@@ -334,7 +332,7 @@ function rgbToName(rgb, validated = false) {
 	const index = hexToPointIndex.get(rgbToHex(rgb, true));
 	return index !== undefined
 		? points[index].name
-		: points[vpNearest(vpTreeRoot, rgbToLab(rgb, true)).index].name;
+		: points[vpNearest(vpTree, rgbToLab(rgb, true)).index].name;
 }
 
 function rgbToHex(rgb, validated = false) {
@@ -348,13 +346,14 @@ function rgbToHex(rgb, validated = false) {
 
 function rgbToXyz(rgb, validated = false) {
 	if (!validated && !isValidRgb(rgb)) return null;
-	const R = srgbToLinear(rgb.r / 255);
-	const G = srgbToLinear(rgb.g / 255);
-	const B = srgbToLinear(rgb.b / 255);
+	const R = SRGB_BYTE_TO_LINEAR[rgb.r];
+	const G = SRGB_BYTE_TO_LINEAR[rgb.g];
+	const B = SRGB_BYTE_TO_LINEAR[rgb.b];
+
 	return {
-		X: R * R_TO_X_COEFF + G * G_TO_X_COEFF + B * B_TO_X_COEFF,
-		Y: R * R_TO_Y_COEFF + G * G_TO_Y_COEFF + B * B_TO_Y_COEFF,
-		Z: R * R_TO_Z_COEFF + G * G_TO_Z_COEFF + B * B_TO_Z_COEFF,
+		X: R * M_XR + G * M_XG + B * M_XB,
+		Y: R * M_YR + G * M_YG + B * M_YB,
+		Z: R * M_ZR + G * M_ZG + B * M_ZB,
 	};
 }
 
@@ -367,9 +366,9 @@ function xyzToLab(XYZ, validated = false) {
 	if (!validated && !isValidXyz(XYZ)) return null;
 	const { X, Y, Z } = XYZ;
 
-	const xBar = X / D65_Xn;
-	const yBar = Y / D65_Yn;
-	const zBar = Z / D65_Zn;
+	const xBar = X / Xn_D65;
+	const yBar = Y / Yn_D65;
+	const zBar = Z / Zn_D65;
 
 	const fx =
 		xBar > LAB_EPSILON ? Math.cbrt(xBar) : (LAB_KAPPA * xBar + 16) / 116;
@@ -407,7 +406,7 @@ function getColor(hexOrRgb) {
 		color.name =
 			index !== undefined
 				? points[index].name
-				: points[vpNearest(vpTreeRoot, color.Lab).index].name;
+				: points[vpNearest(vpTree, color.Lab).index].name;
 		return color;
 	}
 	if (isValidRgb(hexOrRgb)) {
@@ -420,7 +419,7 @@ function getColor(hexOrRgb) {
 		color.name =
 			index !== undefined
 				? points[index].name
-				: points[vpNearest(vpTreeRoot, color.Lab).index].name;
+				: points[vpNearest(vpTree, color.Lab).index].name;
 		return color;
 	}
 

@@ -81,6 +81,9 @@ fragment FollowerFragment on User {
 	login
 	id
 	displayName
+	settings {
+		preferredLanguageTag
+	}
 	followers(first: 1) {
 		totalCount
 	}

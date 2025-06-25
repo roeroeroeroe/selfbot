@@ -10,7 +10,8 @@ export default {
 	flags: [
 		{
 			name: 'channel',
-			aliases: ['c', 'channel'],
+			short: 'c',
+			long: 'channel',
 			type: 'username',
 			required: true,
 			defaultValue: null,
@@ -18,7 +19,8 @@ export default {
 		},
 		{
 			name: 'includeStreak',
-			aliases: ['i', 'include-streak'],
+			short: 'i',
+			long: 'include-streak',
 			type: 'boolean',
 			required: false,
 			defaultValue: false,

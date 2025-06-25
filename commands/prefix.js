@@ -14,7 +14,8 @@ export default {
 	flags: [
 		{
 			name: 'channel',
-			aliases: ['c', 'channel'],
+			short: 'c',
+			long: 'channel',
 			type: 'username',
 			required: false,
 			defaultValue: null,
@@ -22,7 +23,8 @@ export default {
 		},
 		{
 			name: 'global',
-			aliases: ['g', 'global'],
+			short: 'g',
+			long: 'global',
 			type: 'boolean',
 			required: false,
 			defaultValue: false,
@@ -30,7 +32,8 @@ export default {
 		},
 		{
 			name: 'prefix',
-			aliases: ['p', 'prefix'],
+			short: 'p',
+			long: 'prefix',
 			type: 'string',
 			required: false,
 			defaultValue: '',

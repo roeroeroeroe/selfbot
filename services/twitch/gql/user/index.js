@@ -57,9 +57,13 @@ async function getMany(userLogins, userIds) {
 				variables: { input: b },
 			}))
 		);
-		for (const response of responses)
-			for (const user of response.data?.users)
-				if (user?.[mapKey]) usersMap.set(user[mapKey], user);
+
+		for (let i = 0; i < responses.length; i++) {
+			const users = responses[i].data?.users;
+			if (!users?.length) continue;
+			for (let j = 0, u; j < users.length; j++)
+				if ((u = users[j])?.[mapKey]) usersMap.set(u[mapKey], u);
+		}
 	}
 
 	return usersMap;

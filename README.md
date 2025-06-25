@@ -1,4 +1,8 @@
 # selfbot
+## disclaimer
+Uses undocumented Twitch APIs to access data not intended for third-party use.  
+**This violates Twitch's TOS.**  
+Use at your own risk.
 ## requirements
 - **Node.js** v22+
 - **PostgreSQL**
@@ -40,7 +44,7 @@ vi config.json
       "connectionsPoolSize": 10
     },
     "hermes": {
-      "maxConnections": 200,            // max number of WS connections to hermes
+      "maxConnections": 100,            // max number of WS connections to hermes
       "maxTopicsPerConnection": 50,     // max number of topics per hermes connection
       "autoJoinRaids": true,
       "autoAcknowledgeChatWarnings": true,

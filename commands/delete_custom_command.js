@@ -12,7 +12,8 @@ export default {
 	flags: [
 		{
 			name: 'name',
-			aliases: ['n', 'name'],
+			short: 'n',
+			long: 'name',
 			type: 'string',
 			defaultValue: '',
 			required: false,
@@ -20,7 +21,8 @@ export default {
 		},
 		{
 			name: 'channel',
-			aliases: ['c', 'channel'],
+			short: 'c',
+			long: 'channel',
 			type: 'username',
 			defaultValue: null,
 			required: false,
@@ -28,7 +30,8 @@ export default {
 		},
 		{
 			name: 'global',
-			aliases: ['g', 'global'],
+			short: 'g',
+			long: 'global',
 			type: 'boolean',
 			defaultValue: false,
 			required: false,

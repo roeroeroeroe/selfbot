@@ -11,7 +11,8 @@ export default {
 	flags: [
 		{
 			name: 'channel',
-			aliases: ['c', 'channel'],
+			short: 'c',
+			long: 'channel',
 			type: 'username',
 			required: false,
 			defaultValue: null,
@@ -19,7 +20,8 @@ export default {
 		},
 		{
 			name: 'enableNotifications',
-			aliases: ['n', 'notifications'],
+			short: 'n',
+			long: 'notifications',
 			type: 'boolean',
 			required: false,
 			defaultValue: false,

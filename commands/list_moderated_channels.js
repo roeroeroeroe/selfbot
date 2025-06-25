@@ -12,7 +12,8 @@ export default {
 	flags: [
 		{
 			name: 'info',
-			aliases: ['i', 'info'],
+			short: 'i',
+			long: 'info',
 			type: 'boolean',
 			required: false,
 			defaultValue: false,
@@ -37,9 +38,7 @@ export default {
 			return { text: '0 channels', mention: true };
 
 		for (const e of moderatedChannelsEdges) {
-			const lineParts = [
-				utils.pickName(e.node.login, e.node.displayName),
-			];
+			const lineParts = [utils.pickName(e.node.login, e.node.displayName)];
 			if (e.isLive) {
 				const viewers = e.node.stream?.viewersCount || 0;
 				lineParts.push(

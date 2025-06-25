@@ -1,4 +1,3 @@
-import { inspect } from 'util';
 import exec from '../services/exec.js';
 import config from '../config.json' with { type: 'json' };
 import configuration from '../services/configuration.js';
@@ -55,15 +54,7 @@ export default {
 
 		if (typeof result === 'object')
 			try {
-				return {
-					text: inspect(result, {
-						colors: false,
-						depth: 2,
-						compact: true,
-						breakLength: Infinity,
-					}),
-					mention: true,
-				};
+				return { text: utils.deepInspect(result), mention: true };
 			} catch (err) {
 				logger.error('failed to inspect result:', err);
 				return { text: '[Uninspectable]', mention: true };

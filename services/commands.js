@@ -32,7 +32,7 @@ function add(command) {
 		f => `  ${f.summary}${f.description ? `__ALIGN__${f.description}` : ''}`
 	);
 	usage += `\n${utils.format.align(flagLines)}`;
-	const displayByName = new Map(flagData.map(f => [f.name, f.aliasDisplay]));
+	const displayByName = new Map(flagData.map(f => [f.name, f.optionsDisplay]));
 	const exclusiveFlagLines = [];
 	for (let i = 0; i < exclusiveGroups.length; i++) {
 		const group = exclusiveGroups[i];
@@ -94,7 +94,7 @@ function validateCommand(command) {
 		throw new Error(`'unsafe' for command "${command.name}" must be a boolean`);
 	if (typeof command.lock !== 'string' || !VALID_LOCKS.has(command.lock))
 		throw new Error(`'lock' for command "${command.name}" must be one of: ` +
-		                [...VALID_LOCKS].join(', '))
+		                [...VALID_LOCKS].join(', '));
 	if (command.exclusiveFlagGroups !== undefined &&
 	    command.exclusiveFlagGroups !== null) {
 		if (!Array.isArray(command.exclusiveFlagGroups))

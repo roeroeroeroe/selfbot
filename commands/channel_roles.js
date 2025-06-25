@@ -12,7 +12,8 @@ export default {
 	flags: [
 		{
 			name: 'channel',
-			aliases: ['c', 'channel'],
+			short: 'c',
+			long: 'channel',
 			type: 'username',
 			required: false,
 			defaultValue: null,
@@ -20,7 +21,8 @@ export default {
 		},
 		{
 			name: 'timeout',
-			aliases: ['t', 'timeout'],
+			short: 't',
+			long: 'timeout',
 			type: 'duration',
 			required: false,
 			defaultValue: 10000,
@@ -30,7 +32,8 @@ export default {
 		},
 		{
 			name: 'maxMods',
-			aliases: ['m', 'max-mods'],
+			short: 'm',
+			long: 'max-mods',
 			type: 'int',
 			required: false,
 			defaultValue: 1000,
@@ -78,7 +81,7 @@ export default {
 			processEdges(vipEdges, 'vip', 'grantedAt', list, responseParts);
 		if (founderEdges?.length)
 			processEdges(founderEdges, 'founder', 'grantedAt', list,
-			             responseParts, 'isSubscribed', 'currently subscribed')
+			             responseParts, 'isSubscribed', 'currently subscribed');
 		if (artistEdges?.length)
 			processEdges(artistEdges, 'artist', 'grantedAt', list,
 			             responseParts);

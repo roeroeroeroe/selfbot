@@ -1,3 +1,4 @@
+import { inspect } from 'util';
 import config from '../config.json' with { type: 'json' };
 import twitch from '../services/twitch/index.js';
 import logger from '../services/logger.js';
@@ -12,13 +13,13 @@ export function sleep(ms) {
 
 export function withTimeout(promise, ms) {
 	if (ms <= 0) return promise;
-	let id;
+	let timeout;
 	return Promise.race([
 		promise,
 		new Promise((_, rej) => {
-			id = setTimeout(() => rej(new Error(`timed out after ${ms}ms`)), ms);
+			timeout = setTimeout(() => rej(new Error(`timed out after ${ms}ms`)), ms);
 		}),
-	]).finally(() => clearTimeout(id));
+	]).finally(() => clearTimeout(timeout));
 }
 // prettier-ignore
 /**
@@ -296,4 +297,13 @@ export function isValidHttpUrl(str) {
 export function safeToFixed(n, fractionDigits) {
 	if (Math.abs(n) < 0.5 * 10 ** -fractionDigits) n = 0;
 	return n.toFixed(fractionDigits);
+}
+
+export function deepInspect(obj, depth = 10) {
+	return inspect(obj, {
+		depth,
+		colors: false,
+		compact: true,
+		breakLength: Infinity,
+	});
 }

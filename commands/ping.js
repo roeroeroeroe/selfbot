@@ -17,7 +17,8 @@ export default {
 	flags: [
 		{
 			name: 'host',
-			aliases: ['h', 'host'],
+			short: 'h',
+			long: 'host',
 			type: 'boolean',
 			required: false,
 			defaultValue: false,
@@ -25,7 +26,8 @@ export default {
 		},
 		{
 			name: 'metrics',
-			aliases: ['m', 'metrics'],
+			short: 'm',
+			long: 'metrics',
 			type: 'boolean',
 			required: false,
 			defaultValue: false,

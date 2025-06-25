@@ -7,6 +7,7 @@ export default class SlidingWindowRateLimiter {
 	#maxPerWindow;
 	#buffer;
 	#chain = Promise.resolve();
+	#doWait;
 
 	constructor(windowMs, maxPerWindow) {
 		if (!Number.isInteger(windowMs) || windowMs <= 1)
@@ -19,6 +20,18 @@ export default class SlidingWindowRateLimiter {
 			bufferFactory: cap => new Float64Array(cap),
 			resizable: false,
 		});
+		this.#doWait = async () => {
+			let now = performance.now();
+			this.#prune(now);
+			if (this.#buffer.size >= this.#maxPerWindow) {
+				const delay = Math.ceil(this.#buffer.peekHead() + this.#windowMs - now);
+				logger.debug(`[SlidingWindowRateLimiter] wait: sleeping ${delay}ms`);
+				await utils.sleep(delay);
+				now = performance.now();
+				this.#prune(now);
+			}
+			this.#buffer.forcePush(now);
+		};
 	}
 
 	#prune(now = performance.now()) {
@@ -57,19 +70,7 @@ export default class SlidingWindowRateLimiter {
 	}
 
 	wait() {
-		const run = async () => {
-			let now = performance.now();
-			this.#prune(now);
-			if (this.#buffer.size >= this.#maxPerWindow) {
-				const delay = Math.ceil(this.#buffer.peekHead() + this.#windowMs - now);
-				logger.debug(`[SlidingWindowRateLimiter] wait: sleeping ${delay}ms`);
-				await utils.sleep(delay);
-				now = performance.now();
-				this.#prune(now);
-			}
-			this.#buffer.forcePush(now);
-		};
-		this.#chain = this.#chain.then(run, run);
+		this.#chain = this.#chain.then(this.#doWait, this.#doWait);
 		return this.#chain;
 	}
 }

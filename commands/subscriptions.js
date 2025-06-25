@@ -11,7 +11,8 @@ export default {
 	flags: [
 		{
 			name: 'printEmotes',
-			aliases: ['p', 'print-emotes'],
+			short: 'p',
+			long: 'print-emotes',
 			type: 'boolean',
 			required: false,
 			defaultValue: false,

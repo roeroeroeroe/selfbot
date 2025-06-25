@@ -16,7 +16,8 @@ export default {
 	flags: [
 		{
 			name: 'idLookup',
-			aliases: ['i', 'by-id'],
+			short: 'i',
+			long: 'by-id',
 			type: 'boolean',
 			required: false,
 			defaultValue: false,

@@ -4,7 +4,6 @@ import * as constants from './constants.js';
 import config from '../../../config.json' with { type: 'json' };
 import events, { subs } from './events/index.js';
 import logger from '../../logger.js';
-import db from '../../db/index.js';
 import utils from '../../../utils/index.js';
 import metrics from '../../metrics/index.js';
 import {
@@ -22,41 +21,38 @@ const spawnRateLimiter = new SlidingWindowRateLimiter(
 );
 let connectionIdCounter = 0;
 
-async function init() {
+function init() {
 	for (const sub of subs.user) subscribe(sub, config.bot.id);
-	const channels = await db.query('SELECT id FROM channels');
-	for (const channel of channels)
-		for (const sub of subs.channel) subscribe(sub, channel.id);
-
 	initPredictions();
-
-	return channels.length * subs.channel.length + subs.user.length;
 }
-
+// prettier-ignore
 function subscribe(sub, channelId) {
 	const topicString = `${sub}.${channelId}`;
 	if (topicsByName.has(topicString)) {
 		logger.debug('[Hermes] subscribe: already subscribed to', topicString);
 		return;
 	}
-	const { maxConnections, maxTopicsPerConnection } = config.twitch.hermes;
-	if (topicsById.size >= maxConnections * maxTopicsPerConnection)
-		return logger.debug(
-			'[Hermes] subscribe: max connections reached, not subscribing to',
-			topicString
-		);
 
-	const id = utils.randomString(constants.BASE64URL_CHARSET, 21);
+	const { maxConnections, maxTopicsPerConnection } = config.twitch.hermes;
+	if (topicsById.size >= maxConnections * maxTopicsPerConnection) {
+		logger.debug('[Hermes] subscribe: max topics reached,',
+		             'not subscribing to', topicString);
+		return;
+	}
+
+	const id = utils.randomString(constants.BASE64URL_CHARSET,
+	                              constants.ID_LENGTH);
 	const topic = {
 		id,
 		topicString,
 		channelId,
 		state: constants.TopicState.SUBSCRIBING,
-		connectionId: null,
+		connection: null,
 	};
 	topicsById.set(id, topic);
-	topicsByName.set(topicString, id);
+	topicsByName.set(topicString, topic);
 	metrics.gauge.set(metrics.names.gauges.HERMES_TOPICS, topicsById.size);
+
 	logger.debug('[Hermes] subscribe: enqueued task for', topicString);
 	taskQueue.enqueue({ type: 'subscribe', topic });
 }
@@ -68,15 +64,11 @@ function subscribeToChannel(channelId) {
 
 function unsubscribe(sub, channelId) {
 	const topicString = `${sub}.${channelId}`;
-	const id = topicsByName.get(topicString);
-	if (!id) {
-		logger.debug(
-			'[Hermes] unsubscribe: no existing subscription for',
-			topicString
-		);
+	const topic = topicsByName.get(topicString);
+	if (!topic) {
+		logger.debug('[Hermes] unsubscribe: no subscription for', topicString);
 		return;
 	}
-	const topic = topicsById.get(id);
 
 	topic.state = constants.TopicState.UNSUBSCRIBING;
 	taskQueue.removeMatching(
@@ -90,76 +82,57 @@ function unsubscribeFromChannel(channelId) {
 	for (const sub of subs.channel) unsubscribe(sub, channelId);
 	return subs.channel.length;
 }
-
+// prettier-ignore
 async function processTask({ type, topic }) {
-	logger.debug(
-		`[Hermes] processTask: processing ${type} for ${topic.topicString}`
-	);
-	if (!topic || !topicsById.has(topic.id)) return;
-	switch (type) {
-		case 'subscribe': {
-			if (topic.state === constants.TopicState.UNSUBSCRIBING) {
-				logger.debug(
-					'[Hermes] processTask: skipping subscribe, topic is UNSUBSCRIBING:',
-					topic.topicString
-				);
+	if (!topicsById.has(topic.id))
+		return;
+	logger.debug(`[Hermes] processTask: ${type} ${topic.topicString}`);
+
+	if (type === 'subscribe') {
+		if (topic.state !== constants.TopicState.SUBSCRIBING)
+			return;
+		let c;
+		const max = config.twitch.hermes.maxTopicsPerConnection;
+		for (const conn of connections.values())
+			if (conn.topics.size + conn.pending.subscribe < max) {
+				c = conn;
+				logger.debug('[Hermes] processTask: using',
+				             `connection ${c.id} for ${topic.topicString}`);
+				break;
+			}
+		if (!c) {
+			if (connections.size >= config.twitch.hermes.maxConnections) {
+				logger.debug('[Hermes] processTask: max connections',
+				             'reached, not subscribing to', topic.topicString);
+				cleanupTopic(topic);
 				return;
 			}
-			const { maxConnections, maxTopicsPerConnection } = config.twitch.hermes;
-			let c;
-			for (const conn of connections.values())
-				if (
-					conn.topicIds.size + conn.pending.subscribe <
-					maxTopicsPerConnection
-				) {
-					c = conn;
-					logger.debug(
-						`[Hermes] processTask: using connection ${c.id} for ${topic.topicString}`
-					);
-					break;
-				}
-			if (!c) {
-				if (connections.size >= maxConnections) {
-					logger.debug(
-						`[Hermes] max connections reached, not subscribing to ${topic.topicString}`
-					);
-					cleanupTopic(topic);
-					return;
-				}
-				await spawnRateLimiter.wait();
-				c = createConnection();
-			}
-
-			topic.connectionId = c.id;
-			if (topic.state === constants.TopicState.UNSUBSCRIBING) return;
-			c.topicIds.add(topic.id);
-			if (c.isAuthenticated)
-				sendMessage(c, 'subscribe', topic.topicString, topic.id);
-			break;
+			await spawnRateLimiter.wait();
+			c = createConnection();
 		}
-		case 'unsubscribe': {
-			const c = connections.get(topic.connectionId);
-			if (c?.isAuthenticated)
-				sendMessage(c, 'unsubscribe', topic.topicString, topic.id);
-			else cleanupTopic(topic);
-			break;
-		}
-		default: {
-			throw new Error(`unkown task type: ${type}`);
-		}
-	}
+		c.topics.add(topic);
+		topic.connection = c;
+		if (c.isAuthenticated)
+			sendMessage(c, 'subscribe', topic);
+	} else if (type === 'unsubscribe') {
+		const c = topic.connection;
+		if (c?.isAuthenticated)
+			sendMessage(c, 'unsubscribe', topic);
+		else
+			cleanupTopic(topic);
+	} else
+		throw new Error(`unknown task type: ${type}`);
 }
-
+// prettier-ignore
 function createConnection() {
 	const c = {
 		id: ++connectionIdCounter,
 		ws: new WebSocket(constants.WS_URL),
 		isAuthenticated: false,
-		topicIds: new Set(),
+		topics: new Set(),
 		pending: { authenticate: 0, subscribe: 0, unsubscribe: 0 },
 		keepAliveMs: 0,
 		healthTimeout: null,
-		resetHealthTimeout: () => {},
 	};
 	connections.set(c.id, c);
 	metrics.gauge.set(metrics.names.gauges.HERMES_CONNECTIONS, connections.size);
@@ -170,93 +143,66 @@ function createConnection() {
 		sendMessage(c, 'authenticate');
 	});
 	c.ws.addEventListener('message', ({ data }) => {
-		c.resetHealthTimeout();
+		resetHealthTimeout(c);
 		let msg;
 		try {
 			msg = JSON.parse(data);
 		} catch {
-			return logger.error(`[Hermes] [connection ${c.id}] malformed JSON`);
+			logger.error(`[Hermes] [connection ${c.id}] malformed JSON`);
+			return;
 		}
 		const handler = wsMessageHandlers[msg.type];
-		if (handler) handler(c, msg);
+		if (handler)
+			handler(c, msg);
 		else
-			logger.warning(
-				`[Hermes] [connection ${c.id}] unknown message type "${msg.type}":`,
-				msg
-			);
+			logger.warning(`[Hermes] [connection ${c.id}] unknown`,
+			               `message type ${msg.type}:`, msg);
 	});
 	c.ws.addEventListener('error', ({ error: err }) => {
 		logger.error(`[Hermes] [connection ${c.id}] error:`, err?.message || err);
-		if (
-			c.ws.readyState !== WebSocket.CLOSING &&
-			c.ws.readyState !== WebSocket.CLOSED
-		)
+		const state = c.ws.readyState;
+		if (state !== WebSocket.CLOSING && state !== WebSocket.CLOSED)
 			c.ws.close();
 	});
 	c.ws.addEventListener('close', ({ code, reason }) => {
-		logger.debug(`[Hermes] [connection ${c.id}] close (${code}): ${reason}`);
+		logger.debug(`[Hermes] [connection ${c.id}] closed (${code}): ${reason}`);
 		clearTimeout(c.healthTimeout);
 		connections.delete(c.id);
-		metrics.gauge.set(
-			metrics.names.gauges.HERMES_CONNECTIONS,
-			connections.size
-		);
-
-		for (const topicId of c.topicIds) {
-			const topic = topicsById.get(topicId);
-			if (!topic) continue;
-			if (topic.state === constants.TopicState.UNSUBSCRIBING) {
+		metrics.gauge.set(metrics.names.gauges.HERMES_CONNECTIONS,
+		                  connections.size);
+		for (const topic of c.topics)
+			if (topic.state === constants.TopicState.UNSUBSCRIBING)
 				cleanupTopic(topic);
-				continue;
+			else {
+				topic.state = constants.TopicState.SUBSCRIBING;
+				topic.connection = null;
+				taskQueue.enqueue({ type: 'subscribe', topic });
 			}
-			topic.state = constants.TopicState.SUBSCRIBING;
-			taskQueue.enqueue({ type: 'subscribe', topic });
-		}
 	});
 
 	return c;
 }
-
-function sendMessage(
-	c,
-	type,
-	topicString = '',
-	id = utils.randomString(constants.BASE64URL_CHARSET, 21)
-) {
+// prettier-ignore
+function sendMessage(c, type, topic) {
+	const id =
+		topic?.id ||
+		utils.randomString(constants.BASE64URL_CHARSET, constants.ID_LENGTH);
 	const msg = { type, id, timestamp: new Date().toISOString() };
-	switch (type) {
-		case 'authenticate':
-			msg.authenticate = { token: process.env.TWITCH_ANDROID_TOKEN };
-			break;
-		case 'subscribe':
-		case 'unsubscribe':
-			msg[type] = { id, type: 'pubsub', pubsub: { topic: topicString } };
-			break;
-		default:
-			throw new Error(`unknown message type: ${type}`);
-	}
+	if (type === 'authenticate')
+		msg.authenticate = { token: process.env.TWITCH_ANDROID_TOKEN };
+	else
+		msg[type] = { id, type: 'pubsub', pubsub: { topic: topic.topicString } };
 	c.ws.send(JSON.stringify(msg));
 	c.pending[type]++;
-	logger.debug(
-		`[Hermes] [connection ${c.id}] sent ${type} (id=${id})${topicString ? ` to ${topicString}` : ''}`
-	);
+	logger.debug(`[Hermes] [connection ${c.id}] sent ${type}`,
+	             `(id=${id})${topic ? ` to ${topic.topicString}` : ''}`);
 }
-
+// prettier-ignore
 const wsMessageHandlers = {
 	welcome: (c, msg) => {
 		c.keepAliveMs = ((msg.welcome.keepaliveSec || 10) + 2.5) * 1000;
-		logger.debug(`[Hermes] [connection ${c.id}] welcome, KA=${c.keepAliveMs}`);
-		c.resetHealthTimeout = () => {
-			if (c.healthTimeout) clearTimeout(c.healthTimeout);
-			c.healthTimeout = setTimeout(() => {
-				metrics.counter.increment(
-					metrics.names.counters.HERMES_MISSED_KEEPALIVES
-				);
-				logger.debug(`[Hermes] [connection ${c.id}] missed keepalive`);
-				c.ws.close();
-			}, c.keepAliveMs);
-		};
-		c.resetHealthTimeout();
+		logger.debug(`[Hermes] [connection ${c.id}] welcome, KA=${c.keepAliveMs}ms`);
+		resetHealthTimeout(c);
 	},
 	keepalive: () => {},
 	reconnect: c => {
@@ -267,136 +213,136 @@ const wsMessageHandlers = {
 	authenticateResponse: (c, msg) => {
 		c.pending.authenticate--;
 		if (msg.authenticateResponse?.result !== 'ok') {
-			logger.error(
-				`[Hermes] [connection ${c.id}] auth error:`,
-				msg.authenticateResponse?.error || 'N/A',
-				msg.authenticateResponse?.errorCode || 'N/A'
-			);
+			logger.error(`[Hermes] [connection ${c.id}] auth error:`,
+			             msg.authenticateResponse);
 			c.ws.close();
 			return;
 		}
 		c.isAuthenticated = true;
 		logger.debug(`[Hermes] [connection ${c.id}] authenticated`);
-		if (isConnectionIdle(c)) return c.ws.close();
-		for (const topicId of c.topicIds) {
-			const topic = topicsById.get(topicId);
-			if (!topic) continue;
-			const messageType =
-				topic.state === constants.TopicState.UNSUBSCRIBING
-					? 'unsubscribe'
-					: 'subscribe';
-			sendMessage(c, messageType, topic.topicString, topic.id);
-		}
+		for (const topic of c.topics)
+			if (topic.state === constants.TopicState.UNSUBSCRIBING)
+				sendMessage(c, 'unsubscribe', topic);
+			else
+				sendMessage(c, 'subscribe', topic);
+		closeIfIdle(c);
 	},
 	subscribeResponse: (c, msg) => {
 		c.pending.subscribe--;
 		const topic = topicsById.get(msg.parentId);
-		if (!topic) c.topicIds.delete(msg.parentId);
-		else if (
-			topic.state === constants.TopicState.SUBSCRIBING &&
-			msg.subscribeResponse?.result === 'ok'
-		) {
+		if (!topic) {
+			closeIfIdle(c);
+			return;
+		}
+		if (topic.state === constants.TopicState.SUBSCRIBING &&
+		    msg.subscribeResponse?.result === 'ok') {
 			topic.state = constants.TopicState.SUBSCRIBED;
-			logger.debug(
-				`[Hermes] [connection ${c.id}] subscribed ok to ${topic.topicString}`
-			);
-		} else if (msg.subscribeResponse?.result === 'error')
-			if (msg.subscribeResponse.error === 'too many subscriptions') {
-				topic.state = constants.TopicState.SUBSCRIBING;
-				return taskQueue.enqueue({ type: 'subscribe', topic });
-			} else {
-				logger.error(
-					`[Hermes] [connection ${c.id}] sub error:`,
-					topic.topicString,
-					msg.subscribeResponse.error,
-					msg.subscribeResponse.errorCode
-				);
-				return cleanupTopic(topic, c);
+			logger.debug(`[Hermes] [connection ${c.id}] subscribed ok`,
+			             `to ${topic.topicString}`);
+		} else if (msg.subscribeResponse?.result === 'error') {
+			const { error: err, errorCode: errCode } = msg.subscribeResponse;
+			if (err === 'too many subscriptions')
+				taskQueue.enqueue({ type: 'subscribe', topic });
+			else {
+				logger.error(`[Hermes] [connection ${c.id}] sub error:`,
+				             topic.topicString, err, errCode);
+				cleanupTopic(topic);
 			}
-		if (c.isAuthenticated && isConnectionIdle(c)) c.ws.close();
+		}
 	},
 	unsubscribeResponse: (c, msg) => {
 		c.pending.unsubscribe--;
 		const topic = topicsById.get(msg.parentId);
 		if (topic) {
-			logger.debug(
-				`[Hermes] [connection ${c.id}] unsubscribed from ${topic.topicString}`
-			);
-			return cleanupTopic(topic, c);
+			logger.debug(`[Hermes] [connection ${c.id}] unsubscribed`,
+			             `from ${topic.topicString}`);
+			cleanupTopic(topic);
 		}
-		c.topicIds.delete(msg.parentId);
-		for (const [name, id] of topicsByName.entries())
-			if (id === msg.parentId) {
-				topicsByName.delete(name);
-				break;
-			}
-		if (c.isAuthenticated && isConnectionIdle(c)) c.ws.close();
+		closeIfIdle(c);
 	},
-	// prettier-ignore
 	notification: (c, msg) => {
 		metrics.counter.increment(metrics.names.counters.HERMES_NOTIFICATIONS_RX);
 		const raw = msg.notification?.pubsub;
-		if (!raw)
-			return logger.warning(`[Hermes] [connection ${c.id}] no pubsub data:`, msg);
+		if (!raw) {
+			logger.warning(`[Hermes] [connection ${c.id}] no pubsub data:`,
+			               msg);
+			return;
+		}
 		const subId = msg.notification?.subscription?.id;
-		if (!subId)
-			return logger.warning(`[Hermes] [connection ${c.id}] no subscription id:`, msg);
+		if (!subId) {
+			logger.warning(`[Hermes] [connection ${c.id}] no subscription id:`,
+			               msg);
+			return;
+		}
 		const topic = topicsById.get(subId);
-		if (!topic)
-			return logger.warning(`[Hermes] [connection ${c.id}] unknown subscription id:`, subId);
+		if (!topic) {
+			logger.warning(`[Hermes] [connection ${c.id}] unknown`,
+			               `subscription id: ${subId}`);
+			return;
+		}
 		let data;
 		try {
-			data = JSON.parse(msg.notification.pubsub);
+			data = JSON.parse(raw);
 		} catch {
-			return logger.error(`[Hermes] [connection ${c.id}] malformed pubsub JSON:`, msg.notification.pubsub);
+			logger.warning(`[Hermes] [connection ${c.id}] malformed`,
+			               'pubsub JSON:', raw);
+			return;
 		}
-		if (!data.type)
-			return logger.warning(`[Hermes] [connection ${c.id}] missing pubsub type:`, data);
+		if (!data.type) {
+			logger.warning(`[Hermes] [connection ${c.id}] missing`,
+			               'pubsub type:', data);
+			return;
+		}
 		data.channelId = topic.channelId;
 		const handler = events[data.type];
-		if (handler) {
-			metrics.counter.increment(metrics.names.counters.HERMES_NOTIFICATIONS_PROCESSED);
-			handler(data).catch(err => logger.error(`[Hermes] ${data.type} handler error:`, err));
+		if (!handler) {
+			logger.debug(`[Hermes] [connection ${c.id}] unhandled`,
+			             `event ${data.type}:`, data);
+			return;
 		}
+		metrics.counter.increment(
+			metrics.names.counters.HERMES_NOTIFICATIONS_PROCESSED
+		);
+		handler(data).catch(
+			err => logger.error(`[Hermes] [connection ${c.id}] ${data.type}`,
+			                    'handler error:', err)
+		);
 	},
 };
 
-function isConnectionIdle(c) {
-	return (
-		!c.topicIds.size &&
-		!c.pending.authenticate &&
-		!c.pending.subscribe &&
-		!c.pending.unsubscribe
-	);
-}
-
-function cleanupTopic(topic, c = connections.get(topic.connectionId)) {
+function cleanupTopic(topic) {
+	const c = topic.connection;
 	if (c) {
-		c.topicIds.delete(topic.id);
-		if (
-			c.isAuthenticated &&
-			c.ws.readyState === WebSocket.OPEN &&
-			isConnectionIdle(c)
-		)
-			c.ws.close();
-		logger.debug(
-			`[Hermes] [connection ${c.id}] cleaned up topic ${topic.topicString}`
-		);
+		c.topics.delete(topic);
+		topic.connection = null;
+		if (c.isAuthenticated && c.ws.readyState === WebSocket.OPEN) closeIfIdle(c);
 	}
 	topicsById.delete(topic.id);
 	topicsByName.delete(topic.topicString);
 	metrics.gauge.set(metrics.names.gauges.HERMES_TOPICS, topicsById.size);
 }
+// prettier-ignore
+function closeIfIdle(c) {
+	if (!c.topics.size && !c.pending.authenticate &&
+	    !c.pending.subscribe && !c.pending.unsubscribe)
+		c.ws.close();
+}
 
-async function cleanup() {
-	await taskQueue.clear();
+function resetHealthTimeout(c) {
+	clearTimeout(c.healthTimeout);
+	c.healthTimeout = setTimeout(() => {
+		metrics.counter.increment(metrics.names.counters.HERMES_MISSED_KEEPALIVES);
+		logger.debug(`[Hermes] [connection ${c.id}] missed keepalive`);
+		c.ws.close();
+	}, c.keepAliveMs);
+}
+
+function cleanup() {
+	taskQueue.clear();
 	cleanupPredictions();
 	for (const c of connections.values()) {
-		if (c.healthTimeout) {
-			clearTimeout(c.healthTimeout);
-			c.healthTimeout = null;
-		}
-		c.topicIds.clear();
+		clearTimeout(c.healthTimeout);
+		c.topics.clear();
 		if (c.ws.readyState === WebSocket.OPEN) c.ws.close();
 	}
 	connections.clear();

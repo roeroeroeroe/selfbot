@@ -11,7 +11,8 @@ export default {
 	flags: [
 		{
 			name: 'emoteToken',
-			aliases: ['e', 'emote'],
+			short: 'e',
+			long: 'emote',
 			type: 'string',
 			defaultValue: '',
 			required: false,
@@ -19,7 +20,8 @@ export default {
 		},
 		{
 			name: 'channel',
-			aliases: ['c', 'channel'],
+			short: 'c',
+			long: 'channel',
 			type: 'username',
 			defaultValue: null,
 			required: false,

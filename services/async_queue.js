@@ -1,4 +1,3 @@
-import Mutex from './mutex.js';
 import RingBuffer from './ring_buffer.js';
 import logger from './logger.js';
 
@@ -8,7 +7,6 @@ export default class AsyncQueue {
 	#minCapacity;
 	#processing = false;
 	#canceled = false;
-	#mu = new Mutex();
 
 	constructor(worker, initialCapacity = 16) {
 		this.#worker = worker;
@@ -16,41 +14,28 @@ export default class AsyncQueue {
 		this.#minCapacity = this.#buffer.capacity;
 	}
 
-	async enqueue(item) {
-		await this.#mu.lock();
-		try {
-			this.#buffer.push(item);
-		} finally {
-			this.#mu.unlock();
-		}
+	enqueue(item) {
+		this.#buffer.push(item);
 		if (!this.#processing) {
 			logger.debug('[AsyncQueue] enqueue: starting processing loop');
 			this.#process();
 		}
 	}
 
-	async removeMatching(predicate) {
-		await this.#mu.lock();
-		try {
-			return this.#buffer.removeMatching(predicate);
-		} finally {
-			this.#mu.unlock();
-		}
+	removeMatching(predicate, max = Infinity) {
+		return this.#buffer.removeMatching(predicate, max);
 	}
 
 	async #process() {
 		this.#processing = true;
 		this.#canceled = false;
 		for (;;) {
-			await this.#mu.lock();
 			if (this.#canceled || !this.#buffer.size) {
 				if (this.#buffer.capacity > this.#minCapacity) this.#buffer.shrink();
 				this.#processing = false;
-				this.#mu.unlock();
 				return;
 			}
 			const item = this.#buffer.shift();
-			this.#mu.unlock();
 			try {
 				await this.#worker(item);
 			} catch (err) {
@@ -59,14 +44,9 @@ export default class AsyncQueue {
 		}
 	}
 
-	async clear() {
-		await this.#mu.lock();
-		try {
-			this.#buffer = new RingBuffer(this.#minCapacity);
-			this.#canceled = true;
-		} finally {
-			this.#mu.unlock();
-		}
+	clear() {
+		this.#buffer = new RingBuffer(this.#minCapacity);
+		this.#canceled = true;
 	}
 
 	/** @param {(item: any) => Promise<void>} worker */ // silence ts_ls

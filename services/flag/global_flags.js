@@ -10,7 +10,8 @@ const EXCLUSIVE_GROUPS = [
 const SCHEMA = [
 	{
 		name: 'timeExec',
-		aliases: [null, 'time'],
+		short: null,
+		long: 'time',
 		type: 'boolean',
 		required: false,
 		defaultValue: false,
@@ -19,7 +20,8 @@ const SCHEMA = [
 	// pre
 	{
 		name: 'help',
-		aliases: [null, 'help'],
+		short: null,
+		long: 'help',
 		type: 'boolean',
 		required: false,
 		defaultValue: false,
@@ -27,7 +29,8 @@ const SCHEMA = [
 	},
 	{
 		name: 'fromPaste',
-		aliases: [null, 'from-paste'],
+		short: null,
+		long: 'from-paste',
 		type: 'url',
 		required: false,
 		defaultValue: null,
@@ -36,7 +39,8 @@ const SCHEMA = [
 	// post
 	{
 		name: 'quiet',
-		aliases: [null, 'quiet'],
+		short: null,
+		long: 'quiet',
 		type: 'boolean',
 		required: false,
 		defaultValue: false,
@@ -44,7 +48,8 @@ const SCHEMA = [
 	},
 	{
 		name: 'toPaste',
-		aliases: [null, 'to-paste'],
+		short: null,
+		long: 'to-paste',
 		type: 'boolean',
 		required: false,
 		defaultValue: false,

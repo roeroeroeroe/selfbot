@@ -20,7 +20,8 @@ export default {
 	flags: [
 		{
 			name: 'name',
-			aliases: ['n', 'name'],
+			short: 'n',
+			long: 'name',
 			type: 'string',
 			defaultValue: '',
 			required: true,
@@ -29,7 +30,8 @@ export default {
 		},
 		{
 			name: 'newName',
-			aliases: [null, 'new-name'],
+			short: null,
+			long: 'new-name',
 			type: 'string',
 			defaultValue: '',
 			required: false,
@@ -37,7 +39,8 @@ export default {
 		},
 		{
 			name: 'channel',
-			aliases: [null, 'channel'],
+			short: null,
+			long: 'channel',
 			type: 'username',
 			defaultValue: null,
 			required: false,
@@ -45,7 +48,8 @@ export default {
 		},
 		{
 			name: 'global',
-			aliases: ['g', 'global'],
+			short: 'g',
+			long: 'global',
 			type: 'boolean',
 			defaultValue: null,
 			required: false,
@@ -53,7 +57,8 @@ export default {
 		},
 		{
 			name: 'trigger',
-			aliases: [null, 'trigger'],
+			short: null,
+			long: 'trigger',
 			type: 'string',
 			defaultValue: '',
 			required: false,
@@ -62,7 +67,8 @@ export default {
 		},
 		{
 			name: 'response',
-			aliases: ['r', 'response'],
+			short: 'r',
+			long: 'response',
 			type: 'string',
 			defaultValue: '',
 			required: false,
@@ -70,7 +76,8 @@ export default {
 		},
 		{
 			name: 'runcmd',
-			aliases: ['c', 'command'],
+			short: 'c',
+			long: 'command',
 			type: 'string',
 			defaultValue: '',
 			required: false,
@@ -79,7 +86,8 @@ export default {
 		},
 		{
 			name: 'whitelist',
-			aliases: ['w', 'whitelist'],
+			short: 'w',
+			long: 'whitelist',
 			type: 'username',
 			list: { unique: true, minItems: 1 },
 			defaultValue: null,
@@ -88,7 +96,8 @@ export default {
 		},
 		{
 			name: 'clearWhitelist',
-			aliases: ['W', 'clear-whitelist'],
+			short: 'W',
+			long: 'clear-whitelist',
 			type: 'boolean',
 			defaultValue: false,
 			required: false,
@@ -96,7 +105,8 @@ export default {
 		},
 		{
 			name: 'cooldown',
-			aliases: [null, 'cooldown'],
+			short: null,
+			long: 'cooldown',
 			type: 'duration',
 			defaultValue: null,
 			required: false,
@@ -104,7 +114,8 @@ export default {
 		},
 		{
 			name: 'reply',
-			aliases: [null, 'reply'],
+			short: null,
+			long: 'reply',
 			type: 'boolean',
 			defaultValue: null,
 			required: false,
@@ -112,7 +123,8 @@ export default {
 		},
 		{
 			name: 'mention',
-			aliases: [null, 'mention'],
+			short: null,
+			long: 'mention',
 			type: 'boolean',
 			defaultValue: null,
 			required: false,
@@ -157,8 +169,7 @@ export default {
 
 		if (msg.commandFlags.trigger) {
 			const regex = utils.regex.construct(msg.commandFlags.trigger);
-			if (String(regex) !== String(command.trigger))
-				newValues.trigger = regex;
+			if (String(regex) !== String(command.trigger)) newValues.trigger = regex;
 		}
 
 		if (msg.commandFlags.cooldown !== null)

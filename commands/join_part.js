@@ -15,7 +15,8 @@ export default {
 	flags: [
 		{
 			name: 'id',
-			aliases: ['i', 'id'],
+			short: 'i',
+			long: 'id',
 			type: 'boolean',
 			required: false,
 			defaultValue: false,
@@ -23,7 +24,8 @@ export default {
 		},
 		{
 			name: 'log',
-			aliases: ['l', 'log'],
+			short: 'l',
+			long: 'log',
 			type: 'boolean',
 			required: false,
 			defaultValue: config.messages.logByDefault,
@@ -31,7 +33,8 @@ export default {
 		},
 		{
 			name: 'prefix',
-			aliases: ['p', 'prefix'],
+			short: 'p',
+			long: 'prefix',
 			type: 'string',
 			required: false,
 			defaultValue: config.commands.defaultPrefix,
@@ -40,7 +43,8 @@ export default {
 		},
 		{
 			name: 'force',
-			aliases: ['f', 'force'],
+			short: 'f',
+			long: 'force',
 			type: 'boolean',
 			required: false,
 			defaultValue: false,

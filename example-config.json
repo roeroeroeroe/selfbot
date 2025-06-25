@@ -25,7 +25,7 @@
 			"connectionsPoolSize": 10
 		},
 		"hermes": {
-			"maxConnections": 200,
+			"maxConnections": 100,
 			"maxTopicsPerConnection": 50,
 			"autoAcknowledgeChatWarnings": true,
 			"autoJoinRaids": true,

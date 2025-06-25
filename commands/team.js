@@ -15,7 +15,8 @@ export default {
 	flags: [
 		{
 			name: 'teamName',
-			aliases: ['n', 'name'],
+			short: 'n',
+			long: 'name',
 			type: 'string',
 			required: false,
 			defaultValue: '',

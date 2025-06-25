@@ -1,0 +1,633 @@
+import countryCodes from '../data/country_codes.json' with { type: 'json' };
+import stopwords from '../data/stopwords.json' with { type: 'json' };
+import logger from '../services/logger.js';
+import twitch from '../services/twitch/index.js';
+import db from '../services/db/index.js';
+import utils from '../utils/index.js';
+import paste from '../services/paste/index.js';
+
+const FACTOR_LABELS = {
+	SUBSCRIPTION_SKUS: 'subscriptionSKUs',
+	UI_LANG: 'uiLang',
+	STREAM_LANG: 'streamLang',
+	USER_MESSAGES_LANG: 'userMessagesLang',
+	CHANNEL_RECENT_MESSAGES_LANG: 'channelRecentMessagesLang',
+	CHATTER_LANGS: 'chatterLangs',
+	FOLLOWED_CHANNEL_LANGS: 'followedChannelLangs',
+	DESCRIPTION: 'description',
+};
+
+const DEFAULT_BASE_WEIGHTS = {
+	[FACTOR_LABELS.SUBSCRIPTION_SKUS]: 4.5,
+	[FACTOR_LABELS.UI_LANG]: 3.5,
+	[FACTOR_LABELS.STREAM_LANG]: 3,
+	[FACTOR_LABELS.USER_MESSAGES_LANG]: 2,
+	[FACTOR_LABELS.CHANNEL_RECENT_MESSAGES_LANG]: 1,
+	[FACTOR_LABELS.CHATTER_LANGS]: 0.75,
+	[FACTOR_LABELS.FOLLOWED_CHANNEL_LANGS]: 0.5,
+	[FACTOR_LABELS.DESCRIPTION]: 0.5,
+};
+const DEFAULT_MIN_SCORE_THRESHOLD = 4.0;
+const DEFAULT_CHATTER_SATURATION_POINT = 50;
+const DEFAULT_FOLLOW_SATURATION_POINT = 50;
+
+// prettier-ignore
+const LANGUAGE_TO_COUNTRY_CODE = {
+	ar: 'SA', asl: null, az: 'AZ', be: 'BY', bg: 'BG', bn: 'BD', ca: 'ES',
+	cs: 'CZ', da: 'DK', de: 'DE', el: 'GR', en: 'US', en_gb: 'GB', es: 'ES',
+	es_mx: 'MX', eu: 'ES', fi: 'FI', fr: 'FR', he: 'IL', hi: 'IN', hu: 'HU',
+	id: 'ID', it: 'IT', ja: 'JP', kk: 'KZ', ko: 'KR', ms: 'MY', ne: 'NP',
+	nl: 'NL', no: 'NO', other: null, pl: 'PL', pt: 'PT', pt_br: 'BR',
+	ro: 'RO', ru: 'RU', sk: 'SK', sl: 'SI', sq: 'AL', sv: 'SE', ta: 'IN',
+	tg: 'TJ', th: 'TH', tl: 'PH', tr: 'TR', uk: 'UA', vi: 'VN', zh: 'CN',
+	zh_cn: 'CN', zh_hk: 'HK', zh_tw: 'TW',
+};
+const LANGUAGE_WEIGHT_OVERRIDES = { en: 0.5 };
+
+const VALID_COUNTRY_CODES = new Set(Object.keys(countryCodes));
+
+const STOPWORD_LANGUAGES = Object.keys(stopwords);
+const STOPWORDS_BY_LANGUAGE = {};
+const STOPWORD_WORD_TO_LANGUAGES = new Map();
+for (const lang of STOPWORD_LANGUAGES) {
+	STOPWORDS_BY_LANGUAGE[lang] = new Set(stopwords[lang]);
+	for (const word of STOPWORDS_BY_LANGUAGE[lang])
+		if (!STOPWORD_WORD_TO_LANGUAGES.has(word))
+			STOPWORD_WORD_TO_LANGUAGES.set(word, [lang]);
+		else STOPWORD_WORD_TO_LANGUAGES.get(word).push(lang);
+}
+
+const chatterTypes = twitch.gql.channel.CHATTER_TYPES;
+
+const labelToFlagName = {};
+const weightFlags = [];
+for (const l of Object.values(FACTOR_LABELS)) {
+	const flagName = `w${l[0].toUpperCase()}${l.slice(1)}`;
+	labelToFlagName[l] = flagName;
+	const longOpt = `${l.replace(/[A-Z]/g, c => '-' + c.toLowerCase())}-weight`;
+	weightFlags.push({
+		name: flagName,
+		short: null,
+		long: longOpt,
+		type: 'float',
+		required: false,
+		defaultValue: DEFAULT_BASE_WEIGHTS[l],
+		description: `base weight for ${l} (default: ${DEFAULT_BASE_WEIGHTS[l]}, min: 0)`,
+		validator: v => v >= 0,
+	});
+}
+
+export default {
+	name: 'guessusercountry',
+	aliases: ['guesscountry', 'usercountry'],
+	description:
+		"infer a user's country by aggregating weighted language signals",
+	unsafe: false,
+	lock: 'CHANNEL',
+	flags: [
+		{
+			name: 'user',
+			short: 'u',
+			long: 'user',
+			type: 'username',
+			required: false,
+			defaultValue: null,
+			description: 'target user',
+		},
+		{
+			name: 'minScore',
+			short: 'm',
+			long: 'min-score',
+			type: 'float',
+			required: false,
+			defaultValue: DEFAULT_MIN_SCORE_THRESHOLD,
+			description:
+				'minimum total score to make a guess ' +
+				`(default: ${DEFAULT_MIN_SCORE_THRESHOLD}, min: 0.1)`,
+			validator: v => v >= 0.1,
+		},
+		{
+			name: 'verbose',
+			short: 'v',
+			long: 'verbose',
+			type: 'boolean',
+			required: false,
+			defaultValue: false,
+			description: 'show per-factor contributions and final country scores',
+		},
+		{
+			name: 'followsLimit',
+			short: 'f',
+			long: 'follows-limit',
+			type: 'int',
+			required: false,
+			defaultValue: 1000,
+			description: 'max follows to get (default: 1000, min: 100, max: 50000)',
+			validator: v => v >= 100 && v <= 50000,
+		},
+		{
+			name: 'chatterSaturationPoint',
+			short: null,
+			long: 'chatter-saturation-point',
+			type: 'int',
+			required: false,
+			defaultValue: DEFAULT_CHATTER_SATURATION_POINT,
+			description:
+				`saturation threshold for scaling the ${FACTOR_LABELS.CHATTER_LANGS} ` +
+				'weight based on total count ' +
+				`(default: ${DEFAULT_CHATTER_SATURATION_POINT}, min: 1)`,
+			validator: v => v >= 1,
+		},
+		{
+			name: 'followSaturationPoint',
+			short: null,
+			long: 'follow-saturation-point',
+			type: 'int',
+			required: false,
+			defaultValue: DEFAULT_FOLLOW_SATURATION_POINT,
+			description:
+				`saturation threshold for scaling the ${FACTOR_LABELS.FOLLOWED_CHANNEL_LANGS} ` +
+				'weight based on total count ' +
+				`(default: ${DEFAULT_FOLLOW_SATURATION_POINT}, min: 1)`,
+			validator: v => v >= 1,
+		},
+		...weightFlags,
+	],
+	// prettier-ignore
+	execute: async msg => {
+		const userInput = msg.commandFlags.user || msg.args[0];
+		if (!userInput)
+			return { text: 'user is required', mention: true };
+
+		let user;
+		try {
+			user = await twitch.gql.user.resolve(userInput);
+			if (!user)
+				return { text: 'user does not exist', mention: true };
+		} catch (err) {
+			logger.error(`error resolving user ${userInput}:`, err);
+			return { text: 'error resolving user', mention: true };
+		}
+
+		const {
+			minScore, verbose, followsLimit,
+			chatterSaturationPoint, followSaturationPoint,
+		} = msg.commandFlags;
+
+		const countryScores = {};
+		const verboseProgressLines = [
+			'factor__ALIGN__country__ALIGN__Δscore__ALIGN__score0__ALIGN__score1',
+		];
+		const applyDeltaArgs = [countryScores, verbose, verboseProgressLines];
+
+		const weights = {};
+		for (const label in labelToFlagName)
+			weights[label] = msg.commandFlags[labelToFlagName[label]];
+
+		const [
+			uiLangs, streamLang, userMessages, channelRecentMessages,
+			chatters, follows, description,
+		] = await Promise.all([
+			getUILanguages([user.login]), getStreamLanguage(user.login),
+			getUserMessages(user.id), getRecentMessages(user.login),
+			getChatters(user.login), getFollows(user.login, followsLimit),
+			getDescription(user.login),
+		]);
+		processUILanguage(uiLangs, weights[FACTOR_LABELS.UI_LANG],
+		                  applyDeltaArgs);
+		processStreamLanguage(streamLang, weights[FACTOR_LABELS.STREAM_LANG],
+		                      applyDeltaArgs);
+		processMessages(FACTOR_LABELS.USER_MESSAGES_LANG, userMessages,
+		                weights[FACTOR_LABELS.USER_MESSAGES_LANG],
+		                applyDeltaArgs);
+		processMessages(FACTOR_LABELS.CHANNEL_RECENT_MESSAGES_LANG,
+		                channelRecentMessages,
+		                weights[FACTOR_LABELS.CHANNEL_RECENT_MESSAGES_LANG],
+		                applyDeltaArgs);
+		processDescription(description, weights[FACTOR_LABELS.DESCRIPTION],
+		                   applyDeltaArgs);
+
+		const chatterCounts = {};
+		if (chatters?.logins?.length) {
+			const langs = await getUILanguages(chatters.logins);
+			if (langs?.length)
+				processChatters(chatters.logins, chatters.totalCount, langs,
+				                weights[FACTOR_LABELS.CHATTER_LANGS],
+				                applyDeltaArgs, chatterSaturationPoint,
+				                verbose, chatterCounts);
+		}
+
+		const followCounts = {}, skuStats = {};
+		if (follows?.users?.length) {
+			processFollows(follows.users, follows.totalCount,
+			               weights[FACTOR_LABELS.FOLLOWED_CHANNEL_LANGS],
+			               applyDeltaArgs, followSaturationPoint, verbose,
+			               followCounts);
+			const skus = await getSubscriptionBenefitThirdPartySKUs(
+				user.login, follows.users
+			);
+			if (skus?.length)
+				processSKUs(skus, weights[FACTOR_LABELS.SUBSCRIPTION_SKUS],
+				            applyDeltaArgs, verbose, skuStats);
+		}
+
+		let best = null, bestScore = 0;
+		for (const country in countryScores) {
+			const score = countryScores[country];
+			if (score > bestScore) {
+				bestScore = score;
+				best = country;
+			}
+		}
+
+		if (!best || bestScore < minScore)
+			return {
+				text:
+					`couldn't make a confident guess for ${userInput} ` +
+					`(score: ${bestScore.toFixed(3)}/${minScore})`,
+				mention: true,
+			};
+
+		const responseParts = [
+			`${best} (${countryCodes[best]})`,
+			`score: ${bestScore.toFixed(3)}`,
+		];
+
+		if (verbose) {
+			const page = buildVerbosePage(verboseProgressLines, skuStats,
+			                              chatterCounts, followCounts,
+			                              countryScores);
+			try {
+				const link = await paste.create(page);
+				responseParts.push(link);
+			} catch (err) {
+				logger.error('error creating paste:', err);
+				responseParts.push('error creating paste');
+			}
+		}
+
+		return { text: utils.format.join(responseParts), mention: true };
+	},
+};
+
+function saturationFactor(total, saturationPoint) {
+	return Math.min(1, total / saturationPoint);
+}
+
+function languageDelta(langTag, baseWeight, fraction = 1) {
+	if (!langTag) return 0;
+	const mult = LANGUAGE_WEIGHT_OVERRIDES[langTag] ?? 1;
+	return baseWeight * mult * fraction;
+}
+
+function detectPrimaryLangTag(texts, { minWords = 3, minHitsFull = 3 } = {}) {
+	const languageScores = {};
+	for (
+		let i = 0;
+		i < STOPWORD_LANGUAGES.length;
+		languageScores[STOPWORD_LANGUAGES[i++]] = 0
+	);
+
+	for (let i = 0; i < texts.length; i++) {
+		const words = texts[i]
+			.toLowerCase()
+			.split(/[^\p{L}]+/u)
+			.filter(Boolean);
+		if (words.length < minWords) continue;
+		const hitsByLang = {};
+		for (let j = 0; j < words.length; j++) {
+			const langs = STOPWORD_WORD_TO_LANGUAGES.get(words[j]);
+			if (!langs) continue;
+			for (let k = 0, lang; k < langs.length; k++)
+				hitsByLang[(lang = langs[k])] = (hitsByLang[lang] || 0) + 1;
+		}
+		for (const lang in hitsByLang) {
+			const c = hitsByLang[lang];
+			languageScores[lang] += c >= minHitsFull ? c : c / minHitsFull;
+		}
+	}
+
+	let best = null,
+		bestScore = 0;
+	for (const lang in languageScores) {
+		const score = languageScores[lang];
+		if (score > bestScore) {
+			bestScore = score;
+			best = lang;
+		}
+	}
+	return best;
+}
+
+function langToCountryCode(langTag) {
+	if (!langTag || typeof langTag !== 'string') return null;
+	return LANGUAGE_TO_COUNTRY_CODE[langTag];
+}
+// prettier-ignore
+function skuToCountryCode(sku) {
+	if (!sku)
+		return null;
+	const parts = sku.split(/[-_]/);
+	for (let i = parts.length - 1, p; i >= 0; i--)
+		if (/^[A-Z]{2}$/.test((p = parts[i].toUpperCase())) &&
+		    VALID_COUNTRY_CODES.has(p))
+			return p;
+	return null;
+}
+
+async function getUILanguages(logins) {
+	try {
+		const usersMap = await twitch.gql.user.getMany(logins);
+		const langs = [];
+		for (const user of usersMap.values()) {
+			const lang = user.settings?.preferredLanguageTag;
+			if (lang) langs.push(lang);
+		}
+		return langs;
+	} catch (err) {
+		logger.error('error getting users:', err);
+		return null;
+	}
+}
+
+async function getStreamLanguage(login) {
+	try {
+		const res = await twitch.gql.stream.get(login);
+		return res.user?.stream?.language ?? null;
+	} catch (err) {
+		logger.error('error getting stream:', err);
+		return null;
+	}
+}
+
+async function getUserMessages(id) {
+	try {
+		const rows = await db.message.search(null, id);
+		if (!rows.length) return null;
+		const texts = [];
+		for (let i = 0; i < rows.length; i++) texts.push(rows[i].text);
+		return texts;
+	} catch (err) {
+		logger.error('error searching messages:', err);
+		return null;
+	}
+}
+
+async function getRecentMessages(login) {
+	try {
+		const res = await twitch.gql.chat.getRecentMessages(login);
+		const messages = res.channel?.recentChatMessages;
+		if (!messages) return null;
+		const texts = [];
+		for (let i = 0, t; i < messages.length; i++)
+			if ((t = messages[i].content?.text)) texts.push(t);
+		return texts;
+	} catch (err) {
+		logger.error('error getting recent chat messages:', err);
+		return null;
+	}
+}
+
+async function getChatters(login) {
+	try {
+		const res = await twitch.gql.channel.getChatters(login);
+		const chatters = res.user?.channel?.chatters;
+		if (!chatters?.count) return null;
+		const logins = [];
+		for (let i = 0; i < chatterTypes.length; i++)
+			for (let j = 0, cT = chatters[chatterTypes[i]]; j < cT.length; j++)
+				logins.push(cT[j].login);
+		return { logins, totalCount: chatters.count };
+	} catch (err) {
+		logger.error('error getting chatters:', err);
+		return null;
+	}
+}
+
+async function getFollows(login, followsLimit) {
+	try {
+		const res = await twitch.gql.user.getFollows(login, followsLimit);
+		if (!res.followEdges.length) return null;
+		const users = [];
+		for (let i = 0, u, l; i < res.followEdges.length; i++)
+			if ((l = (u = res.followEdges[i].node).settings?.preferredLanguageTag))
+				users.push({ id: u.id, lang: l });
+		return { users, totalCount: res.totalCount };
+	} catch (err) {
+		logger.error('error getting follows:', err);
+		return null;
+	}
+}
+
+async function getDescription(login) {
+	try {
+		const res = await twitch.gql.user.getUserWithBanReason(login);
+		return res.user?.description || null;
+	} catch (err) {
+		logger.error('error getting user:', err);
+		return null;
+	}
+}
+
+async function getSubscriptionBenefitThirdPartySKUs(login, follows) {
+	const skus = [];
+	try {
+		for (const batch of utils.splitArray(
+			follows,
+			twitch.gql.MAX_OPERATIONS_PER_REQUEST
+		)) {
+			const res = await Promise.all(
+				batch.map(f => twitch.gql.user.getRelationship(login, f.id))
+			);
+			for (let i = 0, sku; i < res.length; i++) {
+				const sub = res[i].user?.relationship?.subscriptionBenefit;
+				if ((sku = sub?.thirdPartySKU) && !sub.gift?.isGift) skus.push(sku);
+			}
+		}
+		return skus;
+	} catch (err) {
+		logger.error('error getting subscription benefits:', err);
+		return null;
+	}
+}
+// prettier-ignore
+function applyDelta(label, country, delta, countryScores, verbose,
+                    verboseProgressLines) {
+	if (!country)
+		return;
+	const before = countryScores[country] || 0;
+	const after  = before + delta;
+	countryScores[country] = after;
+
+	if (verbose)
+		verboseProgressLines.push(
+			`${label}__ALIGN__${country}__ALIGN__+${delta.toFixed(3)}` +
+			`__ALIGN__${before.toFixed(3)}__ALIGN__${after.toFixed(3)}`
+		);
+}
+// prettier-ignore
+function processUILanguage(uiLangs, weight, applyDeltaArgs) {
+	if (!uiLangs?.length)
+		return;
+	const tag = uiLangs[0]?.toLowerCase();
+	const delta = languageDelta(tag, weight);
+	applyDelta(FACTOR_LABELS.UI_LANG, langToCountryCode(tag), delta,
+	           ...applyDeltaArgs);
+}
+// prettier-ignore
+function processStreamLanguage(streamLang, weight, applyDeltaArgs) {
+	if (!streamLang)
+		return;
+	const tag = streamLang.toLowerCase();
+	const delta = languageDelta(tag, weight);
+	applyDelta(FACTOR_LABELS.STREAM_LANG, langToCountryCode(tag), delta,
+	           ...applyDeltaArgs);
+}
+
+function processMessages(label, messages, weight, applyDeltaArgs) {
+	if (!messages?.length) return;
+	const tag = detectPrimaryLangTag(messages);
+	const delta = languageDelta(tag, weight);
+	applyDelta(label, langToCountryCode(tag), delta, ...applyDeltaArgs);
+}
+// prettier-ignore
+function processDescription(description, weight, applyDeltaArgs) {
+	if (!description)
+		return;
+	const tag = detectPrimaryLangTag([description]);
+	const delta = languageDelta(tag, weight);
+	applyDelta(FACTOR_LABELS.DESCRIPTION, langToCountryCode(tag), delta,
+	           ...applyDeltaArgs);
+}
+
+// prettier-ignore
+function processChatters(chatters, totalCount, langs, weight, applyDeltaArgs,
+                         saturationPoint, verbose, out) {
+	const counts = {};
+	for (let i = 0, l; i < langs.length; i++)
+		counts[(l = langs[i].toLowerCase())] = (counts[l] || 0) + 1;
+
+	weight *= saturationFactor(totalCount, saturationPoint);
+
+	for (const tag in counts) {
+		const country = langToCountryCode(tag);
+		if (!country)
+			continue;
+		const delta = languageDelta(tag, weight, counts[tag] / chatters.length);
+		applyDelta(FACTOR_LABELS.CHATTER_LANGS, country, delta,
+		           ...applyDeltaArgs);
+		if (verbose)
+			out[country] = (out[country] || 0) + counts[tag];
+	}
+}
+// prettier-ignore
+function processFollows(follows, totalCount, weight, applyDeltaArgs,
+                        saturationPoint, verbose, out) {
+	const counts = {};
+	for (let i = 0, l; i < follows.length; i++)
+		counts[(l = follows[i].lang.toLowerCase())] = (counts[l] || 0) + 1;
+
+	weight *= saturationFactor(totalCount, saturationPoint);
+
+	for (const tag in counts) {
+		const country = langToCountryCode(tag);
+		if (!country)
+			continue;
+		const delta = languageDelta(tag, weight, counts[tag] / follows.length);
+		applyDelta(FACTOR_LABELS.FOLLOWED_CHANNEL_LANGS, country, delta,
+		           ...applyDeltaArgs);
+		if (verbose)
+			out[country] = (out[country] || 0) + counts[tag];
+	}
+}
+// prettier-ignore
+function processSKUs(skus, weight, applyDeltaArgs, verbose, out) {
+	const contryToSkus = {};
+	let total = skus.length;
+	for (let i = 0, sku; i < skus.length; i++) {
+		const country = skuToCountryCode((sku = skus[i]));
+		if (!country) {
+			total--;
+			continue;
+		}
+		contryToSkus[country] ??= {};
+		contryToSkus[country][sku] =
+			(contryToSkus[country][sku] || 0) + 1;
+	}
+
+	for (const country in contryToSkus) {
+		const skus = contryToSkus[country];
+		let count = 0;
+		for (const sku in skus)
+			count += skus[sku];
+		applyDelta(FACTOR_LABELS.SUBSCRIPTION_SKUS, country,
+		           weight * (count / total), ...applyDeltaArgs);
+		if (verbose) {
+			const skuList = [];
+			for (const sku in skus)
+				skuList.push({ sku, count: skus[sku] });
+			out[country] = { count: count, skus: skuList };
+		}
+	}
+}
+// prettier-ignore
+function buildVerbosePage(progressLines, skuStats, chatterCounts, followCounts,
+                          countryScores) {
+	const skuLines = ['country__ALIGN__count__ALIGN__skus'];
+	const sortedSkus =
+		Object.entries(skuStats).sort((a, b) => b[1].count - a[1].count);
+	for (let i = 0; i < sortedSkus.length; i++) {
+		const [country, { count, skus }] = sortedSkus[i];
+		const skuList = [];
+		for (let i = 0, e; i < skus.length; i++)
+			if ((e = skus[i]).count > 1)
+				skuList.push(`${e.sku} (${e.count})`);
+			else
+				skuList.push(e.sku);
+		skuLines.push(
+			`${country}__ALIGN__${count}__ALIGN__${skuList.join(', ')}`
+		);
+	}
+
+	const countryScoresSection = buildVerbosePageSection(
+		'country scores',
+		'country__ALIGN__score',
+		countryScores,
+		([country, score]) => `${country}__ALIGN__${score.toFixed(3)}`
+	);
+	const chatterSection = buildVerbosePageSection(
+		"chatters' preferred languages",
+		'country__ALIGN__count',
+		chatterCounts,
+		([country, count]) => `${country}__ALIGN__${count}`
+	);
+	const followsSection = buildVerbosePageSection(
+		"following channels' preferred languages",
+		'country__ALIGN__count',
+		followCounts,
+		([country, count]) => `${country}__ALIGN__${count}`
+	);
+
+	const sections = [utils.format.align(progressLines)];
+
+	if (countryScoresSection)
+		sections.push(countryScoresSection);
+	if (chatterSection)
+		sections.push(chatterSection);
+	if (followsSection)
+		sections.push(followsSection);
+	if (skuLines.length > 1)
+		sections.push("\n\nsubscriptions' third-party SKUs:\n" +
+		              utils.format.align(skuLines));
+
+	return sections.join('');
+}
+
+function buildVerbosePageSection(title, header, obj, fmtFn) {
+	const entries = Object.entries(obj);
+	if (!entries.length) return;
+	entries.sort((a, b) => b[1] - a[1]);
+	const lines = [header];
+	for (let i = 0; i < entries.length; i++) lines.push(fmtFn(entries[i]));
+	return `\n\n${title}:\n${utils.format.align(lines)}`;
+}

@@ -3,6 +3,8 @@ import gql from '../index.js';
 import utils from '../../../../utils/index.js';
 import config from '../../../../config.json' with { type: 'json' };
 
+const CHATTER_TYPES = ['broadcasters', 'moderators', 'vips', 'viewers'];
+
 async function getMods(channelLogin, limit = 1000) {
 	const modEdges = [];
 	const variables = { login: channelLogin, cursor: null };
@@ -267,6 +269,7 @@ async function placePredictionBet(predictionId, outcomeId, points) {
 }
 
 export default {
+	CHATTER_TYPES,
 	queries,
 
 	getMods,

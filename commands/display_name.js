@@ -11,7 +11,8 @@ export default {
 	flags: [
 		{
 			name: 'displayName',
-			aliases: ['n', 'new-name'],
+			short: 'n',
+			long: 'new-name',
 			type: 'string',
 			required: false,
 			defaultValue: '',

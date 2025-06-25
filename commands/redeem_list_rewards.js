@@ -32,7 +32,8 @@ export default {
 	flags: [
 		{
 			name: 'channel',
-			aliases: ['c', 'channel'],
+			short: 'c',
+			long: 'channel',
 			type: 'username',
 			required: false,
 			defaultValue: null,
@@ -40,7 +41,8 @@ export default {
 		},
 		{
 			name: 'rewardTitle',
-			aliases: ['r', 'reward'],
+			short: 'r',
+			long: 'reward',
 			type: 'string',
 			required: false,
 			defaultValue: '',
@@ -48,7 +50,8 @@ export default {
 		},
 		{
 			name: 'input',
-			aliases: ['i', 'input'],
+			short: 'i',
+			long: 'input',
 			type: 'string',
 			required: false,
 			defaultValue: '',
@@ -56,7 +59,8 @@ export default {
 		},
 		{
 			name: 'count',
-			aliases: ['C', 'count'],
+			short: 'C',
+			long: 'count',
 			type: 'int',
 			required: false,
 			defaultValue: 1,
@@ -66,7 +70,8 @@ export default {
 		},
 		{
 			name: 'refund',
-			aliases: ['R', 'refund'],
+			short: 'R',
+			long: 'refund',
 			type: 'boolean',
 			required: false,
 			defaultValue: false,
@@ -74,7 +79,8 @@ export default {
 		},
 		{
 			name: 'force',
-			aliases: ['f', 'force'],
+			short: 'f',
+			long: 'force',
 			type: 'boolean',
 			required: false,
 			defaultValue: false,

@@ -2,7 +2,7 @@ const cooldown = new Map();
 
 function set(key, ttl) {
 	const timeout = cooldown.get(key);
-	if (timeout) clearTimeout(timeout);
+	clearTimeout(timeout);
 	if (ttl <= 0) {
 		cooldown.delete(key);
 		return;

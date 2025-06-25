@@ -51,7 +51,7 @@ function assertStringOneOf(v, arr) {
 }
 function assertHttpUrl(v) {
 	assert(utils.isValidHttpUrl(v) && !v.endsWith('/'),
-	       'must be a valid HTTP url with no trailing slashes');
+	       'must be a valid HTTP URL with no trailing slashes');
 }
 // prettier-ignore
 const validators = {

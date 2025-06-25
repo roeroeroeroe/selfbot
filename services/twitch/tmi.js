@@ -4,7 +4,7 @@ import config from '../../config.json' with { type: 'json' };
 import db from '../db/index.js';
 import logger from '../logger.js';
 import metrics from '../metrics/index.js';
-import handle from '../message_handler.js';
+import handle from './message_handler.js';
 
 export default function init(chatService) {
 	logger.debug('[TMI] initializing...');

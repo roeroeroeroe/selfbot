@@ -14,7 +14,8 @@ export default {
 	flags: [
 		{
 			name: 'channel',
-			aliases: ['c', 'channel'],
+			short: 'c',
+			long: 'channel',
 			type: 'username',
 			required: false,
 			defaultValue: null,
@@ -22,7 +23,8 @@ export default {
 		},
 		{
 			name: 'count',
-			aliases: ['C', 'count'],
+			short: 'C',
+			long: 'count',
 			type: 'int',
 			required: false,
 			defaultValue: 1,
@@ -31,7 +33,8 @@ export default {
 		},
 		{
 			name: 'fill',
-			aliases: ['f', 'fill'],
+			short: 'f',
+			long: 'fill',
 			type: 'boolean',
 			required: false,
 			defaultValue: false,
@@ -39,7 +42,8 @@ export default {
 		},
 		{
 			name: 'repeat',
-			aliases: ['r', 'repeat'],
+			short: 'r',
+			long: 'repeat',
 			type: 'int',
 			required: false,
 			defaultValue: 0,
@@ -48,7 +52,8 @@ export default {
 		},
 		{
 			name: 'reverse',
-			aliases: ['R', 'reverse'],
+			short: 'R',
+			long: 'reverse',
 			type: 'boolean',
 			required: false,
 			defaultValue: false,
@@ -56,7 +61,8 @@ export default {
 		},
 		{
 			name: 'upper',
-			aliases: ['u', 'upper'],
+			short: 'u',
+			long: 'upper',
 			type: 'boolean',
 			required: false,
 			defaultValue: false,
@@ -64,7 +70,8 @@ export default {
 		},
 		{
 			name: 'lower',
-			aliases: ['l', 'lower'],
+			short: 'l',
+			long: 'lower',
 			type: 'boolean',
 			required: false,
 			defaultValue: false,
@@ -72,7 +79,8 @@ export default {
 		},
 		{
 			name: 'force',
-			aliases: [null, 'force'],
+			short: null,
+			long: 'force',
 			type: 'boolean',
 			required: false,
 			defaultValue: false,

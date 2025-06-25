@@ -9,7 +9,7 @@ import {
 } from './constants.js';
 
 function buildFlagSummary(flag) {
-	const parts = [flag.aliasDisplay];
+	const parts = [flag.optionsDisplay];
 	if (!flag.list) parts.push(flag.type);
 	else {
 		const { unique, errorOnDuplicates, separator, minItems, maxItems } =
@@ -61,7 +61,7 @@ function buildConflictsMap(flags, exclusiveGroups) {
 // prettier-ignore
 function createParser(schema, exclusiveGroups) {
 	const flags           = new Map();
-	const aliasesMap      = new Map();
+	const optionsMap      = new Map();
 	const requiredFlags   = [];
 	const flagsToValidate = [];
 	const listFlags       = [];
@@ -133,7 +133,7 @@ function createParser(schema, exclusiveGroups) {
 				const [v, err] = flag.converter(flag.defaultValue);
 				if (err)
 					throw new Error(`'defaultValue' for flag "${flag.name}" must be ` +
-				                    `a valid ${flag.type} list: ${err}`)
+				                    `a valid ${flag.type} list: ${err}`);
 				flag.defaultValue = v;
 			} else {
 				const [v, err] = flag.converter(String(flag.defaultValue));
@@ -146,37 +146,35 @@ function createParser(schema, exclusiveGroups) {
 			flag.defaultValue = [];
 		if (flag.validator && typeof flag.validator !== 'function')
 			throw new Error(`'validator' for flag "${flag.name}" must be a function`);
-		if (!Array.isArray(flag.aliases) || flag.aliases.length !== 2 ||
-		    !flag.aliases.every(a => a === null || typeof a === 'string') ||
-		    flag.aliases.every(a => a === null))
-			throw new Error(`'aliases' for flag "${flag.name}" be an array with ` +
-			                'two entries (string or null), ' +
-			                'and at least one must be a string');
-		const [short, long] = flag.aliases;
+		const { short, long } = flag;
+		if (!short && !long)
+			throw new Error("either 'short' or 'long' must be set for flag " +
+			                `"${flag.name}"`);
 		const displayParts = [];
-		if (short !== null) {
-			if (short.length !== 1)
-				throw new Error(`short option for "${flag.name}" must be a single character`);
-			if (aliasesMap.has(short))
-				throw new Error(`short option for flag "${flag.name}" ` +
-				                `conflicts with flag "${aliasesMap.get(short).name}"`);
-			aliasesMap.set(short, flag);
+		if (short) {
+			if (typeof short !== 'string' || short.length !== 1)
+				throw new Error(`'short' for flag "${flag.name}" must be a ` +
+				                'single character');
+			if (optionsMap.has(short))
+				throw new Error(`'short' for flag "${flag.name}" conflicts ` +
+				                `with flag "${optionsMap.get(short).name}"`);
+			optionsMap.set(short, flag);
 			displayParts.push(`-${short}`);
 		}
-		if (long !== null) {
-			if (long.length < 2)
-				throw new Error(`long option for flag "${flag.name}" ` +
-				                'must be at least 2 characters long');
+		if (long) {
+			if (typeof long !== 'string' || long.length < 2)
+				throw new Error(`'long' for flag "${flag.name}" must be at ` +
+			                    'least 2 characters long');
 			if (/\s/.test(long))
-				throw new Error(`long option for flag "${flag.name}" ` +
-				                'must be a string with no spaces');
-			if (aliasesMap.has(long))
-				throw new Error(`long option for flag "${flag.name}" ` +
-				                `conflicts with flag "${aliasesMap.get(long).name}"`);
-			aliasesMap.set(long, flag);
+				throw new Error(`'long' for flag "${flag.name}" must be a ` +
+				                'string with no spaces');
+			if (optionsMap.has(long))
+				throw new Error(`'long' for flag "${flag.name}" conflicts ` +
+				                `with flag "${optionsMap.get(long).name}"`);
+			optionsMap.set(long, flag);
 			displayParts.push(`--${long}`);
 		}
-		flag.aliasDisplay = displayParts.join(', ');
+		flag.optionsDisplay = displayParts.join(', ');
 		flag.summary = buildFlagSummary(flag);
 		flag.validator = typeof flag.validator === 'function' ? flag.validator : null;
 		defaultOptions[flag.name] = flag.defaultValue;
@@ -209,8 +207,8 @@ function createParser(schema, exclusiveGroups) {
 			for (let j = 0; j < flag.conflicts.length; j++) {
 				const n = flag.conflicts[j];
 				if (providedFlags[n])
-					errors.push(`${flag.aliasDisplay}: cannot be used with ` +
-					            `${n} (${flags.get(n).aliasDisplay})`);
+					errors.push(`${flag.optionsDisplay}: cannot be used with ` +
+					            `${n} (${flags.get(n).optionsDisplay})`);
 			}
 			let rawValue = inlineValue;
 			if (getNext && inlineValue === null && i < argc)
@@ -220,14 +218,14 @@ function createParser(schema, exclusiveGroups) {
 				} else {
 					const next = argv[i];
 					if (next[0] !== '-' ||
-					    !aliasesMap.has(next.slice(next[1] === '-' ? 2 : 1)))
+					    !optionsMap.has(next.slice(next[1] === '-' ? 2 : 1)))
 						rawValue = argv[i++];
 				}
 
 			providedFlags[flag.name] = true;
 			const [v, err] = flag.converter(rawValue);
 			if (err)
-				errors.push(`${flag.aliasDisplay}: ${err}`);
+				errors.push(`${flag.optionsDisplay}: ${err}`);
 			options[flag.name] = v;
 		}
 
@@ -247,7 +245,7 @@ function createParser(schema, exclusiveGroups) {
 				if (eqIndex !== -1) {
 					const k = arg.slice(2, eqIndex);
 					if (k.length > 1) {
-						const flag = aliasesMap.get(k);
+						const flag = optionsMap.get(k);
 						if (flag)
 							setv(flag, arg.slice(eqIndex + 1));
 						else
@@ -257,7 +255,7 @@ function createParser(schema, exclusiveGroups) {
 				} else {
 					const k = arg.slice(2);
 					if (k.length > 1) {
-						const flag = aliasesMap.get(k);
+						const flag = optionsMap.get(k);
 						if (flag)
 							setv(flag);
 						else
@@ -269,7 +267,7 @@ function createParser(schema, exclusiveGroups) {
 			}
 			for (let j = 1; j < arg.length; j++) {
 				const k = arg[j];
-				const flag = aliasesMap.get(k);
+				const flag = optionsMap.get(k);
 				if (flag)
 					setv(flag, null, j === arg.length - 1);
 				else {
@@ -281,12 +279,12 @@ function createParser(schema, exclusiveGroups) {
 		for (i = 0; i < requiredFlags.length; i++) {
 			const f = requiredFlags[i];
 			if (!providedFlags[f.name])
-				errors.push(`${f.aliasDisplay}: flag is required`);
+				errors.push(`${f.optionsDisplay}: flag is required`);
 		}
 		for (i = 0; i < flagsToValidate.length; i++) {
 			const f = flagsToValidate[i];
 			if (providedFlags[f.name] && !f.validator(options[f.name]))
-				errors.push(`${f.aliasDisplay}: failed validation`);
+				errors.push(`${f.optionsDisplay}: failed validation`);
 		}
 		return { options, rest, errors };
 	}

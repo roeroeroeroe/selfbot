@@ -3,7 +3,7 @@ import paste from '../services/paste/index.js';
 import utils from '../utils/index.js';
 import twitch from '../services/twitch/index.js';
 
-const chatterTypes = ['broadcasters', 'moderators', 'vips', 'viewers'];
+const chatterTypes = twitch.gql.channel.CHATTER_TYPES;
 
 export default {
 	name: 'chatters',
@@ -14,7 +14,8 @@ export default {
 	flags: [
 		{
 			name: 'channel',
-			aliases: ['c', 'channel'],
+			short: 'c',
+			long: 'channel',
 			type: 'username',
 			required: false,
 			defaultValue: null,
@@ -22,7 +23,8 @@ export default {
 		},
 		{
 			name: 'raw',
-			aliases: ['r', 'raw'],
+			short: 'r',
+			long: 'raw',
 			type: 'boolean',
 			required: false,
 			defaultValue: false,
@@ -30,7 +32,8 @@ export default {
 		},
 		{
 			name: 'maxRequests',
-			aliases: ['m', 'max-requests'],
+			short: 'm',
+			long: 'max-requests',
 			type: 'int',
 			required: false,
 			defaultValue: 100,
@@ -39,7 +42,8 @@ export default {
 		},
 		{
 			name: 'batchSize',
-			aliases: [null, 'batch-size'],
+			short: null,
+			long: 'batch-size',
 			type: 'int',
 			required: false,
 			defaultValue: 10,
@@ -48,7 +52,8 @@ export default {
 		},
 		{
 			name: 'minPercent',
-			aliases: ['p', 'min-percent'],
+			short: 'p',
+			long: 'min-percent',
 			type: 'int',
 			required: false,
 			defaultValue: 100,

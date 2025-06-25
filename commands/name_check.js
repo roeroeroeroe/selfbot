@@ -23,7 +23,8 @@ export default {
 	flags: [
 		{
 			name: 'maxRetries',
-			aliases: ['r', 'retries'],
+			short: 'r',
+			long: 'retries',
 			type: 'int',
 			required: false,
 			defaultValue: 3,
@@ -32,7 +33,8 @@ export default {
 		},
 		{
 			name: 'silent',
-			aliases: ['s', 'silent'],
+			short: 's',
+			long: 'silent',
 			type: 'boolean',
 			required: false,
 			defaultValue: false,

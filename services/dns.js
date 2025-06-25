@@ -57,5 +57,6 @@ async function resolve(fqdn, recordTypes = SUPPORTED_RR_TYPES, servers) {
 export default {
 	ERR_INVALID_SERVERS,
 	SUPPORTED_RR_TYPES,
+
 	resolve,
 };

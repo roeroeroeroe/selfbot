@@ -210,7 +210,7 @@ export default class ChatService {
 		this.#queues.get(job.channelId).enqueue(job);
 	}
 
-	async cleanup() {
-		for (const queue of this.#queues.values()) await queue.clear();
+	cleanup() {
+		for (const queue of this.#queues.values()) queue.clear();
 	}
 }

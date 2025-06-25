@@ -18,7 +18,8 @@ export default {
 	flags: [
 		{
 			name: 'user',
-			aliases: ['u', 'user'],
+			short: 'u',
+			long: 'user',
 			type: 'username',
 			defaultValue: null,
 			required: false,
@@ -26,7 +27,8 @@ export default {
 		},
 		{
 			name: 'raw',
-			aliases: ['r', 'raw'],
+			short: 'r',
+			long: 'raw',
 			type: 'boolean',
 			defaultValue: false,
 			required: false,
@@ -34,7 +36,8 @@ export default {
 		},
 		{
 			name: 'limit',
-			aliases: ['l', 'limit'],
+			short: 'l',
+			long: 'limit',
 			type: 'int',
 			defaultValue: 1000,
 			required: false,
@@ -44,7 +47,8 @@ export default {
 		},
 		{
 			name: 'sort',
-			aliases: ['s', 'sort'],
+			short: 's',
+			long: 'sort',
 			type: 'string',
 			defaultValue: null,
 			required: false,
@@ -53,7 +57,8 @@ export default {
 		},
 		{
 			name: 'order',
-			aliases: ['o', 'order'],
+			short: 'o',
+			long: 'order',
 			type: 'string',
 			defaultValue: 'ASC',
 			required: false,

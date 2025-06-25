@@ -31,10 +31,8 @@ export async function init() {
 	for (let i = 0; i < dumped.length; i++) {
 		const state = await hydrateState(dumped[i]);
 		state.clearBetTimeout = () => {
-			if (state.scheduledBetTimeout) {
-				clearTimeout(state.scheduledBetTimeout);
-				state.scheduledBetTimeout = null;
-			}
+			clearTimeout(state.scheduledBetTimeout);
+			state.scheduledBetTimeout = null;
 		};
 		const delay = calculateDelay(state.createdAt, state.windowMs,
 		                             state.betDelayPercent);
@@ -386,11 +384,9 @@ export default {
 			prediction.id
 		);
 		state.clearBetTimeout = () => {
-			if (state.scheduledBetTimeout) {
-				clearTimeout(state.scheduledBetTimeout);
-				state.scheduledBetTimeout = null;
-			}
-		}
+			clearTimeout(state.scheduledBetTimeout);
+			state.scheduledBetTimeout = null;
+		};
 		predictionStates.set(prediction.id, state);
 	},
 	'event-updated': async msg => {

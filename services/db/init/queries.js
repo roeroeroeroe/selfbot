@@ -1,10 +1,10 @@
 import config from '../../../config.json' with { type: 'json' };
-import { MAX_MESSAGE_LENGTH } from '../../twitch/constants.js';
+import { MAX_MESSAGE_LENGTH, MAX_USERNAME_LENGTH } from '../../twitch/constants.js';
 
 export const CREATE_CHANNELS_TABLE = `
 CREATE TABLE IF NOT EXISTS channels (
 	id           VARCHAR(15) PRIMARY KEY,
-	login        VARCHAR(25) UNIQUE NOT NULL,
+	login        VARCHAR(${MAX_USERNAME_LENGTH}) UNIQUE NOT NULL,
 	display_name TEXT        NOT NULL,
 	log          BOOLEAN     NOT NULL DEFAULT ${config.messages.logByDefault},
 	prefix       VARCHAR(15) NOT NULL DEFAULT '${config.commands.defaultPrefix}',
@@ -15,24 +15,24 @@ CREATE TABLE IF NOT EXISTS channels (
 
 export const CREATE_CUSTOMCOMMANDS_TABLE = `
 CREATE TABLE IF NOT EXISTS customcommands (
-	name       TEXT                            PRIMARY KEY,
-	channel_id VARCHAR(15)                     REFERENCES channels(id) ON DELETE CASCADE,
-	trigger    TEXT                            NOT NULL,
+	name       TEXT          PRIMARY KEY,
+	channel_id VARCHAR(15)   REFERENCES channels(id) ON DELETE CASCADE,
+	trigger    TEXT          NOT NULL,
 	response   VARCHAR(${MAX_MESSAGE_LENGTH}),
 	runcmd     TEXT,
 	whitelist  TEXT[],
-	cooldown   INTEGER                         NOT NULL DEFAULT 0,
-	reply      BOOLEAN                         NOT NULL DEFAULT false,
-	mention    BOOLEAN                         NOT NULL DEFAULT false
+	cooldown   INTEGER       NOT NULL DEFAULT 0,
+	reply      BOOLEAN       NOT NULL DEFAULT false,
+	mention    BOOLEAN       NOT NULL DEFAULT false
 )`;
 
 export const CREATE_MESSAGES_TABLE = `
 CREATE TABLE IF NOT EXISTS messages (
-	id         BIGSERIAL                      PRIMARY KEY,
-	channel_id VARCHAR(15)                    REFERENCES channels(id) ON DELETE CASCADE,
-	user_id    VARCHAR(15)                    NOT NULL,
+	id         BIGSERIAL    PRIMARY KEY,
+	channel_id VARCHAR(15)  REFERENCES channels(id) ON DELETE CASCADE,
+	user_id    VARCHAR(15)  NOT NULL,
 	text       VARCHAR(${MAX_MESSAGE_LENGTH}) NOT NULL,
-	timestamp  TIMESTAMPTZ                    NOT NULL DEFAULT CURRENT_TIMESTAMP
+	timestamp  TIMESTAMPTZ  NOT NULL DEFAULT CURRENT_TIMESTAMP
 )`;
 
 export const CREATE_TRGM_EXTENSION = `

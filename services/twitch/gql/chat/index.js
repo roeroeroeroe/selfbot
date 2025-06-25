@@ -14,6 +14,15 @@ async function getSettings(channelLogin) {
 	return res.data;
 }
 
+async function getRecentMessages(channelLogin) {
+	const res = await gql.request({
+		query: queries.GET_RECENT_MESSAGES,
+		variables: { login: channelLogin },
+	});
+
+	return res.data;
+}
+
 async function canSend(channelId, channelLogin, privileged = false) {
 	let selfBanStatus;
 	try {
@@ -161,6 +170,7 @@ export default {
 	queries,
 
 	getSettings,
+	getRecentMessages,
 	canSend,
 	send: sendMessage,
 };

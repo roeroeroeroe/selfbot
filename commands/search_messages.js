@@ -17,7 +17,8 @@ export default {
 	flags: [
 		{
 			name: 'channel',
-			aliases: ['c', 'channel'],
+			short: 'c',
+			long: 'channel',
 			type: 'username',
 			required: false,
 			defaultValue: null,
@@ -25,7 +26,8 @@ export default {
 		},
 		{
 			name: 'user',
-			aliases: ['u', 'user'],
+			short: 'u',
+			long: 'user',
 			type: 'username',
 			required: false,
 			defaultValue: null,
@@ -33,7 +35,8 @@ export default {
 		},
 		{
 			name: 'notUsers',
-			aliases: ['U', 'not-user'],
+			short: 'U',
+			long: 'not-user',
 			type: 'username',
 			list: { unique: true, minItems: 1 },
 			defaultValue: null,
@@ -42,7 +45,8 @@ export default {
 		},
 		{
 			name: 'notChannels',
-			aliases: ['C', 'not-channel'],
+			short: 'C',
+			long: 'not-channel',
 			type: 'username',
 			list: { unique: true, minItems: 1 },
 			defaultValue: null,
@@ -51,7 +55,8 @@ export default {
 		},
 		{
 			name: 'threshold',
-			aliases: ['t', 'threshold'],
+			short: 't',
+			long: 'threshold',
 			type: 'float',
 			required: false,
 			defaultValue: 0.3,
@@ -60,7 +65,8 @@ export default {
 		},
 		{
 			name: 'lastMs',
-			aliases: [null, 'last'],
+			short: null,
+			long: 'last',
 			type: 'duration',
 			required: false,
 			defaultValue: 0,
@@ -68,7 +74,8 @@ export default {
 		},
 		{
 			name: 'limit',
-			aliases: ['l', 'limit'],
+			short: 'l',
+			long: 'limit',
 			type: 'int',
 			required: false,
 			defaultValue: 100,
@@ -78,7 +85,8 @@ export default {
 		},
 		{
 			name: 'showScore',
-			aliases: ['s', 'show-score'],
+			short: 's',
+			long: 'show-score',
 			type: 'boolean',
 			required: false,
 			defaultValue: false,
