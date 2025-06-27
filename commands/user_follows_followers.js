@@ -156,9 +156,8 @@ function processEdges(edges, raw) {
 	for (const e of edges) {
 		const parts = [utils.pickName(e.node.login, e.node.displayName)];
 		const followers = e.node.followers?.totalCount;
-		if (followers) {
+		if (followers)
 			parts.push(`${followers} ${utils.format.plural(followers, 'follower')}`);
-		}
 		if (e.node.stream) {
 			const viewers = e.node.stream.viewersCount || 0;
 			parts.push(`live (${viewers} ${utils.format.plural(viewers, 'viewer')})`);

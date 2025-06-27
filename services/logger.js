@@ -93,33 +93,57 @@ const flushInterval = setInterval(() => {
 	}
 }, FILE_WRITE_FLUSH_INTERVAL_MS);
 
-function formatArgs(args) {
-	if (!args.length) return '';
-	let stack;
-	for (let i = 0; i < args.length; i++) {
-		const arg = args[i];
-		if (arg instanceof Error) {
-			stack = arg.stack || arg.message;
-			args[i] = arg.message;
-			continue;
+let formatArgs;
+if (config.logger.showErrorStackTraces)
+	formatArgs = function (args) {
+		if (!args.length) return '';
+		let stack;
+		for (let i = 0, arg; i < args.length; i++) {
+			if ((arg = args[i]) instanceof Error) {
+				stack = arg.stack || arg.message;
+				args[i] = arg.message;
+				continue;
+			}
+			switch (typeof arg) {
+				case 'string':
+					break;
+				case 'object':
+					try {
+						args[i] = JSON.stringify(arg);
+					} catch {
+						args[i] = '[Circular]';
+					}
+					break;
+				default:
+					args[i] = String(arg);
+			}
 		}
-		switch (typeof arg) {
-			case 'string':
-				break;
-			case 'object':
-				try {
-					args[i] = JSON.stringify(arg);
-				} catch {
-					args[i] = '[Circular]';
-				}
-				break;
-			default:
-				args[i] = String(arg);
+		return stack ? args.join(' ') + '\n' + stack : args.join(' ');
+	};
+else
+	formatArgs = function (args) {
+		if (!args.length) return '';
+		for (let i = 0, arg; i < args.length; i++) {
+			if ((arg = args[i]) instanceof Error) {
+				args[i] = arg.message;
+				continue;
+			}
+			switch (typeof arg) {
+				case 'string':
+					break;
+				case 'object':
+					try {
+						args[i] = JSON.stringify(arg);
+					} catch {
+						args[i] = '[Circular]';
+					}
+					break;
+				default:
+					args[i] = String(arg);
+			}
 		}
-	}
-
-	return stack ? args.join(' ') + '\n' + stack : args.join(' ');
-}
+		return args.join(' ');
+	};
 
 let ts = ''; // YYYY-MM-DD HH:MM:SS
 (function tick() {

@@ -36,10 +36,10 @@ vi config.json
   },
   "twitch": {
     "sender": {
-      "transport": "irc"                // "irc" | "gql"
+      "backend": "irc"                  // "irc" | "gql"
     },
     "irc": {
-      "transport": "websocket",         // "tcp" | "websocket"
+      "socket": "websocket",            // "tcp" | "websocket"
       "maxChannelCountPerConnection": 100,
       "connectionsPoolSize": 10
     },
@@ -85,7 +85,7 @@ vi config.json
     "service": "hastebin",              // "hastebin" | "nullPtr"
     "maxLength": 500000,                // 0 for unlimited
     "hastebin": {
-      "instance": "https://h.roe.lol/hb", // POST: /documents, GET: /{key}, /raw/{key}
+      "instance": "https://h.roe.lol/hb", // POST: /documents, GET: /{key}, /documents/{key}, /raw/{key}
       "raw": true
     },
     "nullPtr": {
@@ -104,9 +104,10 @@ vi config.json
       "prefix": "selfbot_"
     }
   },
-  "shell": "/bin/bash",
+  "shell": "/bin/bash",                 // null for none
   "logger": {
     "level": "info",                    // "debug" | "info" | "warning" | "error" | "none"
+    "showErrorStackTraces": false,
     "colorize": true                    // enable colored terminal output
   }
 }

@@ -6,8 +6,8 @@ import {
 import ChatService from './chat_service.js';
 import * as constants from './constants.js';
 import initTMI from '../tmi.js';
-import createIrcTransport from './irc_transport.js';
-import createGqlTransport from './gql_transport.js';
+import createIrcSender from './irc_sender.js';
+import createGqlSender from './gql_sender.js';
 import config from '../../../config.json' with { type: 'json' };
 import logger from '../../logger.js';
 import utils from '../../../utils/index.js';
@@ -15,13 +15,13 @@ import utils from '../../../utils/index.js';
 // base16 32char string - emulate webchat
 const BOT_NONCE = utils.randomString('0123456789abcdef', 32);
 
-let transport;
-switch (config.twitch.sender.transport) {
+let backend;
+switch (config.twitch.sender.backend) {
 	case 'irc':
 		const authed = new ChatClient({
 			username: config.bot.login,
 			password: process.env.TWITCH_ANDROID_TOKEN,
-			connection: { type: config.twitch.irc.transport, secure: true },
+			connection: { type: config.twitch.irc.socket, secure: true },
 			installDefaultMixins: false,
 		});
 		authed.on('error', err => {
@@ -36,24 +36,24 @@ switch (config.twitch.sender.transport) {
 					poolSize: config.twitch.irc.connectionsPoolSize,
 				})
 			);
-		transport = createIrcTransport(authed, BOT_NONCE);
+		backend = createIrcSender(authed, BOT_NONCE);
 		break;
 	case 'gql':
-		transport = createGqlTransport(BOT_NONCE);
+		backend = createGqlSender(BOT_NONCE);
 		break;
 	default:
 		throw new Error(
-			`unknown chat service transport: ${config.twitch.sender.transport}`
+			`unknown chat service backend: ${config.twitch.sender.backend}`
 		);
 }
 
-const chatService = new ChatService(transport, BOT_NONCE);
+const chatService = new ChatService(backend, BOT_NONCE);
 const { tmi, channelManager, cleanup: cleanupTMI } = initTMI(chatService);
-async function cleanup() {
-	await channelManager.cleanup();
-	await chatService.cleanup();
+function cleanup() {
+	channelManager.cleanup();
+	chatService.cleanup();
 	cleanupTMI();
-	transport.cleanup();
+	backend.cleanup();
 }
 // prettier-ignore
 export default {

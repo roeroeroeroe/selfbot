@@ -3,7 +3,7 @@ import logger from '../../logger.js';
 import twitch from '../index.js';
 import utils from '../../../utils/index.js';
 
-export default function createGqlTransport(botNonce) {
+export default function createGqlSender(botNonce) {
 	return {
 		send(channelId, _, message, nonce = botNonce, parentId) {
 			logger.debug('[GQL-TX]', channelId, message);

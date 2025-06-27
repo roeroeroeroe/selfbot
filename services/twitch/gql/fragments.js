@@ -44,6 +44,7 @@ fragment UserFragment on User {
 		isExtensionsDeveloper
 		isGlobalMod
 		isPartner
+		isMonetized
 		isSiteAdmin
 		isStaff
 	}

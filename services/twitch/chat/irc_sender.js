@@ -1,6 +1,6 @@
 import logger from '../../logger.js';
 
-export default function createIrcTransport(chatClient, botNonce) {
+export default function createIrcSender(chatClient, botNonce) {
 	chatClient.connect();
 	return {
 		async send(_, channelLogin, message, nonce = botNonce, parentId) {

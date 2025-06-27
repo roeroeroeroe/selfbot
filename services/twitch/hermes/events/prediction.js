@@ -74,12 +74,6 @@ function selectOutcome(outcomes, strategy) {
 	return selector(outcomes);
 }
 
-function getPoolPoints(outcomes) {
-	let points = 0;
-	for (let i = 0; i < outcomes.length; points += outcomes[i++].total_points);
-	return points;
-}
-
 function calculateDelay(createdAt, windowMs, betDelayPercent) {
 	return Math.max(
 		0,
@@ -237,8 +231,11 @@ async function handleScheduledBet(predictionId) {
 	const cfg = config.twitch.hermes.autoBet;
 	if (balance < cfg.minRequiredBalance)
 		return;
-	const bet = calculateBetAmount(cfg.strategy.bet, balance,
-	                               getPoolPoints(state.outcomes));
+	const bet = calculateBetAmount(
+		cfg.strategy.bet,
+		balance,
+		utils.stats.sum(state.outcomes, o => o.total_points),
+	);
 	if (!bet)
 		return;
 	const outcome = selectOutcome(state.outcomes, cfg.strategy.outcomeSelection);
@@ -250,7 +247,8 @@ async function handleScheduledBet(predictionId) {
 		state.betAmount = bet;
 		const outcomeUsers  = outcome.total_users + 1;
 		const outcomePoints = outcome.total_points + bet;
-		const poolPoints    = getPoolPoints(state.outcomes) + bet;
+		const poolPoints =
+			utils.stats.sum(state.outcomes, o => o.total_points) + bet;
 		const multiplier    = (poolPoints / outcomePoints).toFixed(2);
 		return logger.info(`[Hermes] placed bet of ${bet} points on`,
 		                   `"${outcome.title}" (users: ~${outcomeUsers},`,

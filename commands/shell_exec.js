@@ -6,7 +6,9 @@ export default {
 	name: 'exec',
 	aliases: ['shell'],
 	description:
-		`execute command using ${config.shell}; ` +
+		(config.shell
+			? `execute command using ${config.shell}; `
+			: 'execute shell command; ') +
 		"to avoid conflicts with the bot's flag parser, use -- early",
 	unsafe: true,
 	lock: 'NONE',
@@ -23,6 +25,8 @@ export default {
 		},
 	],
 	execute: async msg => {
+		if (!config.shell)
+			return { text: "'config.shell' is not set", mention: true };
 		if (!msg.args.length) return { text: 'no command provided', mention: true };
 		const command = msg.args.join(' ');
 		const { stdout, stderr, exitCode, timedOut } = await exec.shell(

@@ -1,7 +1,7 @@
 import logger from './logger.js';
 
 export default class RingBuffer {
-	static MAX_CAPACITY = 1 << 30;
+	static #MAX_CAPACITY = 1 << 30;
 	#bufferFactory;
 	#minCapacity;
 	#capacity;
@@ -21,7 +21,7 @@ export default class RingBuffer {
 		const lzb = 32 - Math.clz32(initialCapacity - 1);
 		if (lzb > 30)
 			throw new Error(
-				`initialCapacity too large: max supported capacity is 2^30 (${RingBuffer.MAX_CAPACITY})`
+				`initialCapacity too large: max supported capacity is 2^30 (${RingBuffer.#MAX_CAPACITY})`
 			);
 		this.#minCapacity = 1 << lzb;
 		this.resizable = resizable;
@@ -57,7 +57,7 @@ export default class RingBuffer {
 		if (this.#size === this.#capacity) {
 			if (!this.resizable)
 				throw new Error('buffer overflow: buffer is fixed-size');
-			const newCap = Math.min(this.#capacity << 1, RingBuffer.MAX_CAPACITY);
+			const newCap = Math.min(this.#capacity << 1, RingBuffer.#MAX_CAPACITY);
 			if (newCap === this.#capacity) {
 				logger.warning(
 					'[RingBuffer] push: forcePush fallback due to max capacity'

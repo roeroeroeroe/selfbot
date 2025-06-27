@@ -56,43 +56,46 @@ function partition(distances, indices, left, right, pivotIndex) {
 	let tempI = indices[pivotIndex];
 	indices[pivotIndex] = indices[right];
 	indices[right] = tempI;
-	let write = left;
+	let store = left;
 	for (let i = left; i < right; i++)
 		if (distances[i] < pivotDistance) {
 			tempD = distances[i];
-			distances[i] = distances[write];
-			distances[write] = tempD;
+			distances[i] = distances[store];
+			distances[store] = tempD;
 			tempI = indices[i];
-			indices[i] = indices[write];
-			indices[write++] = tempI;
+			indices[i] = indices[store];
+			indices[store++] = tempI;
 		}
-	tempD = distances[write];
-	distances[write] = distances[right];
+	tempD = distances[store];
+	distances[store] = distances[right];
 	distances[right] = tempD;
-	tempI = indices[write];
-	indices[write] = indices[right];
+	tempI = indices[store];
+	indices[store] = indices[right];
 	indices[right] = tempI;
-	return write;
+	return store;
 }
 
 function quickSelect(distances, indices, left, right, k) {
 	for (;;) {
 		if (left === right) return;
 		const mid = left + ((right - left) >>> 1);
+		const dL = distances[left],
+			dM = distances[mid],
+			dR = distances[right];
 		let pivotIndex = mid;
-		if (distances[left] > distances[mid]) {
-			if (distances[mid] > distances[right]) pivotIndex = mid;
-			else if (distances[left] > distances[right]) pivotIndex = right;
+		if (dL > dM) {
+			if (dM > dR) pivotIndex = mid;
+			else if (dL > dR) pivotIndex = right;
 			else pivotIndex = left;
 		} else {
-			if (distances[left] > distances[right]) pivotIndex = left;
-			else if (distances[mid] > distances[right]) pivotIndex = right;
+			if (dL > dR) pivotIndex = left;
+			else if (dM > dR) pivotIndex = right;
 			else pivotIndex = mid;
 		}
-		const pivotPos = partition(distances, indices, left, right, pivotIndex);
-		if (k === pivotPos) return;
-		else if (k < pivotPos) right = pivotPos - 1;
-		else left = pivotPos + 1;
+		pivotIndex = partition(distances, indices, left, right, pivotIndex);
+		if (k === pivotIndex) return;
+		else if (k < pivotIndex) right = pivotIndex - 1;
+		else left = pivotIndex + 1;
 	}
 }
 

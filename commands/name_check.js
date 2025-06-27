@@ -58,10 +58,11 @@ export default {
 			return { text: 'no valid usernames provided', mention: true };
 
 		const { maxRetries, silent } = msg.commandFlags;
+		const usernamesCount = usernames.size;
 
 		if (usernames.size > BATCH_SIZE) {
 			if (!silent)
-				msg.send(`getting ${usernames.size} users ` +
+				msg.send(`getting ${usernamesCount} users ` +
 				         'to exclude existing accounts...',
 				         false, true);
 			try {
@@ -103,9 +104,9 @@ export default {
 			if (!failed.length)
 				return {
 					text:
-						usernames.size === 1
+						usernamesCount === 1
 							? `@${usernames.values().next().value} is not available`
-							: `none of ${usernames.size} usernames are available`,
+							: `none of ${usernamesCount} usernames are available`,
 					mention: true,
 				};
 			return {
@@ -122,7 +123,7 @@ export default {
 				mention: true,
 			};
 
-		const responseParts = [`${available.length}/${usernames.size} available`];
+		const responseParts = [`${available.length}/${usernamesCount} available`];
 		const lines = [`available (${available.length}):`];
 		for (let i = 0; i < available.length; lines.push(available[i++]));
 		if (failed.length) {
@@ -184,7 +185,7 @@ function getProgressMessage(silent, i, latencies, t0, t1, totalBatches,
 		return null;
 
 	const latency = utils.stats.median(latencies),
-		stdDev = utils.stats.stdDev(latencies, true);
+		stdDev = utils.stats.stdDev.sample(latencies);
 	const eta = utils.duration.format(
 		(totalBatches - (i + 1)) * (BATCH_DELAY_MS + latency),
 		{ shortForm: false }

@@ -7,6 +7,7 @@ import logger from './logger.js';
 const execAsync = promisify(exec);
 
 async function shell(command, timeout = 5000) {
+	if (!config.shell) throw new Error("'config.shell' is not set");
 	logger.debug(
 		`[EXEC] shell: executing "${command}" with ${config.shell}, timeout: ${timeout}ms`
 	);
@@ -17,7 +18,6 @@ async function shell(command, timeout = 5000) {
 			timeout,
 		});
 		logger.debug('[EXEC] shell: got result:', result);
-
 		return {
 			stdout: result.stdout.trim(),
 			stderr: result.stderr.trim(),
@@ -29,7 +29,6 @@ async function shell(command, timeout = 5000) {
 			`shell command "${command}" failed (exit code ${err.code}):`,
 			err
 		);
-
 		return {
 			stdout: err.stdout?.trim() || '',
 			stderr: err.stderr?.trim() || '',
@@ -52,7 +51,10 @@ async function js(input, context = {}, timeout = 3000) {
 		});
 		logger.debug('[EXEC] js: got result:', result);
 		return result;
-	} catch (err) {
+	} catch (ctxErr) {
+		const err = new Error(ctxErr.message);
+		err.name = ctxErr.name;
+		err.stack = ctxErr.stack;
 		logger.error(
 			`failed to run "${input}" with context ${contextKeysString}:`,
 			err

@@ -9,13 +9,13 @@ import { MAX_MESSAGE_LENGTH } from '../constants.js';
 
 export default class ChatService {
 	static DEFAULT_SLOW_MODE_MS =
-		config.twitch.sender.transport === 'gql' ? 1250 : 1100;
+		constants.DEFAULT_SLOW_MODE_MS_BY_BACKEND[config.twitch.sender.backend];
 	static CAN_BYPASS_FOLLOWERS_ONLY_MODE = config.bot.rateLimits === 'verified';
 	#queues = new Map();
 	#sendStates = new Map();
 
-	constructor(transport, botNonce) {
-		this.transport = transport;
+	constructor(sender, botNonce) {
+		this.sender = sender;
 		this.botNonce = botNonce;
 		this.#initRateLimiters();
 	}
@@ -120,8 +120,7 @@ export default class ChatService {
 		metrics.counter.increment(metrics.names.counters.TMI_MESSAGES_TX);
 		logger.debug(`[CHAT] sending: #${channelLogin} ${text}`);
 		// prettier-ignore
-		await this.transport.send(channelId, channelLogin, text,
-		                          this.botNonce, parentId);
+		await this.sender.send(channelId, channelLogin, text, this.botNonce, parentId);
 	}
 
 	// prettier-ignore

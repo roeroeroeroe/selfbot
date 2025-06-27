@@ -17,10 +17,10 @@
 	},
 	"twitch": {
 		"sender": {
-			"transport": "irc"
+			"backend": "irc"
 		},
 		"irc": {
-			"transport": "websocket",
+			"socket": "websocket",
 			"maxChannelCountPerConnection": 100,
 			"connectionsPoolSize": 10
 		},
@@ -84,6 +84,7 @@
 	"shell": "/bin/bash",
 	"logger": {
 		"level": "info",
+		"showErrorStackTraces": false,
 		"colorize": true
 	}
 }

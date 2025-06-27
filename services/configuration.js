@@ -1,4 +1,4 @@
-import { writeFile } from 'fs/promises';
+import fs from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import config from '../config.json' with { type: 'json' };
@@ -49,9 +49,19 @@ function assertStringOneOf(v, arr) {
 	assert(typeof v === 'string' && arr.includes(v),
 	       `must be one of: ${arr.join(', ')}`);
 }
+// prettier-ignore
 function assertHttpUrl(v) {
 	assert(utils.isValidHttpUrl(v) && !v.endsWith('/'),
 	       'must be a valid HTTP URL with no trailing slashes');
+}
+
+function assertExecutable(v) {
+	assertNonEmptyString(v);
+	try {
+		fs.accessSync(v, fs.constants.X_OK);
+	} catch {
+		throw new Error('must be executable');
+	}
 }
 // prettier-ignore
 const validators = {
@@ -65,11 +75,11 @@ const validators = {
 	'messages.tosViolationPlaceholder': v => assertNonEmptyString(v),
 	'messages.responsePartsSeparator': v => assertNonEmptyString(v),
 	'messages.logByDefault': v => assertBool(v),
-	'twitch.sender.transport': v => assertStringOneOf(v, ['irc', 'gql']),
-	'twitch.irc.transport': v => assertStringOneOf(v, ['tcp', 'websocket']),
+	'twitch.sender.backend': v => assertStringOneOf(v, ['irc', 'gql']),
+	'twitch.irc.socket': v => assertStringOneOf(v, ['tcp', 'websocket']),
 	'twitch.irc.maxChannelCountPerConnection': v => assertNonNegativeInt(v),
 	'twitch.irc.connectionsPoolSize': v => {
-		if (config.twitch.sender.transport !== 'irc') return;
+		if (config.twitch.sender.backend !== 'irc') return;
 		assertNonNegativeInt(v);
 		const max =
 			config.bot.rateLimits === 'verified'
@@ -173,8 +183,13 @@ const validators = {
 		if (!config.metrics.enabled || !config.metrics.prometheus.enabled) return;
 		assert(typeof v === 'string', 'must be a string');
 	},
-	'shell': v => assertNonEmptyString(v),
+	'shell': v => {
+		if (v === null) return;
+		assert(process.platform !== 'win32', 'not supported on win32');
+		assertExecutable(v);
+	},
 	'logger.level': v => assertStringOneOf(v, ['debug', 'info', 'warning', 'error', 'none']),
+	'logger.showErrorStackTraces': v => assertBool(v),
 	'logger.colorize': v => assertBool(v),
 };
 
@@ -222,7 +237,7 @@ async function updateConfig(pathStr, newValue) {
 		}
 
 	parent[key] = newValue;
-	await writeFile(configPath, JSON.stringify(config, null, '\t'));
+	await fs.promises.writeFile(configPath, JSON.stringify(config, null, '\t'));
 }
 
 export default {

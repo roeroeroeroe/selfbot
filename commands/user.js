@@ -200,6 +200,7 @@ function getRoles(roles) {
 	if (roles.isGlobalMod) roleList.push('global mod');
 	if (roles.isExtensionsDeveloper) roleList.push('extensions developer');
 	if (roles.isParticipatingDJ) roleList.push('dj');
+	if (roles.isMonetized) roleList.push('monetized');
 	if (roles.isPartner) roleList.push('partner');
 	if (roles.isAffiliate) roleList.push('affiliate');
 
