@@ -31,12 +31,12 @@ export default {
 		if (!res.length) return { text: '0 channels', mention: true };
 
 		const counters = {
-			tiers: {
-				1000: { count: 0, desc: '1' },
-				2000: { count: 0, desc: '2' },
-				3000: { count: 0, desc: '3' },
-			},
 			gifted: 0,
+			tiers: {
+				1000: { count: 0, tier: '1' },
+				2000: { count: 0, tier: '2' },
+				3000: { count: 0, tier: '3' },
+			},
 		};
 		const allEmotes = [];
 
@@ -79,7 +79,7 @@ export default {
 		for (const t in counters.tiers) {
 			const counter = counters.tiers[t];
 			if (counter.count)
-				responseParts.push(`tier ${counter.desc}: ${counter.count}`);
+				responseParts.push(`tier ${counter.tier}: ${counter.count}`);
 		}
 
 		if (msg.commandFlags.printEmotes && allEmotes.length)

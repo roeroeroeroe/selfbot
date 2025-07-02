@@ -100,18 +100,20 @@ async function flushMessages(
 				await c.query('BEGIN');
 				stream = c.query(pgStreams.from(queries.COPY_MESSAGES_STREAM));
 			}
-			let count = 0;
-			for (; count < maxPerChannelFlush && buffer.size; count++)
-				if (!stream.write(`${channelId}\t${buffer.shift()}\n`))
-					await new Promise(res => stream.once('drain', res));
-			if (count) entry.emptyStreak = 0;
-			if (buffer.size)
+			let count = buffer.size;
+			if (count > maxPerChannelFlush) {
+				count = maxPerChannelFlush;
 				logger.warning(
 					`[DB] queued messages buffer for channel ${channelId}`,
 					`exceeded max size (${maxPerChannelFlush})`,
-					`by ${buffer.size} messages, consider decreasing`,
+					`by ${buffer.size - maxPerChannelFlush} messages, consider decreasing`,
 					"'db.messagesFlushIntervalMs' or increasing 'db.maxMessagesPerChannelFlush'"
 				);
+			}
+			for (let i = 0; i < count; i++)
+				if (!stream.write(`${channelId}\t${buffer.shift()}\n`))
+					await new Promise(res => stream.once('drain', res));
+			entry.emptyStreak = 0;
 		}
 		if (stream) {
 			stream.end();

@@ -109,10 +109,10 @@ export default {
 		}
 
 		if (!msg.commandFlags.force) {
-			const { allowed, slowMode, error, selfBanStatus } =
+			const { allowed, slowMode, error, strikeStatus } =
 				await twitch.gql.chat.canSend(channel.id, channel.login, privileged);
 			if (!allowed) return { text: error, mention: true };
-			if (selfBanStatus.warningDetails?.createdAt)
+			if (strikeStatus.warningDetails?.createdAt)
 				try {
 					const res = await twitch.gql.channel.acknowledgeChatWarning(
 						channel.id

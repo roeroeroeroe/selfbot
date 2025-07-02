@@ -17,7 +17,7 @@ export default {
 		{
 			name: 'idLookup',
 			short: 'i',
-			long: 'by-id',
+			long: 'id',
 			type: 'boolean',
 			required: false,
 			defaultValue: false,
@@ -33,9 +33,9 @@ export default {
 		const unique = new Set();
 		if (msg.commandFlags.idLookup) {
 			for (let i = 0; i < msg.args.length; i++) {
-				const id = msg.args[i];
-				if (unique.has(id)) continue;
-				if (!utils.regex.patterns.id.test(id)) continue;
+				const id = msg.args[i].trim();
+				if (!id || unique.has(id) || !utils.regex.patterns.id.test(id))
+					continue;
 				unique.add(id);
 				input.push(id);
 				if (unique.size >= MAX_USERS) break;
@@ -43,9 +43,8 @@ export default {
 			if (!input.length) input.push(msg.senderUserID);
 		} else {
 			for (let i = 0; i < msg.args.length; i++) {
-				const u = msg.args[i];
-				if (unique.has(u)) continue;
-				if (!utils.regex.patterns.username.test(u)) continue;
+				const u = utils.trimLogin(msg.args[i]);
+				if (!u || unique.has(u)) continue;
 				unique.add(u);
 				input.push(u);
 				if (unique.size >= MAX_USERS) break;

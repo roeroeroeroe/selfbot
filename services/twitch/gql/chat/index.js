@@ -24,28 +24,28 @@ async function getRecentMessages(channelLogin) {
 }
 
 async function canSend(channelId, channelLogin, privileged = false) {
-	let selfBanStatus;
+	let strikeStatus;
 	try {
 		const { chatModeratorStrikeStatus } =
-			await gql.user.getSelfBanStatus(channelId);
-		selfBanStatus = chatModeratorStrikeStatus || {};
+			await gql.user.getSelfStrikeStatus(channelId);
+		strikeStatus = chatModeratorStrikeStatus || {};
 	} catch (err) {
-		logger.error('error getting ban status:', err);
+		logger.error('error getting strike status:', err);
 		return {
 			allowed: false,
 			slowMode: ChatService.DEFAULT_SLOW_MODE_MS,
-			error: 'error getting ban status',
-			selfBanStatus: null,
+			error: 'error getting strike status',
+			strikeStatus: null,
 		};
 	}
 	// warningDetails are ignored -- it's the caller's job to ack them
-	const { banDetails, timeoutDetails } = selfBanStatus;
+	const { banDetails, timeoutDetails } = strikeStatus;
 	if (banDetails?.createdAt)
 		return {
 			allowed: false,
 			slowMode: ChatService.DEFAULT_SLOW_MODE_MS,
 			error: `you are banned from ${channelLogin}`,
-			selfBanStatus,
+			strikeStatus,
 		};
 	if (timeoutDetails?.expiresAt) {
 		const expiresIn = utils.duration.format(
@@ -55,14 +55,14 @@ async function canSend(channelId, channelLogin, privileged = false) {
 			allowed: false,
 			slowMode: ChatService.DEFAULT_SLOW_MODE_MS,
 			error: `you are timed out from ${channelLogin} (expires in ${expiresIn})`,
-			selfBanStatus,
+			strikeStatus,
 		};
 	}
 	if (privileged)
 		return {
 			allowed: true,
 			slowMode: ChatService.DEFAULT_SLOW_MODE_MS,
-			selfBanStatus,
+			strikeStatus,
 		};
 
 	let settings;
@@ -75,7 +75,7 @@ async function canSend(channelId, channelLogin, privileged = false) {
 			allowed: false,
 			slowMode: ChatService.DEFAULT_SLOW_MODE_MS,
 			error: 'error getting chat settings',
-			selfBanStatus,
+			strikeStatus,
 		};
 	}
 	const {
@@ -98,7 +98,7 @@ async function canSend(channelId, channelLogin, privileged = false) {
 		slowMode === ChatService.DEFAULT_SLOW_MODE_MS &&
 		!noSlowForSubs
 	)
-		return { allowed: true, slowMode, selfBanStatus };
+		return { allowed: true, slowMode, strikeStatus };
 
 	let rel;
 	try {
@@ -110,7 +110,7 @@ async function canSend(channelId, channelLogin, privileged = false) {
 			allowed: false,
 			slowMode,
 			error: 'error getting relationship',
-			selfBanStatus,
+			strikeStatus,
 		};
 	}
 
@@ -120,7 +120,7 @@ async function canSend(channelId, channelLogin, privileged = false) {
 				allowed: false,
 				slowMode,
 				error: `you need to be a follower of ${channelLogin} to chat${minFA > 0 ? ` (minFA: ${utils.duration.format(minFA)})` : ''}`,
-				selfBanStatus,
+				strikeStatus,
 			};
 		if (minFA > 0) {
 			const age = Date.now() - Date.parse(rel.followedAt);
@@ -132,7 +132,7 @@ async function canSend(channelId, channelLogin, privileged = false) {
 						`you need to be a follower of ${channelLogin} to chat ` +
 						`(minFA: ${utils.duration.format(minFA)}, ` +
 						`FA: ${utils.duration.format(age)})`,
-					selfBanStatus,
+					strikeStatus,
 				};
 		}
 	}
@@ -141,13 +141,13 @@ async function canSend(channelId, channelLogin, privileged = false) {
 			allowed: false,
 			slowMode,
 			error: `sub-only chat is enabled for ${channelLogin}`,
-			selfBanStatus,
+			strikeStatus,
 		};
 	}
 	if (noSlowForSubs && rel.subscriptionBenefit?.id)
 		slowMode = ChatService.DEFAULT_SLOW_MODE_MS;
 
-	return { allowed: true, slowMode, selfBanStatus };
+	return { allowed: true, slowMode, strikeStatus };
 }
 
 async function sendMessage(channelId, message, nonce, parentId) {

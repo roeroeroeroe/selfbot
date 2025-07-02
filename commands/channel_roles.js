@@ -3,6 +3,8 @@ import paste from '../services/paste/index.js';
 import utils from '../utils/index.js';
 import twitch from '../services/twitch/index.js';
 
+const ACTIVE_PREFIX = '* ';
+
 export default {
 	name: 'roles',
 	aliases: [],
@@ -44,16 +46,19 @@ export default {
 	],
 	// prettier-ignore
 	execute: async msg => {
-		const channel = {}, input = msg.commandFlags.channel || msg.args[0];
-		if (input) {
+		const channel = {};
+		const channelInput = utils.resolveLoginInput(
+			msg.commandFlags.channel, msg.args[0]
+		);
+		if (channelInput) {
 			try {
-				const user = await twitch.gql.user.resolve(input);
+				const user = await twitch.gql.user.resolve(channelInput);
 				if (!user)
-					return { text: `channel ${input} does not exist`, mention: true };
+					return { text: `channel ${channelInput} does not exist`, mention: true };
 				channel.id = user.id;
 				channel.login = user.login;
 			} catch (err) {
-				logger.error(`error resolving user ${input}:`, err);
+				logger.error(`error resolving user ${channelInput}:`, err);
 				return { text: 'error resolving channel', mention: true };
 			}
 		} else {
@@ -74,9 +79,12 @@ export default {
 
 		const list = [], responseParts = [];
 
-		if (modEdges?.length)
+		if (modEdges?.length) {
+			if (modEdges.length > maxMods)
+				modEdges.length = maxMods;
 			processEdges(modEdges, 'mod', 'grantedAt', list, responseParts,
 			             'isActive', 'currently in chat');
+		}
 		if (vipEdges?.length)
 			processEdges(vipEdges, 'vip', 'grantedAt', list, responseParts);
 		if (founderEdges?.length)
@@ -121,7 +129,7 @@ function processEdges(
 		let prefix = '';
 		if (activeKey && e[activeKey]) {
 			activeCount++;
-			prefix = '* ';
+			prefix = ACTIVE_PREFIX;
 		}
 		lines.push(
 			`${prefix}${utils.pickName(e.node.login, e.node.displayName)}` +

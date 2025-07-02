@@ -47,12 +47,12 @@ export default {
 			return { text: 'no usernames provided', mention: true };
 		const usernames = new Set();
 		for (let i = 0; i < msg.args.length; i++) {
-			const u = msg.args[i].toLowerCase();
-			if (!usernames.has(u) && utils.regex.patterns.username.test(u)) {
-				usernames.add(u);
-				if (usernames.size >= MAX_USERNAMES_PRE_FILTER)
-					break;
-			}
+			const u = utils.trimLogin(msg.args[i]);
+			if (!u || usernames.has(u))
+				continue;
+			usernames.add(u);
+			if (usernames.size >= MAX_USERNAMES_PRE_FILTER)
+				break;
 		}
 		if (!usernames.size)
 			return { text: 'no valid usernames provided', mention: true };

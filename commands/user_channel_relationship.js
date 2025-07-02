@@ -29,9 +29,11 @@ export default {
 		},
 	],
 	execute: async msg => {
-		const now = Date.now();
-
-		const userInput = msg.commandFlags.user || msg.args.shift();
+		const userInput = utils.resolveLoginInput(
+			msg.commandFlags.user,
+			msg.args[0],
+			{ args: msg.args }
+		);
 		let user;
 		if (userInput) {
 			try {
@@ -47,7 +49,11 @@ export default {
 			user = { id: msg.senderUserID, login: msg.senderUsername };
 		}
 
-		const channelInput = msg.commandFlags.channel || msg.args.shift();
+		const channelInput = utils.resolveLoginInput(
+			msg.commandFlags.channel,
+			msg.args[0],
+			{ args: msg.args }
+		);
 		let channel;
 		if (channelInput) {
 			try {
@@ -83,6 +89,7 @@ export default {
 			res.status === 'fulfilled' ? res.value : undefined
 		);
 
+		const now = Date.now();
 		const responseParts = [];
 		const userName = utils.pickName(
 			relationshipData.user.login,

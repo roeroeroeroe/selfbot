@@ -98,8 +98,11 @@ export default {
 			case 'listrewards':
 				action = 'list';
 		}
-		const channelInput =
-			msg.commandFlags.channel || msg.args[0] || msg.channelName;
+		const channelInput = utils.resolveLoginInput(
+			msg.commandFlags.channel,
+			msg.args[0],
+			{ fallback: msg.channelName }
+		);
 		let res;
 		try {
 			res = await twitch.gql.channel.getCustomRewards(channelInput);

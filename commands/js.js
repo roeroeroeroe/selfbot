@@ -36,7 +36,7 @@ export default {
 	aliases: ['eval'],
 	description:
 		'run arbitrary javascript; quotes may be stripped -- ' +
-		"use backticks or escape inner quotes (e.g., foo('\\'bar\\''))",
+		"use backticks or escape inner quotes (e.g., const foo = '\'bar\'')",
 	unsafe: true,
 	lock: 'NONE',
 	flags: [],

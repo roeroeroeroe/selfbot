@@ -62,7 +62,7 @@ query($searchQuery: String!) {
 }
 ${BASIC_USER}`;
 
-export const GET_SELF_BAN_STATUS = `
+export const GET_SELF_STRIKE_STATUS = `
 query($channelId: ID! $userId: ID!) {
 	chatModeratorStrikeStatus(channelID: $channelId userID: $userId) {
 		roomOwner {
@@ -71,15 +71,18 @@ query($channelId: ID! $userId: ID!) {
 		banDetails {
 			id
 			createdAt
+			reason
 		}
 		timeoutDetails {
 			id
 			createdAt
 			expiresAt
+			reason
 		}
 		warningDetails {
 			id
 			createdAt
+			reason
 		}
 	}
 }

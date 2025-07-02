@@ -19,7 +19,7 @@ async function getMods(channelLogin, limit = 1000) {
 		variables.cursor = edges[edges.length - 1].cursor;
 	} while (variables.cursor && modEdges.length < limit);
 
-	return modEdges.length <= limit ? modEdges : modEdges.slice(0, limit);
+	return modEdges;
 }
 
 async function getVips(channelLogin) {

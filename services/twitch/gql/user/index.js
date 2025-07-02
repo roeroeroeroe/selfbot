@@ -6,11 +6,9 @@ import utils from '../../../../utils/index.js';
 async function resolveUser(userLogin, userId) {
 	let key, input;
 	if (userLogin) {
-		if (!utils.regex.patterns.username.test(userLogin)) return null;
 		key = 'login';
-		input = userLogin.toLowerCase();
+		input = userLogin;
 	} else {
-		if (!utils.regex.patterns.id.test(userId)) return null;
 		key = 'id';
 		input = userId;
 	}
@@ -78,9 +76,9 @@ async function searchUsers(searchQuery) {
 	return res.data;
 }
 
-async function getSelfBanStatus(channelId) {
+async function getSelfStrikeStatus(channelId) {
 	const res = await gql.request({
-		query: queries.GET_SELF_BAN_STATUS,
+		query: queries.GET_SELF_STRIKE_STATUS,
 		variables: { channelId, userId: config.bot.id },
 	});
 
@@ -222,7 +220,7 @@ export default {
 	getUserWithBanReason,
 	getMany,
 	search: searchUsers,
-	getSelfBanStatus,
+	getSelfStrikeStatus,
 	getSelfSubscriptionBenefits,
 	getSelfFollowRelationship,
 	getFollows,

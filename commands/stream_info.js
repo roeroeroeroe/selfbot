@@ -22,15 +22,15 @@ export default {
 		},
 	],
 	execute: async msg => {
-		const channelLogin = (
-			msg.commandFlags.channel ||
-			msg.args[0] ||
-			msg.channelName
-		).toLowerCase();
+		const channelInput = utils.resolveLoginInput(
+			msg.commandFlags.channel,
+			msg.args[0],
+			{ fallback: msg.channelName }
+		);
 
 		let res;
 		try {
-			res = await twitch.gql.stream.get(channelLogin);
+			res = await twitch.gql.stream.get(channelInput);
 		} catch (err) {
 			logger.error('error getting stream:', err);
 			return { text: 'error getting stream', mention: true };

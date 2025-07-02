@@ -115,12 +115,22 @@ export default {
 };
 
 async function getTargets(msg, action) {
+	const inputUsers = [];
+	if (msg.commandFlags.id) {
+		const regex = utils.regex.patterns.id;
+		for (let i = 0, id; i < msg.args.length; i++)
+			if (regex.test((id = msg.args[i].trim()))) inputUsers.push(id);
+	} else
+		for (let i = 0, l; i < msg.args.length; i++)
+			if ((l = utils.trimLogin(msg.args[i]))) inputUsers.push(l);
+	if (!inputUsers.length) return inputUsers;
+
 	const existingChannels = await db.query('SELECT id, login FROM channels');
 	const targetChannels = [];
 	if (action === 'join') {
 		const usersMap = msg.commandFlags.id
-			? await twitch.helix.user.getMany(null, msg.args)
-			: await twitch.helix.user.getMany(msg.args);
+			? await twitch.helix.user.getMany(null, inputUsers)
+			: await twitch.helix.user.getMany(inputUsers);
 		if (msg.commandFlags.force)
 			for (const user of usersMap.values()) targetChannels.push(user);
 		else {
@@ -133,22 +143,21 @@ async function getTargets(msg, action) {
 
 	if (msg.commandFlags.force) {
 		const usersMap = msg.commandFlags.id
-			? await twitch.helix.user.getMany(null, msg.args)
-			: await twitch.helix.user.getMany(msg.args);
+			? await twitch.helix.user.getMany(null, inputUsers)
+			: await twitch.helix.user.getMany(inputUsers);
 		for (const user of usersMap.values())
 			targetChannels.push({ id: user.id, login: user.login });
 	} else if (msg.commandFlags.id) {
 		const idsMap = new Map(existingChannels.map(c => [c.id, c.login]));
-		for (const arg of msg.args) {
-			const login = idsMap.get(arg);
-			if (login) targetChannels.push({ id: arg, login });
+		for (let i = 0, id; i < inputUsers.length; i++) {
+			const login = idsMap.get((id = inputUsers[i]));
+			if (login) targetChannels.push({ id, login });
 		}
 	} else {
 		const loginsMap = new Map(existingChannels.map(c => [c.login, c.id]));
-		for (const arg of msg.args) {
-			const login = arg.toLowerCase();
-			const id = loginsMap.get(login);
-			if (id) targetChannels.push({ id, login });
+		for (let i = 0, l; i < inputUsers.length; i++) {
+			const id = loginsMap.get((l = inputUsers[i]));
+			if (id) targetChannels.push({ id, login: l });
 		}
 	}
 	return targetChannels;

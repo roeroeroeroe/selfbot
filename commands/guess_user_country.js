@@ -47,15 +47,12 @@ const LANGUAGE_WEIGHT_OVERRIDES = { en: 0.5 };
 const VALID_COUNTRY_CODES = new Set(Object.keys(countryCodes));
 
 const STOPWORD_LANGUAGES = Object.keys(stopwords);
-const STOPWORDS_BY_LANGUAGE = {};
 const STOPWORD_WORD_TO_LANGUAGES = new Map();
-for (const lang of STOPWORD_LANGUAGES) {
-	STOPWORDS_BY_LANGUAGE[lang] = new Set(stopwords[lang]);
-	for (const word of STOPWORDS_BY_LANGUAGE[lang])
+for (const lang of STOPWORD_LANGUAGES)
+	for (const word of new Set(stopwords[lang]))
 		if (!STOPWORD_WORD_TO_LANGUAGES.has(word))
 			STOPWORD_WORD_TO_LANGUAGES.set(word, [lang]);
 		else STOPWORD_WORD_TO_LANGUAGES.get(word).push(lang);
-}
 
 const chatterTypes = twitch.gql.channel.CHATTER_TYPES;
 
@@ -102,7 +99,7 @@ export default {
 			required: false,
 			defaultValue: DEFAULT_MIN_SCORE_THRESHOLD,
 			description:
-				'minimum total score to make a guess ' +
+				'minimum confidence score to make a guess ' +
 				`(default: ${DEFAULT_MIN_SCORE_THRESHOLD}, min: 0.1)`,
 			validator: v => v >= 0.1,
 		},
@@ -155,7 +152,9 @@ export default {
 	],
 	// prettier-ignore
 	execute: async msg => {
-		const userInput = msg.commandFlags.user || msg.args[0];
+		const userInput = utils.resolveLoginInput(
+			msg.commandFlags.user, msg.args[0]
+		);
 		if (!userInput)
 			return { text: 'user is required', mention: true };
 
@@ -542,7 +541,7 @@ function processFollows(follows, totalCount, weight, applyDeltaArgs,
 }
 // prettier-ignore
 function processSKUs(skus, weight, applyDeltaArgs, verbose, out) {
-	const contryToSkus = {};
+	const countryToSkus = {};
 	let total = skus.length;
 	for (let i = 0, sku; i < skus.length; i++) {
 		const country = skuToCountryCode((sku = skus[i]));
@@ -550,13 +549,13 @@ function processSKUs(skus, weight, applyDeltaArgs, verbose, out) {
 			total--;
 			continue;
 		}
-		contryToSkus[country] ??= {};
-		contryToSkus[country][sku] =
-			(contryToSkus[country][sku] || 0) + 1;
+		countryToSkus[country] ??= {};
+		countryToSkus[country][sku] =
+			(countryToSkus[country][sku] || 0) + 1;
 	}
 
-	for (const country in contryToSkus) {
-		const skus = contryToSkus[country];
+	for (const country in countryToSkus) {
+		const skus = countryToSkus[country];
 		let count = 0;
 		for (const sku in skus)
 			count += skus[sku];

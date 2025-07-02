@@ -46,9 +46,7 @@ const durationPattern = new RegExp(
 );
 
 function parse(str) {
-	if (typeof str !== 'string') return null;
-	str = str.trim().toLowerCase();
-	if (!str) return null;
+	if (typeof str !== 'string' || !(str = str.trim().toLowerCase())) return null;
 
 	if (numberPattern.test(str)) return Math.round(parseFloat(str));
 	let total = 0,

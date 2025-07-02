@@ -3,7 +3,7 @@ import paste from '../services/paste/index.js';
 import utils from '../utils/index.js';
 import twitch from '../services/twitch/index.js';
 
-const NOTIFICATIONS_SYMBOL = '';
+const NOTIFICATIONS_SYMBOL = '🔔';
 
 export default {
 	name: 'follows',
@@ -79,8 +79,11 @@ export default {
 		}
 
 		const { limit, order, sort, raw } = msg.commandFlags;
-		const userLogin =
-			msg.commandFlags.user || msg.args[0]?.toLowerCase() || msg.senderUsername;
+		const userLogin = utils.resolveLoginInput(
+			msg.commandFlags.user,
+			msg.args[0],
+			{ fallback: msg.senderUsername }
+		);
 
 		let result,
 			countStr,
@@ -110,7 +113,7 @@ export default {
 		}
 
 		responseParts.push(countStr);
-		if (edges.length > limit) edges = edges.slice(0, limit);
+		if (edges.length > limit) edges.length = limit;
 
 		let header = countStr;
 		if (limit < result.totalCount)

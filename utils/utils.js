@@ -3,6 +3,7 @@ import config from '../config.json' with { type: 'json' };
 import twitch from '../services/twitch/index.js';
 import logger from '../services/logger.js';
 import metrics from '../services/metrics/index.js';
+import regex from './regex.js';
 
 const base62Charset =
 	'0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
@@ -248,7 +249,7 @@ export async function retry(
 	let lastError;
 	for (let i = 0; i <= maxRetries; i++) {
 		const attempt = i + 1;
-		if (i > 0) {
+		if (i) {
 			const backoff = baseDelay * 2 ** (i - 1) * (1 + Math.random() * jitter);
 			logger.debug(
 				`${logPrefix}retry ${i}, backing off ${Math.round(backoff)}ms`
@@ -265,11 +266,11 @@ export async function retry(
 			return result;
 		} catch (err) {
 			lastError = err;
-			logger.warning(`${logPrefix}error on attempt ${attempt}:`, err);
 			if (i === maxRetries || !canRetry(err)) {
-				logger.error(`${logPrefix}giving up after ${attempt} attempts`);
+				logger.warning(`${logPrefix}giving up after ${attempt} attempts`);
 				throw lastError;
 			}
+			logger.warning(`${logPrefix}error on attempt ${attempt}:`, err);
 		}
 	}
 }
@@ -306,4 +307,29 @@ export function deepInspect(obj, depth = 10) {
 		compact: true,
 		breakLength: Infinity,
 	});
+}
+
+export function trimLogin(login) {
+	if (typeof login !== 'string' || !(login = login.trim())) return '';
+	const firstChar = login[0];
+	if (firstChar === '@' || firstChar === '#') {
+		if (login.length === 1) return '';
+		login = login.slice(1);
+	}
+	return regex.patterns.username.test(login) ? login.toLowerCase() : '';
+}
+
+/**
+ * @param {string | undefined} flag
+ * @param {string | undefined} arg
+ * @param {{ args?: string[], fallback?: string }} [opts]
+ * @returns {string}
+ */
+export function resolveLoginInput(flag, arg, opts) {
+	if (flag) return flag;
+	if (arg) {
+		if (opts?.args && Array.isArray(opts.args)) opts.args.shift();
+		if ((arg = trimLogin(arg))) return arg;
+	}
+	return opts?.fallback || '';
 }

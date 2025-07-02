@@ -63,19 +63,25 @@ export default {
 		},
 	],
 	execute: async msg => {
-		let channelLogin = msg.channelName;
-		const input = msg.commandFlags.channel || msg.args[0];
-		if (input) {
+		let channelLogin;
+		const channelInput = utils.resolveLoginInput(
+			msg.commandFlags.channel,
+			msg.args[0]
+		);
+		if (channelInput) {
 			try {
-				const user = await twitch.gql.user.resolve(input);
+				const user = await twitch.gql.user.resolve(channelInput);
 				if (!user)
-					return { text: `channel ${input} does not exist`, mention: true };
+					return {
+						text: `channel ${channelInput} does not exist`,
+						mention: true,
+					};
 				channelLogin = user.login;
 			} catch (err) {
-				logger.error(`error resolving user ${input}:`, err);
+				logger.error(`error resolving user ${channelInput}:`, err);
 				return { text: 'error resolving channel', mention: true };
 			}
-		}
+		} else channelLogin = msg.channelName;
 		let req = 0,
 			totalCount = 0;
 		const chatters = {
