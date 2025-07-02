@@ -83,7 +83,10 @@ export default {
 		}
 
 		if (msg.commandFlags.printEmotes && allEmotes.length)
-			for (const message of utils.splitString(allEmotes.join(' '), 499))
+			for (const message of utils.splitString(
+				allEmotes.join(' '),
+				twitch.MAX_MESSAGE_LENGTH - 1
+			))
 				await msg.send(message);
 
 		return { text: utils.format.join(responseParts), mention: true };

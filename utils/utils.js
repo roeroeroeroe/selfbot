@@ -225,11 +225,9 @@ export function canFitAll(arr, limit, separatorLength) {
 
 export function getMaxMessageLength(login, reply, mention) {
 	login ??= '';
-	// reply:   '@login '
-	// mention: '@login, '
-	return (
-		twitch.MAX_MESSAGE_LENGTH - login.length - (reply ? 2 : mention ? 3 : 0)
-	);
+	if (reply) return twitch.MAX_MESSAGE_LENGTH - login.length - 2;
+	if (mention) return twitch.MAX_MESSAGE_LENGTH - login.length - 3;
+	return twitch.MAX_MESSAGE_LENGTH;
 }
 
 export async function retry(
