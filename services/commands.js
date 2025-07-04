@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import config from '../config.json' with { type: 'json' };
 import logger from './logger.js';
 import flag from './flag/index.js';
@@ -130,9 +130,11 @@ async function load() {
 	let c = 0;
 	for (const f of commandFiles)
 		try {
+			const commandPath = pathToFileURL(
+				path.join(__dirname, `../commands/${f}`)
+			).href;
 			const t0 = performance.now();
-			const command = (await import(path.join(__dirname, `../commands/${f}`)))
-				.default;
+			const command = (await import(commandPath)).default;
 			const t1 = performance.now();
 			if (!config.commands.loadUnsafe && command.unsafe) {
 				logger.debug(

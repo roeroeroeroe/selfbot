@@ -194,7 +194,9 @@ export function getClosestString(str, arr) {
 	let bestMatch = null,
 		bestDistance = Infinity;
 
-	for (const s of arr) {
+	for (let i = 0; i < arr.length; i++) {
+		const s = arr[i];
+		if (Math.abs(str.length - s.length) >= bestDistance) continue;
 		const distance = damerauLevenshteinDistance(str, s);
 		if (distance < bestDistance) {
 			if (distance <= 1) return s;

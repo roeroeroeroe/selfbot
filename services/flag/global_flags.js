@@ -93,7 +93,7 @@ const postFlagHandlers = [
 			? (execT1 - msg.execT0).toFixed(3) + 'ms'
 			: 'N/A';
 		if (result.text)
-			result.text += ` ${config.messages.responsePartsSeparator} took ${duration}`;
+			result.text += `${config.messages.responsePartsSeparator}took ${duration}`;
 		else result.text = `took ${duration}`;
 		return result;
 	},
