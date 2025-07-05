@@ -4,20 +4,12 @@ import config from '../../../../config.json' with { type: 'json' };
 import utils from '../../../../utils/index.js';
 
 async function resolveUser(userLogin, userId) {
-	let key, input;
-	if (userLogin) {
-		key = 'login';
-		input = userLogin;
-	} else {
-		key = 'id';
-		input = userId;
-	}
 	const res = await gql.request({
 		query: queries.RESOLVE_USER,
 		variables: { login: userLogin, id: userId },
 	});
 
-	return res.data.user?.[key] === input ? res.data.user : null;
+	return res.data.user;
 }
 
 async function getUserWithBanReason(userLogin, userId) {

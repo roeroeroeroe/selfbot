@@ -14,8 +14,6 @@ function getPaste(url) {
 	} catch {
 		throw new Error(`invalid URL: ${url}`);
 	}
-	const { origin, pathname } = parsed;
-	const key = pathname.split('/').filter(Boolean).pop() || null;
 	const isNullPtr = config.paste.nullPtr.instance
 		? url.startsWith(config.paste.nullPtr.instance)
 		: false;
@@ -44,10 +42,13 @@ function getPaste(url) {
 			if (!res.headers.get('content-type')?.includes('text/html'))
 				return res.text();
 
-			if (!key)
-				throw new Error('could not get plaintext from any known endpoint');
+			const segments = parsed.pathname.split('/').filter(Boolean);
+			const key = segments.pop();
+			if (!key) throw new Error('no key segment found');
 
-			const apiUrl = `${origin}/documents/${key}`;
+			const mount = segments.length ? `/${segments.join('/')}/` : '/';
+			const apiUrl = `${parsed.origin}${mount}documents/${key}`;
+
 			try {
 				logger.debug(`[PASTE] trying api: ${apiUrl}`);
 				const apiRes = await fetch(apiUrl, {
@@ -59,7 +60,7 @@ function getPaste(url) {
 				}
 			} catch {}
 
-			const rawUrl = `${origin}/raw/${key}`;
+			const rawUrl = `${parsed.origin}${mount}raw/${key}`;
 			try {
 				logger.debug(`[PASTE] trying raw: ${rawUrl}`);
 				const rawRes = await fetch(rawUrl, GET_PASTE_FETCH_OPTIONS);

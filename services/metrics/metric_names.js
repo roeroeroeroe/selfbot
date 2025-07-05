@@ -31,6 +31,9 @@ const counters = {
 
 	TMI_MESSAGES_RX: 'tmi_messages_received',
 	TMI_MESSAGES_TX: 'tmi_messages_sent',
+
+	WOLFRAM_REQUESTS_TX: 'wolfram_requests_sent',
+	WOLFRAM_RETRIES: 'wolfram_retries',
 };
 
 const gauges = {

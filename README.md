@@ -142,7 +142,7 @@ vi .env
 ```
 ```env
 TWITCH_ANDROID_CLIENT_ID=kd1unb4b3q4t58fwlpcbzcbnm76a8fp
-TWITCH_ANDROID_TOKEN= # access_token
+TWITCH_ANDROID_TOKEN=  # access_token
 DB_USER=
 DB_HOST=127.0.0.1
 DB_NAME=
@@ -153,7 +153,8 @@ REDIS_USER=
 REDIS_HOST=
 REDIS_PASSWORD=
 REDIS_PORT=
-REDIS_SOCKET=         # optional unix domain socket - overrides host & port if provided
+REDIS_SOCKET=          # optional -- unix domain socket (overrides host & port if provided)
+WOLFRAM_ALPHA_API_KEY= # optional -- used by the wolframalpha command
 ```
 ## run
 ```bash
