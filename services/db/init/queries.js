@@ -1,5 +1,9 @@
 import config from '../../../config.json' with { type: 'json' };
-import { MAX_MESSAGE_LENGTH, MAX_USERNAME_LENGTH } from '../../twitch/constants.js';
+import { MAX_PREFIX_LENGTH } from '../constants.js';
+import {
+	MAX_MESSAGE_LENGTH,
+	MAX_USERNAME_LENGTH,
+} from '../../twitch/constants.js';
 
 export const CREATE_CHANNELS_TABLE = `
 CREATE TABLE IF NOT EXISTS channels (
@@ -7,7 +11,7 @@ CREATE TABLE IF NOT EXISTS channels (
 	login        VARCHAR(${MAX_USERNAME_LENGTH}) UNIQUE NOT NULL,
 	display_name TEXT        NOT NULL,
 	log          BOOLEAN     NOT NULL DEFAULT ${config.messages.logByDefault},
-	prefix       VARCHAR(15) NOT NULL DEFAULT '${config.commands.defaultPrefix}',
+	prefix       VARCHAR(${MAX_PREFIX_LENGTH}) NOT NULL DEFAULT '${config.commands.defaultPrefix}',
 	suspended    BOOLEAN     NOT NULL DEFAULT false,
 	privileged   BOOLEAN     NOT NULL DEFAULT false,
 	joined_at    TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP

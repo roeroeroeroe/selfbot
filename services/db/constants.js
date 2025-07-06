@@ -30,6 +30,8 @@ export const VALID_MESSAGES_COLUMNS = new Set([
 	'timestamp',
 ]);
 
+export const MAX_PREFIX_LENGTH = 15;
+
 // used for config validation
 export const MAX_MESSAGES_FLUSH_INTERVAL_MS = 10000;
 export const MAX_MESSAGES_PER_CHANNEL_FLUSH = 1000;

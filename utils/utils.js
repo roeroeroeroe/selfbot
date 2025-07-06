@@ -4,6 +4,7 @@ import twitch from '../services/twitch/index.js';
 import logger from '../services/logger.js';
 import metrics from '../services/metrics/index.js';
 import regex from './regex.js';
+import db from '../services/db/index.js';
 
 const base62Charset =
 	'0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
@@ -279,9 +280,10 @@ export function isValidPrefix(prefix) {
 	return (
 		typeof prefix === 'string' &&
 		prefix &&
-		prefix.length <= 15 &&
+		prefix.length <= db.MAX_PREFIX_LENGTH &&
 		!prefix.startsWith('.') &&
-		!prefix.startsWith('/')
+		!prefix.startsWith('/') &&
+		!/\s/.test(prefix)
 	);
 }
 

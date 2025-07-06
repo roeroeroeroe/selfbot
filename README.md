@@ -27,7 +27,7 @@ vi config.json
   "commands": {
     "defaultPrefix": "!",
     "loadUnsafe": true,                 // enable insecure commands
-    "suggestClosest": true              // suggest closest valid command on typo
+    "suggestClosest": false             // suggest closest valid command on typo
   },
   "messages": {
     "tosViolationPlaceholder": "message goes against twitch TOS", // replaces messages that match one of the TOS patterns
@@ -48,9 +48,9 @@ vi config.json
       "maxTopicsPerConnection": 50,     // max number of topics per hermes connection
       "autoJoinRaids": true,
       "autoAcknowledgeChatWarnings": true,
-      "autoJoinWatching": true,         // auto-join watched channels detected via presence
+      "autoJoinWatching": false,        // auto-join watched channels detected via presence
       "autoBet": {
-        "enabled": true,                // auto-bet on predictions
+        "enabled": false,               // auto-bet on predictions
         "ignoreOwnPredictions": true,
         "minRequiredBalance": 10,       // min balance required to place a bet
         "strategy": {
@@ -107,7 +107,7 @@ vi config.json
   "shell": "/bin/bash",                 // null for none
   "logger": {
     "level": "info",                    // "debug" | "info" | "warning" | "error" | "none"
-    "showErrorStackTraces": false,
+    "showErrorStackTraces": true,
     "colorize": true                    // enable colored terminal output
   }
 }

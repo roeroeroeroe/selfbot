@@ -170,7 +170,7 @@ async function executeCustomCommand(msg, customCommand, cooldownKey) {
 				.replace(customCommand.trigger, '')
 				.trim();
 			buildArgs(msg, true);
-			msg.commandName = command.name;
+			msg.commandName = customCommand.runcmd;
 			logger.debug(
 				`[HANDLER] custom command ${customCommand.name} ->`,
 				`regular command ${msg.commandName}, entering regular command handler`

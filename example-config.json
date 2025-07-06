@@ -8,7 +8,7 @@
 	"commands": {
 		"defaultPrefix": "!",
 		"loadUnsafe": true,
-		"suggestClosest": true
+		"suggestClosest": false
 	},
 	"messages": {
 		"tosViolationPlaceholder": "message goes against twitch TOS",
@@ -29,9 +29,9 @@
 			"maxTopicsPerConnection": 50,
 			"autoAcknowledgeChatWarnings": true,
 			"autoJoinRaids": true,
-			"autoJoinWatching": true,
+			"autoJoinWatching": false,
 			"autoBet": {
-				"enabled": true,
+				"enabled": false,
 				"ignoreOwnPredictions": true,
 				"minRequiredBalance": 10,
 				"strategy": {
@@ -84,7 +84,7 @@
 	"shell": "/bin/bash",
 	"logger": {
 		"level": "info",
-		"showErrorStackTraces": false,
+		"showErrorStackTraces": true,
 		"colorize": true
 	}
 }
