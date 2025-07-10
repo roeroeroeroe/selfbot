@@ -1,0 +1,1 @@
+export const SEARCH_USERS_MAX_RESULTS = 1000;

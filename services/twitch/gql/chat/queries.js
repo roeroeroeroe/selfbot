@@ -29,6 +29,25 @@ query($login: String!) {
 }
 ${BASIC_USER}`;
 
+export const GET_MESSAGE = `
+query($id: ID!) {
+	message(id: $id) {
+		id
+		sentAt
+		deletedAt
+		channel {
+			id
+		}
+		sender {
+			...BasicUserFragment
+		}
+		content {
+			text
+		}
+	}
+}
+${BASIC_USER}`;
+
 export const SEND_MESSAGE = `
 mutation($input: SendChatMessageInput!) {
 	sendChatMessage(input: $input) {

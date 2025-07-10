@@ -7,6 +7,8 @@ import stream from './stream/index.js';
 import video from './video/index.js';
 import chat from './chat/index.js';
 import team from './team/index.js';
+import report from './report/index.js';
+import whisper from './whisper/index.js';
 
 export default {
 	...constants,
@@ -18,4 +20,6 @@ export default {
 	video,
 	chat,
 	team,
+	report,
+	whisper,
 };

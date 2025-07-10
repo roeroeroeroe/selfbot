@@ -324,7 +324,6 @@ async function handlePredictionResult(event, state, winOutcomeId,
 
 export async function cleanup() {
 	clearInterval(sweepInterval);
-	sweepInterval = null;
 	const dump = [];
 	for (const state of predictionStates.values()) {
 		state.clearBetTimeout();

@@ -5,24 +5,6 @@ import logger from '../../../logger.js';
 import config from '../../../../config.json' with { type: 'json' };
 import utils from '../../../../utils/index.js';
 
-async function getSettings(channelLogin) {
-	const res = await gql.request({
-		query: queries.GET_SETTINGS,
-		variables: { login: channelLogin },
-	});
-
-	return res.data;
-}
-
-async function getRecentMessages(channelLogin) {
-	const res = await gql.request({
-		query: queries.GET_RECENT_MESSAGES,
-		variables: { login: channelLogin },
-	});
-
-	return res.data;
-}
-
 async function canSend(channelId, channelLogin, privileged = false) {
 	let strikeStatus;
 	try {
@@ -150,6 +132,33 @@ async function canSend(channelId, channelLogin, privileged = false) {
 	return { allowed: true, slowMode, strikeStatus };
 }
 
+async function getSettings(channelLogin) {
+	const res = await gql.request({
+		query: queries.GET_SETTINGS,
+		variables: { login: channelLogin },
+	});
+
+	return res.data;
+}
+
+async function getRecentMessages(channelLogin) {
+	const res = await gql.request({
+		query: queries.GET_RECENT_MESSAGES,
+		variables: { login: channelLogin },
+	});
+
+	return res.data;
+}
+
+async function getMessage(messageId) {
+	const res = await gql.request({
+		query: queries.GET_MESSAGE,
+		variables: { id: messageId },
+	});
+
+	return res.data?.message;
+}
+
 async function sendMessage(channelId, message, nonce, parentId) {
 	const res = await gql.request({
 		query: queries.SEND_MESSAGE,
@@ -169,8 +178,10 @@ async function sendMessage(channelId, message, nonce, parentId) {
 export default {
 	queries,
 
+	canSend,
 	getSettings,
 	getRecentMessages,
-	canSend,
+	getMessage,
+
 	send: sendMessage,
 };

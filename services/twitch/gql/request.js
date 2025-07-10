@@ -5,7 +5,7 @@ import utils from '../../../utils/index.js';
 
 export default function send(body = {}) {
 	const bodyString = JSON.stringify(body);
-	logger.debug(`[GQL] ${gql.METHOD} ${gql.API_URL}:`, bodyString);
+	logger.debug(`[GQL] ${gql.METHOD} ${gql.API_URL}`);
 	return utils.retry(
 		async () => {
 			const res = await fetch(gql.API_URL, {
@@ -29,7 +29,6 @@ export default function send(body = {}) {
 				throw err;
 			}
 
-			logger.debug('[GQL] got response:', body);
 			return body;
 		},
 		{

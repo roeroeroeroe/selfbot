@@ -1,3 +1,4 @@
+import { DEFAULT_PAGE_SIZE } from '../constants.js';
 import { BASIC_USER } from '../fragments.js';
 
 export const GET_TEAM = `
@@ -11,7 +12,7 @@ query($name: String! $cursor: Cursor) {
 		owner {
 			...BasicUserFragment
 		}
-		members(first: 100 after: $cursor) {
+		members(first: ${DEFAULT_PAGE_SIZE} after: $cursor) {
 			totalCount
 			edges {
 				cursor

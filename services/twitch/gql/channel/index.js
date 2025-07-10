@@ -1,11 +1,11 @@
 import * as queries from './queries.js';
+import * as constants from './constants.js';
 import gql from '../index.js';
 import utils from '../../../../utils/index.js';
 import config from '../../../../config.json' with { type: 'json' };
 
-const CHATTER_TYPES = ['broadcasters', 'moderators', 'vips', 'viewers'];
-
-async function getMods(channelLogin, limit = 1000) {
+async function getMods(channelLogin, limit = gql.DEFAULT_PAGINATION_LIMIT) {
+	if (limit > gql.MAX_PAGINATION_LIMIT) limit = gql.MAX_PAGINATION_LIMIT;
 	const modEdges = [];
 	const variables = { login: channelLogin, cursor: null };
 	do {
@@ -70,17 +70,10 @@ async function getSelfModeratedChannels() {
 		if (!edges.length) break;
 
 		for (const e of edges) if (e.node?.login) moderatedChannelEdges.push(e);
-		variables.cursor = edges[edges.length - 1].cursor ?? null;
+		variables.cursor = edges[edges.length - 1].cursor;
 	} while (variables.cursor);
 
 	return moderatedChannelEdges;
-}
-
-async function getSelfEditableChannels() {
-	const res = await gql.request({
-		query: queries.GET_SELF_EDITABLE_CHANNELS,
-	});
-	return res.data;
 }
 
 async function isSelfPrivileged(
@@ -269,7 +262,7 @@ async function placePredictionBet(predictionId, outcomeId, points) {
 }
 
 export default {
-	CHATTER_TYPES,
+	...constants,
 	queries,
 
 	getMods,
@@ -278,7 +271,6 @@ export default {
 	getArtists,
 	getChatters,
 	getSelfModeratedChannels,
-	getSelfEditableChannels,
 	isSelfPrivileged,
 	getChannelViewer,
 	getUnlockableEmotes,

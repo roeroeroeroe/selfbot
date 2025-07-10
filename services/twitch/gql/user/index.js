@@ -1,4 +1,5 @@
 import * as queries from './queries.js';
+import * as constants from './constants.js';
 import gql from '../index.js';
 import config from '../../../../config.json' with { type: 'json' };
 import utils from '../../../../utils/index.js';
@@ -59,13 +60,52 @@ async function getMany(userLogins, userIds) {
 	return usersMap;
 }
 
-async function searchUsers(searchQuery) {
-	const res = await gql.request({
+async function searchUsers(searchQuery, getAll = false) {
+	const users = [];
+	const initialRes = await gql.request({
 		query: queries.SEARCH_USERS,
 		variables: { searchQuery },
 	});
 
-	return res.data;
+	const { totalCount, edges: initialEdges } = initialRes.data.searchUsers;
+	if (!initialEdges.length) return users;
+
+	for (let i = 0; i < initialEdges.length; users.push(initialEdges[i++].node));
+	if (!getAll) return users;
+
+	const maxTotal = Math.min(totalCount, constants.SEARCH_USERS_MAX_RESULTS);
+	const pageSize = gql.DEFAULT_PAGE_SIZE;
+	if (maxTotal <= pageSize) return users;
+
+	const cursors = [];
+	for (let offset = pageSize; offset < maxTotal; offset += pageSize)
+		cursors.push(btoa(String(offset)));
+
+	for (const batch of utils.splitArray(
+		cursors,
+		gql.MAX_OPERATIONS_PER_REQUEST
+	)) {
+		const responses = await gql.request(
+			batch.map(cursor => ({
+				query: queries.SEARCH_USERS,
+				variables: { searchQuery, cursor },
+			}))
+		);
+
+		for (let i = 0; i < responses.length; i++) {
+			const edges = responses[i].data?.searchUsers?.edges;
+			if (!edges?.length) continue;
+			for (let j = 0; j < edges.length; users.push(edges[j++].node));
+		}
+	}
+
+	return users;
+}
+
+async function getSelfEmail() {
+	const res = await gql.request({ query: queries.GET_SELF_EMAIL });
+
+	return res.data?.currentUser?.email;
 }
 
 async function getSelfStrikeStatus(channelId) {
@@ -91,7 +131,7 @@ async function getSelfSubscriptionBenefits() {
 
 		for (const e of edges)
 			if (e.node?.user?.login) subscriptionBenefitEdges.push(e);
-		variables.cursor = edges[edges.length - 1].cursor ?? null;
+		variables.cursor = edges[edges.length - 1].cursor;
 	} while (variables.cursor);
 
 	return subscriptionBenefitEdges;
@@ -106,7 +146,12 @@ async function getSelfFollowRelationship(channelLogin, channelId) {
 	return res.data;
 }
 
-async function getFollows(userLogin, limit = 1000, order = 'ASC') {
+async function getFollows(
+	userLogin,
+	limit = gql.DEFAULT_PAGINATION_LIMIT,
+	order = 'ASC'
+) {
+	if (limit > gql.MAX_PAGINATION_LIMIT) limit = gql.MAX_PAGINATION_LIMIT;
 	const followEdges = [],
 		followedGames = [];
 	let totalCount, res;
@@ -135,7 +180,12 @@ async function getFollows(userLogin, limit = 1000, order = 'ASC') {
 	return { followEdges, followedGames, totalCount };
 }
 
-async function getFollowers(userLogin, limit = 1000, order = 'ASC') {
+async function getFollowers(
+	userLogin,
+	limit = gql.DEFAULT_PAGINATION_LIMIT,
+	order = 'ASC'
+) {
+	if (limit > gql.MAX_PAGINATION_LIMIT) limit = gql.MAX_PAGINATION_LIMIT;
 	const followerEdges = [];
 	let totalCount, res;
 	const variables = { login: userLogin, cursor: null, order };
@@ -206,12 +256,14 @@ async function updateDisplayName(newDisplayName) {
 }
 
 export default {
+	...constants,
 	queries,
 
 	resolve: resolveUser,
 	getUserWithBanReason,
 	getMany,
 	search: searchUsers,
+	getSelfEmail,
 	getSelfStrikeStatus,
 	getSelfSubscriptionBenefits,
 	getSelfFollowRelationship,

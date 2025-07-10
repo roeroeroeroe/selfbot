@@ -118,9 +118,15 @@ export default {
 			long: 'follows-limit',
 			type: 'int',
 			required: false,
-			defaultValue: 1000,
-			description: 'max follows to get (default: 1000, min: 100, max: 50000)',
-			validator: v => v >= 100 && v <= 50000,
+			defaultValue: twitch.gql.DEFAULT_PAGINATION_LIMIT,
+			description:
+				'max follows to get ' +
+				`(default: ${twitch.gql.DEFAULT_PAGINATION_LIMIT}, ` +
+				`min: ${twitch.gql.DEFAULT_PAGE_SIZE}, ` +
+				`max: ${twitch.gql.MAX_PAGINATION_LIMIT})`,
+			validator: v =>
+				v >= twitch.gql.DEFAULT_PAGE_SIZE &&
+				v <= twitch.gql.MAX_PAGINATION_LIMIT,
 		},
 		{
 			name: 'chatterSaturationPoint',

@@ -40,8 +40,7 @@ function subscribe(sub, channelId) {
 		return;
 	}
 
-	const id = utils.randomString(constants.BASE64URL_CHARSET,
-	                              constants.ID_LENGTH);
+	const id = utils.randomString(utils.BASE64URL_CHARSET, constants.ID_LENGTH);
 	const topic = {
 		id,
 		topicString,
@@ -170,14 +169,16 @@ function createConnection() {
 		connections.delete(c.id);
 		metrics.gauge.set(metrics.names.gauges.HERMES_CONNECTIONS,
 		                  connections.size);
-		for (const topic of c.topics)
-			if (topic.state === constants.TopicState.UNSUBSCRIBING)
-				cleanupTopic(topic);
-			else {
-				topic.state = constants.TopicState.SUBSCRIBING;
-				topic.connection = null;
-				taskQueue.enqueue({ type: 'subscribe', topic });
-			}
+		setTimeout(() => {
+			for (const topic of c.topics)
+				if (topic.state === constants.TopicState.UNSUBSCRIBING)
+					cleanupTopic(topic);
+				else {
+					topic.state = constants.TopicState.SUBSCRIBING;
+					topic.connection = null;
+					taskQueue.enqueue({ type: 'subscribe', topic });
+				}
+		}, constants.RESUBSCRIBE_DELAY_MS);
 	});
 
 	return c;
@@ -186,7 +187,7 @@ function createConnection() {
 function sendMessage(c, type, topic) {
 	const id =
 		topic?.id ||
-		utils.randomString(constants.BASE64URL_CHARSET, constants.ID_LENGTH);
+		utils.randomString(utils.BASE64URL_CHARSET, constants.ID_LENGTH);
 	const msg = { type, id, timestamp: new Date().toISOString() };
 	if (type === 'authenticate')
 		msg.authenticate = { token: process.env.TWITCH_ANDROID_TOKEN };

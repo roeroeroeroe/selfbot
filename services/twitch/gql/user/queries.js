@@ -1,3 +1,4 @@
+import { DEFAULT_PAGE_SIZE } from '../constants.js';
 import { BASIC_USER, EXTENDED_USER, FOLLOWER } from '../fragments.js';
 
 export const RESOLVE_USER = `
@@ -51,9 +52,11 @@ query Users($input: [String!]) {
 ${EXTENDED_USER}`;
 
 export const SEARCH_USERS = `
-query($searchQuery: String!) {
-	searchUsers(userQuery: $searchQuery first: 100) {
+query($searchQuery: String! $cursor: Cursor) {
+	searchUsers(userQuery: $searchQuery first: ${DEFAULT_PAGE_SIZE} after: $cursor) {
+		totalCount
 		edges {
+			cursor
 			node {
 				...BasicUserFragment
 			}
@@ -61,6 +64,13 @@ query($searchQuery: String!) {
 	}
 }
 ${BASIC_USER}`;
+
+export const GET_SELF_EMAIL = `
+query {
+	currentUser {
+		email
+	}
+}`;
 
 export const GET_SELF_STRIKE_STATUS = `
 query($channelId: ID! $userId: ID!) {
@@ -91,7 +101,7 @@ ${BASIC_USER}`;
 export const GET_SELF_SUBSCRIPTION_BENEFITS = `
 query($cursor: Cursor) {
 	currentUser {
-		subscriptionBenefits(first: 100 after: $cursor criteria: {}) {
+		subscriptionBenefits(first: ${DEFAULT_PAGE_SIZE} after: $cursor criteria: {}) {
 			edges {
 				node {
 					tier
@@ -136,12 +146,12 @@ ${BASIC_USER}`;
 export const GET_FOLLOWS = `
 query follows($login: String! $cursor: Cursor $order: SortOrder) {
 	user(login: $login) {
-		followedGames(first: 100 type: ALL) {
+		followedGames(first: ${DEFAULT_PAGE_SIZE} type: ALL) {
 			nodes {
 				displayName
 			}
 		}
-		follows(first: 100 after: $cursor order: $order) {
+		follows(first: ${DEFAULT_PAGE_SIZE} after: $cursor order: $order) {
 			totalCount
 			edges {
 				cursor
@@ -161,7 +171,7 @@ ${FOLLOWER}`;
 export const GET_FOLLOWERS = `
 query followers($login: String! $cursor: Cursor $order: SortOrder) {
 	user(login: $login) {
-		followers(first: 100 after: $cursor order: $order) {
+		followers(first: ${DEFAULT_PAGE_SIZE} after: $cursor order: $order) {
 			totalCount
 			edges {
 				cursor

@@ -93,7 +93,6 @@ function getMetrics() {
 
 async function cleanup() {
 	clearInterval(snapshotInterval);
-	snapshotInterval = null;
 	if (!server) return;
 	await new Promise(res =>
 		server.close(err => {

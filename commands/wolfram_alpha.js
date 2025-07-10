@@ -7,7 +7,20 @@ export default {
 	description: 'query Wolfram|Alpha',
 	unsafe: false,
 	lock: 'NONE',
-	flags: [],
+	flags: [
+		{
+			name: 'unitSystem',
+			short: 'u',
+			long: 'units',
+			type: 'string',
+			required: false,
+			defaultValue: wa.UNIT_SYSTEMS.METRIC,
+			description:
+				'system of units of measurement ' +
+				`(default: ${wa.UNIT_SYSTEMS.METRIC}, options: ${[...wa.VALID_UNIT_SYSTEMS].join(', ')})`,
+			validator: v => wa.VALID_UNIT_SYSTEMS.has(v.toLowerCase()),
+		},
+	],
 	execute: async msg => {
 		if (!process.env.WOLFRAM_ALPHA_API_KEY)
 			return {
@@ -17,7 +30,10 @@ export default {
 		if (!msg.args.length) return { text: 'no input provided', mention: true };
 
 		try {
-			const res = await wa(msg.args.join(' '));
+			const res = await wa.query(
+				msg.args.join(' '),
+				msg.commandFlags.unitSystem.toLowerCase()
+			);
 			return { text: res, mention: true };
 		} catch (err) {
 			logger.error('wolfram alpha error:', err);

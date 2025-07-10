@@ -1,3 +1,4 @@
+import { DEFAULT_PAGE_SIZE } from '../constants.js';
 import {
 	BASIC_USER,
 	PREDICTION_EVENT_ACTOR,
@@ -7,7 +8,7 @@ import {
 export const GET_MODS = `
 query($login: String!, $cursor: Cursor) {
 	user(login: $login lookupType: ALL) {
-		mods(first: 100 after: $cursor) {
+		mods(first: ${DEFAULT_PAGE_SIZE} after: $cursor) {
 			edges {
 				cursor
 				grantedAt
@@ -24,7 +25,7 @@ ${BASIC_USER}`;
 export const GET_VIPS = `
 query($login: String!) {
 	user(login: $login lookupType: ALL) {
-		vips(first: 100) {
+		vips(first: ${DEFAULT_PAGE_SIZE}) {
 			edges {
 				grantedAt
 				node {
@@ -90,7 +91,7 @@ query($login: String!) {
 
 export const GET_SELF_MODERATED_CHANNELS = `
 query($cursor: Cursor) {
-	moderatedChannels(first: 100 after: $cursor) {
+	moderatedChannels(first: ${DEFAULT_PAGE_SIZE} after: $cursor) {
 		edges {
 			cursor
 			grantedAt
@@ -117,20 +118,6 @@ query($cursor: Cursor) {
 		}
 	}
 }`;
-
-export const GET_SELF_EDITABLE_CHANNELS = `
-query {
-	currentUser {
-		editableChannels {
-			edges {
-				node {
-					...BasicUserFragment
-				}
-			}
-		}
-	}
-}
-${BASIC_USER}`;
 
 export const IS_SELF_PRIVILEGED = `
 query($login: String) {

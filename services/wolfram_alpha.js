@@ -2,10 +2,14 @@ import utils from '../utils/index.js';
 import metrics from './metrics/index.js';
 
 const API_URL = 'https://api.wolframalpha.com/v1/result';
+const UNIT_SYSTEMS = { METRIC: 'metric', IMPERIAL: 'imperial' };
+const VALID_UNIT_SYSTEMS = new Set(Object.values(UNIT_SYSTEMS));
 
-export default function wolframAlpha(input) {
+function wolframAlpha(input, unitSystem = UNIT_SYSTEMS.METRIC) {
 	if (typeof input !== 'string' || !(input = input.trim()))
 		throw new Error('input must be a non-empty string');
+	if (!VALID_UNIT_SYSTEMS.has(unitSystem))
+		throw new Error('invalid unit system');
 
 	const apiKey = process.env.WOLFRAM_ALPHA_API_KEY;
 	if (!apiKey)
@@ -14,6 +18,7 @@ export default function wolframAlpha(input) {
 	const url = new URL(API_URL);
 	url.searchParams.append('appid', apiKey);
 	url.searchParams.append('i', input);
+	url.searchParams.append('units', unitSystem);
 
 	return utils.retry(
 		async () => {
@@ -35,3 +40,10 @@ export default function wolframAlpha(input) {
 		}
 	);
 }
+
+export default {
+	UNIT_SYSTEMS,
+	VALID_UNIT_SYSTEMS,
+
+	query: wolframAlpha,
+};

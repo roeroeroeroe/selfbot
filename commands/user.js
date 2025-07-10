@@ -6,6 +6,7 @@ import twitch from '../services/twitch/index.js';
 const MAX_USERS = 5000;
 const MAX_DESCRIPTION_LENGTH = 75;
 const MAX_TEAM_NAME_LENGTH = 25;
+const INLINE_SUMMARY_SEPARATOR = '; ';
 
 export default {
 	name: 'user',
@@ -28,74 +29,75 @@ export default {
 		},
 	],
 	execute: async msg => {
-		const summaries = [];
-		const input = [];
+		const ageFn = utils.duration.createAge(Date.now());
+		const idLookup = msg.commandFlags.idLookup;
+
 		const unique = new Set();
-		if (msg.commandFlags.idLookup) {
+		let targets;
+		if (idLookup) {
 			for (let i = 0; i < msg.args.length; i++) {
 				const id = msg.args[i].trim();
 				if (!id || unique.has(id) || !utils.regex.patterns.id.test(id))
 					continue;
 				unique.add(id);
-				input.push(id);
 				if (unique.size >= MAX_USERS) break;
 			}
-			if (!input.length) input.push(msg.senderUserID);
+			targets = unique.size ? Array.from(unique) : [msg.senderUserID];
 		} else {
 			for (let i = 0; i < msg.args.length; i++) {
 				const u = utils.trimLogin(msg.args[i]);
 				if (!u || unique.has(u)) continue;
 				unique.add(u);
-				input.push(u);
 				if (unique.size >= MAX_USERS) break;
 			}
-			if (!input.length) input.push(msg.senderUsername);
+			targets = unique.size ? Array.from(unique) : [msg.senderUsername];
 		}
-		const ageFn = utils.duration.createAge(Date.now());
-		try {
-			if (input.length > 1) {
-				const usersMap = msg.commandFlags.idLookup
-					? await twitch.gql.user.getMany(null, input)
-					: await twitch.gql.user.getMany(input);
 
-				const idPrefix = msg.commandFlags.idLookup ? 'with id ' : '';
-				for (let i = 0; i < input.length; i++) {
-					const user = usersMap.get(input[i]);
-					summaries.push(
-						user
-							? constructUserSummary(user, null, ageFn)
-							: `user ${idPrefix}${input[i]} does not exist`
-					);
-				}
-			} else {
-				const result = msg.commandFlags.idLookup
-					? await twitch.gql.user.getUserWithBanReason(null, input[0])
-					: await twitch.gql.user.getUserWithBanReason(input[0]);
-				if (result?.user)
-					summaries.push(
-						constructUserSummary(result.user, result.banned, ageFn)
-					);
-				else if (!msg.commandFlags.idLookup) {
-					const res = await twitch.gql.user.search(input[0]);
-					const suggestion = res.searchUsers.edges[0]?.node.login;
-					summaries.push(
-						suggestion
-							? `user does not exist, did you mean ${suggestion}?`
-							: 'user does not exist'
-					);
-				} else summaries.push('user does not exist');
-			}
+		let usersMap;
+		try {
+			usersMap = await getUsersMap(targets, idLookup);
 		} catch (err) {
 			logger.error('error getting users:', err);
 			return {
-				text: `error getting ${utils.format.plural(input.length, 'user')}`,
+				text: `error getting ${utils.format.plural(targets.length, 'user')}`,
 				mention: true,
 			};
 		}
 
-		const maxLen = twitch.MAX_MESSAGE_LENGTH - 3 - msg.senderUsername.length;
-		if (utils.canFitAll(summaries, maxLen, 2))
-			return { text: utils.format.join(summaries, '; '), mention: true };
+		const summaries = [];
+		if (targets.length > 1) {
+			const idPrefix = idLookup ? 'with id ' : '';
+			for (let i = 0; i < targets.length; i++) {
+				const user = usersMap.get(targets[i]);
+				summaries.push(
+					user
+						? buildUserSummary(user, null, ageFn)
+						: `user ${idPrefix}${targets[i]} does not exist`
+				);
+			}
+		} else {
+			const result = usersMap.get(targets[0]);
+			if (result?.user)
+				summaries.push(buildUserSummary(result.user, result.banned, ageFn));
+			else {
+				const suggestion = await getSuggestion(targets[0], idLookup);
+				summaries.push(
+					suggestion
+						? `user does not exist, did you mean ${suggestion}?`
+						: 'user does not exist'
+				);
+			}
+		}
+
+		const maxLen =
+			twitch.MAX_MESSAGE_LENGTH -
+			twitch.chat.MENTION_OVERHEAD_LENGTH -
+			msg.senderUsername.length;
+		if (utils.canFitAll(summaries, maxLen, INLINE_SUMMARY_SEPARATOR.length))
+			return {
+				text: utils.format.join(summaries, INLINE_SUMMARY_SEPARATOR),
+				mention: true,
+			};
 
 		try {
 			const link = await paste.create(utils.format.join(summaries, '\n'));
@@ -107,7 +109,33 @@ export default {
 	},
 };
 
-function constructUserSummary(user, banned, ageFn) {
+async function getUsersMap(targets, idLookup) {
+	if (targets.length > 1)
+		return idLookup
+			? twitch.gql.user.getMany(null, targets)
+			: twitch.gql.user.getMany(targets);
+
+	const target = targets[0];
+	const result = idLookup
+		? await twitch.gql.user.getUserWithBanReason(null, target)
+		: await twitch.gql.user.getUserWithBanReason(target);
+
+	if (result?.user) return new Map([[target, result]]);
+	return new Map();
+}
+
+async function getSuggestion(input, idLookup) {
+	if (idLookup) return null;
+	try {
+		const users = await twitch.gql.user.search(input);
+		return users[0]?.login || null;
+	} catch (err) {
+		logger.error('error searching users:', err);
+		return null;
+	}
+}
+
+function buildUserSummary(user, banned, ageFn) {
 	const parts = [];
 	parts.push(`@${utils.pickName(user.login, user.displayName)}`);
 	parts.push(`id: ${user.id}`);

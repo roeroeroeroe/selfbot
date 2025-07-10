@@ -143,7 +143,6 @@ export default class ChannelManager {
 		this.#joinControllers.clear();
 		this.#joinedChannelsCache.channels.clear();
 		clearInterval(this.#loadInterval);
-		this.#loadInterval = null;
 	}
 
 	get joinedChannels() {

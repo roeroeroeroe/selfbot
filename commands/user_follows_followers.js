@@ -39,11 +39,16 @@ export default {
 			short: 'l',
 			long: 'limit',
 			type: 'int',
-			defaultValue: 1000,
+			defaultValue: twitch.gql.DEFAULT_PAGINATION_LIMIT,
 			required: false,
 			description:
-				'stop after getting N follow(er)s (default: 1000, min: 100, max: 50000)',
-			validator: v => v >= 100 && v <= 50000,
+				'stop after getting N follow(er)s ' +
+				`(default: ${twitch.gql.DEFAULT_PAGINATION_LIMIT}, ` +
+				`min: ${twitch.gql.DEFAULT_PAGE_SIZE}, ` +
+				`max: ${twitch.gql.MAX_PAGINATION_LIMIT})`,
+			validator: v =>
+				v >= twitch.gql.DEFAULT_PAGE_SIZE &&
+				v <= twitch.gql.MAX_PAGINATION_LIMIT,
 		},
 		{
 			name: 'sort',

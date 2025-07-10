@@ -6,3 +6,6 @@ export const HEADERS = {
 	'Content-Type': 'application/json',
 };
 export const MAX_OPERATIONS_PER_REQUEST = 35;
+export const DEFAULT_PAGE_SIZE = 100;
+export const DEFAULT_PAGINATION_LIMIT = 1000;
+export const MAX_PAGINATION_LIMIT = 50000;

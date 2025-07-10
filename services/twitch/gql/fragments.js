@@ -1,3 +1,5 @@
+import { DEFAULT_PAGE_SIZE } from './constants.js';
+
 export const BASIC_USER = `
 fragment BasicUserFragment on User {
 	login
@@ -48,7 +50,7 @@ fragment UserFragment on User {
 		isSiteAdmin
 		isStaff
 	}
-	followedGames(first: 100 type: ALL) {
+	followedGames(first: ${DEFAULT_PAGE_SIZE} type: ALL) {
 		nodes {
 			displayName
 		}

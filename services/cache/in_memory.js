@@ -57,7 +57,6 @@ function init() {
 
 	function cleanup() {
 		clearInterval(sweepInterval);
-		sweepInterval = null;
 	}
 
 	return { get, set, del, dbsize, cleanup };

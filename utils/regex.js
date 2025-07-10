@@ -7,8 +7,8 @@ const patterns = {
 		/[\u034f\u2800\u{E0000}\u180e\ufeff\u2000-\u200d\u206D\uDC00\uDB40]/gu,
 	racism:
 		/(?:(?:\b(?<![-=\.])|monka)(?:[Nnñ]|[Ii7]V)|[\/|]\\[\/|])[\s\.]*?[liI1y!j\/|]+[\s\.]*?(?:[GgbB6934Q🅱qğĜƃ၅5\*][\s\.]*?){2,}(?!arcS|l|Ktlw|ylul|ie217|64|\d? ?times)/i,
-	age: /(?:(?:i|my age)\s*['’]?\s*(?:am|'m|m| is)\s*(?:under\s*)?(?:less\s*than\s*)?\s*(1[0-4]|([1-9]$|([1-9]\s?(yo|years|years\s old)))|(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen)($|\s?(yo|years|years\s old))))/i,
-	homophobia: /f\s*[ag@а]\s*(g|8)(o|0)*t*/i,
+	age: /\b(?:i\s*(?:am|'m|’m|m|is)|my\s*age\s*(?:is|['’]?\s*m)?)\s*(?:under\s*)?(?:less\s*than\s*)?(?:(?:1[0-4]|[1-9])\s*(?:yo|years\s*old|years)?|(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen)(?:\s*(?:yo|years\s*old|years)?)?)\b/i,
+	homophobia: /\b(\W|_)?f+\s*[aа@]+\s*(g|8)+/i,
 	username: /^(?!_)\w{1,25}$/,
 	id: /^[1-9]\d*$/,
 };

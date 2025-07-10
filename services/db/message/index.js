@@ -139,7 +139,6 @@ async function flushMessages(
 
 async function cleanup() {
 	clearTimeout(flushTimeout);
-	flushTimeout = null;
 	for (const entry of messageQueueEntries.values())
 		if (entry.buffer.size) {
 			await flushMessages(false, db.MAX_MESSAGES_PER_CHANNEL_FLUSH);

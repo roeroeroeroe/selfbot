@@ -1,9 +1,9 @@
 import colors from '../data/color_names.json' with { type: 'json' };
 import logger from '../services/logger.js';
+import { BASE16_CHARSET } from './utils.js';
 
 const HASH_CHARCODE = 35;
 const INVALID_HEX = 0xff;
-const BASE16_CHARSET = '0123456789abcdef';
 
 const ASCII_TO_HEX = new Uint8Array(128).fill(INVALID_HEX);
 for (let i = 48; i < 58; i++) ASCII_TO_HEX[i] = i - 48;

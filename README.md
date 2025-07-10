@@ -108,7 +108,7 @@ vi config.json
   "logger": {
     "level": "info",                    // "debug" | "info" | "warning" | "error" | "none"
     "showErrorStackTraces": true,
-    "colorize": true                    // enable colored terminal output
+    "colorize": true                    // enable colored output for standard streams
   }
 }
 ```

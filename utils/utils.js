@@ -6,8 +6,11 @@ import metrics from '../services/metrics/index.js';
 import regex from './regex.js';
 import db from '../services/db/index.js';
 
-const base62Charset =
+export const BASE16_CHARSET = '0123456789abcdef';
+export const BASE62_CHARSET =
 	'0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+export const BASE64URL_CHARSET =
+	'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
 
 export function sleep(ms) {
 	return new Promise(r => setTimeout(r, ms));
@@ -210,7 +213,7 @@ export function getClosestString(str, arr) {
 }
 
 export function randomString(cset, len = 5) {
-	cset ||= base62Charset;
+	cset ||= BASE62_CHARSET;
 	const arr = new Array(len);
 	for (let i = 0; i < len; arr[i++] = cset[(Math.random() * cset.length) | 0]);
 

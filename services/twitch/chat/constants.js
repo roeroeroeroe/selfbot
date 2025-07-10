@@ -9,6 +9,8 @@ export const JOINS_WINDOW_MS = 10000;
 export const MAX_JOINS_PER_WINDOW = 950;
 export const JOINED_CHANNELS_CACHE_TTL_MS = 500;
 export const DEFAULT_SLOW_MODE_MS_BY_BACKEND = { gql: 1250, irc: 1100 };
+export const MENTION_OVERHEAD_LENGTH = 3; // '@user, '
+export const REPLY_OVERHEAD_LENGTH = 2; // '@user '
 
 // used for config validation
 export const REGULAR_MAX_CONNECTIONS_POOL_SIZE = 20;

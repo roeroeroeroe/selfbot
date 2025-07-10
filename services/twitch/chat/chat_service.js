@@ -105,7 +105,9 @@ export default class ChatService {
 				state.lastDuplicateKey === key &&
 				now - state.lastSend < constants.DUPLICATE_MESSAGE_THRESHOLD_MS
 			) {
-				const maxLen = MAX_MESSAGE_LENGTH - (reply ? userLogin.length + 2 : 0);
+				const maxLen =
+					MAX_MESSAGE_LENGTH -
+					(reply ? userLogin.length + constants.REPLY_OVERHEAD_LENGTH : 0);
 				if (text.length + constants.INVIS_CHAR.length <= maxLen)
 					text += constants.INVIS_CHAR;
 				else

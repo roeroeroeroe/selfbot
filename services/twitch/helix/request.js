@@ -18,15 +18,9 @@ export default function send({
 	}
 
 	const options = { method, headers: helix.HEADERS };
-	let bodyString;
-	if (body) {
-		bodyString = JSON.stringify(body);
-		options.body = bodyString;
-	}
+	if (body) options.body = JSON.stringify(body);
 
-	logger.debug(
-		`[HELIX] ${method} ${url}${bodyString ? `, body: ${bodyString}` : ''}`
-	);
+	logger.debug(`[HELIX] ${method} ${url}`);
 	return utils.retry(
 		async () => {
 			const res = await fetch(url, options);
@@ -39,9 +33,7 @@ export default function send({
 				throw err;
 			}
 
-			const body = await res.json();
-			logger.debug('[HELIX] got response:', body);
-			return body;
+			return res.json();
 		},
 		{
 			requestsCounter: metrics.names.counters.HELIX_REQUESTS_TX,
