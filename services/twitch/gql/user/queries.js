@@ -104,6 +104,7 @@ query($cursor: Cursor) {
 		subscriptionBenefits(first: ${DEFAULT_PAGE_SIZE} after: $cursor criteria: {}) {
 			edges {
 				node {
+					purchasedWithPrime
 					tier
 					gift {
 						isGift
@@ -111,6 +112,7 @@ query($cursor: Cursor) {
 					user {
 						...BasicUserFragment
 						subscriptionProducts {
+							tier
 							emotes {
 								token
 							}

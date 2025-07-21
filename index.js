@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import config from './config.json' with { type: 'json' };
-import configuration from './services/configuration.js';
+import configuration from './services/configuration/index.js';
 import twitch from './services/twitch/index.js';
 import metrics from './services/metrics/index.js';
 import logger from './services/logger.js';
@@ -15,16 +15,13 @@ import cooldown from './services/cooldown.js';
 (async () => {
 	try {
 		const t0 = performance.now();
-		logger.debug('[INIT] validating configuration object:', config);
-		configuration.validate();
+		logger.debug('[INIT] validating config:', config);
+		configuration.config.validate();
 		const t1 = performance.now();
 
-		logger.debug('[INIT] validating token...');
-		await twitch.oauth.validateToken(process.env.TWITCH_ANDROID_TOKEN,
-		                                 process.env.TWITCH_ANDROID_CLIENT_ID,
-		                                 config.bot.login, config.bot.id);
+		logger.debug('[INIT] validating environment variables...');
+		await configuration.env.validate();
 		const t2 = performance.now();
-		logger.info('[INIT] validated token');
 
 		logger.debug('[INIT] initializing metrics');
 		metrics.init();
@@ -57,7 +54,7 @@ import cooldown from './services/cooldown.js';
 		const t7 = performance.now();
 		logger.info(`[INIT] finished in ${(t7 - t0).toFixed(3)}ms`,
 		            `(config: ${(t1 - t0).toFixed(3)}ms,`,
-		            `token: ${(t2 - t1).toFixed(3)}ms,`,
+		            `env: ${(t2 - t1).toFixed(3)}ms,`,
 		            `metrics: ${(t3 - t2).toFixed(3)}ms,`,
 		            `db: ${(t4 - t3).toFixed(3)}ms,`,
 		            `commands: ${(t5 - t4).toFixed(3)}ms,`,

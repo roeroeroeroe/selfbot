@@ -177,7 +177,11 @@ async function getFollows(
 				followedGames.push(n.displayName);
 	}
 
-	return { followEdges, followedGames, totalCount };
+	return {
+		followEdges,
+		followedGames,
+		totalCount: totalCount ?? followEdges.length,
+	};
 }
 
 async function getFollowers(

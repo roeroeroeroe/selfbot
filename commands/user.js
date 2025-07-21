@@ -94,13 +94,10 @@ export default {
 			twitch.chat.MENTION_OVERHEAD_LENGTH -
 			msg.senderUsername.length;
 		if (utils.canFitAll(summaries, maxLen, INLINE_SUMMARY_SEPARATOR.length))
-			return {
-				text: utils.format.join(summaries, INLINE_SUMMARY_SEPARATOR),
-				mention: true,
-			};
+			return { text: summaries.join(INLINE_SUMMARY_SEPARATOR), mention: true };
 
 		try {
-			const link = await paste.create(utils.format.join(summaries, '\n'));
+			const link = await paste.create(summaries.join('\n'));
 			return { text: link, mention: true };
 		} catch (err) {
 			logger.error('error creating paste:', err);

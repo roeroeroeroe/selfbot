@@ -49,17 +49,27 @@ export default async function handle(msg) {
 	for (const cc of customCommands.getGlobalAndChannelCommands(msg.channelID)) {
 		if (!cc.trigger.test(msg.messageText)) continue;
 		logger.debug(
-			`[HANDLER] custom command ${cc.name} triggered`,
+			`[HANDLER] custom command ${cc.name} pattern matched`,
 			`(trigger: ${String(cc.trigger)}, message: ${msg.messageText})`
 		);
-		ccTriggered = true;
-		if (cc.whitelist !== null && !cc.whitelist.includes(msg.senderUserID))
+		if (cc.whitelist !== null && !cc.whitelist.has(msg.senderUserID)) {
+			logger.debug(
+				`[HANDLER] custom command ${cc.name} permission denied`,
+				`(user ${msg.senderUserID} not whitelisted)`
+			);
 			continue;
+		}
+		ccTriggered = true;
 		const cooldownKey = `${CUSTOM_COMMAND_COOLDOWN_KEY_PREFIX}:${msg.senderUserID}:${cc.name}`;
-		if (cooldown.has(cooldownKey)) continue;
+		if (cooldown.has(cooldownKey)) {
+			logger.debug(
+				`[HANDLER] custom command ${cc.name} on cooldown (${cooldownKey})`
+			);
+			continue;
+		}
 		logger.debug(
-			'[HANDLER] cooldown and permissions checks passed for',
-			`custom command ${cc.name} invoked by ${msg.senderUsername}, executing`
+			`[HANDLER] executing custom command ${cc.name}`,
+			`invoked by ${msg.senderUsername}`
 		);
 		buildArgs(msg);
 		metrics.counter.increment(metrics.names.counters.CUSTOM_COMMANDS_EXECUTED);

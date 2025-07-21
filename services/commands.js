@@ -15,6 +15,8 @@ const aliases = new Map();
 let knownCommands = [],
 	dirty = false;
 
+const alignSep = utils.format.DEFAULT_ALIGN_SEPARATOR;
+
 function add(command) {
 	validateCommand(command);
 	const {
@@ -29,7 +31,7 @@ function add(command) {
 	if (command.aliases.length) usage += ` (${command.aliases.join(', ')})`;
 	usage += ':';
 	const flagLines = flagData.map(
-		f => `  ${f.summary}${f.description ? `__ALIGN__${f.description}` : ''}`
+		f => `  ${f.summary}${f.description ? `${alignSep}${f.description}` : ''}`
 	);
 	usage += `\n${utils.format.align(flagLines)}`;
 	const displayByName = new Map(flagData.map(f => [f.name, f.optionsDisplay]));
@@ -38,7 +40,7 @@ function add(command) {
 		const group = exclusiveGroups[i];
 		if (group.length < 2) continue;
 		exclusiveFlagLines.push(
-			'  ' + group.map(n => displayByName.get(n)).join('__ALIGN__| ')
+			'  ' + group.map(n => displayByName.get(n)).join(`${alignSep}| `)
 		);
 	}
 	if (exclusiveFlagLines.length)

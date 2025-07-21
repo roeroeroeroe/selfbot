@@ -30,7 +30,7 @@ function create(text) {
 			}
 			const url = await res.text();
 			if (!utils.isValidHttpUrl(url)) {
-				const err = new Error(`0x0-CREATE: not a valid http URL: ${url}`);
+				const err = new Error(`0x0-CREATE: not a valid http(s) URL: ${url}`);
 				err.retryable = true;
 				throw err;
 			}

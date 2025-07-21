@@ -5,6 +5,8 @@ import twitch from '../services/twitch/index.js';
 
 const ACTIVE_PREFIX = '* ';
 
+const alignSep = utils.format.DEFAULT_ALIGN_SEPARATOR;
+
 export default {
 	name: 'roles',
 	aliases: [],
@@ -138,7 +140,7 @@ function processEdges(
 		}
 		lines.push(
 			`${prefix}${utils.pickName(e.node.login, e.node.displayName)}` +
-				`__ALIGN__granted at: ${utils.date.format(e[timeKey])}`
+				`${alignSep}granted at: ${utils.date.format(e[timeKey])}`
 		);
 	}
 	if (!lines.length) return;

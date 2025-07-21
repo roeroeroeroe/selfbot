@@ -194,6 +194,7 @@ export default {
 					if (!u) return { text: `user ${n} does not exist`, mention: true };
 					msg.commandFlags.whitelist[i] = u.id;
 				}
+				msg.commandFlags.whitelist = new Set(msg.commandFlags.whitelist);
 			} catch (err) {
 				logger.error('error getting users:', err);
 				return { text: 'error getting whitelist users', mention: true };

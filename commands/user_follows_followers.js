@@ -5,6 +5,8 @@ import twitch from '../services/twitch/index.js';
 
 const NOTIFICATIONS_SYMBOL = '🔔';
 
+const alignSep = utils.format.DEFAULT_ALIGN_SEPARATOR;
+
 export default {
 	name: 'follows',
 	// prettier-ignore
@@ -171,7 +173,7 @@ function processEdges(edges, raw) {
 			parts.push(`live (${viewers} ${utils.format.plural(viewers, 'viewer')})`);
 		}
 		parts[parts.length - 1] +=
-			`__ALIGN__followed at: ${utils.date.format(e.followedAt)}`;
+			`${alignSep}followed at: ${utils.date.format(e.followedAt)}`;
 		if (e.notificationSettings.isEnabled) parts.push(NOTIFICATIONS_SYMBOL);
 
 		lines.push(utils.format.join(parts));

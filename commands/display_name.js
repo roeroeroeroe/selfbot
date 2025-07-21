@@ -28,10 +28,10 @@ export default {
 
 		try {
 			const res = await twitch.gql.user.updateDisplayName(displayName);
-			const err = res.updateUser.error?.code;
+			const errCode = res.updateUser.error?.code;
 			return {
-				text: err
-					? `error updating display name: ${err}`
+				text: errCode
+					? `error updating display name: ${errCode}`
 					: `changed display name to ${displayName}`,
 				mention: true,
 			};

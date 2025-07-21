@@ -20,7 +20,7 @@ switch (config.twitch.sender.backend) {
 	case 'irc':
 		const authed = new ChatClient({
 			username: config.bot.login,
-			password: process.env.TWITCH_ANDROID_TOKEN,
+			password: process.env.TWITCH_IRC_TOKEN,
 			connection: { type: config.twitch.irc.socket, secure: true },
 			installDefaultMixins: false,
 		});

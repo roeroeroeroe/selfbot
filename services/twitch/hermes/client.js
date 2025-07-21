@@ -22,7 +22,8 @@ const spawnRateLimiter = new SlidingWindowRateLimiter(
 let connectionIdCounter = 0;
 
 function init() {
-	for (const sub of subs.user) subscribe(sub, config.bot.id);
+	if (config.twitch.hermes.subscribeToUserTopics)
+		for (const sub of subs.user) subscribe(sub, config.bot.id);
 	initPredictions();
 }
 // prettier-ignore
@@ -111,11 +112,11 @@ async function processTask({ type, topic }) {
 		}
 		c.topics.add(topic);
 		topic.connection = c;
-		if (c.isAuthenticated)
+		if (c.ready)
 			sendMessage(c, 'subscribe', topic);
 	} else if (type === 'unsubscribe') {
 		const c = topic.connection;
-		if (c?.isAuthenticated)
+		if (c?.ready)
 			sendMessage(c, 'unsubscribe', topic);
 		else
 			cleanupTopic(topic);
@@ -127,7 +128,7 @@ function createConnection() {
 	const c = {
 		id: ++connectionIdCounter,
 		ws: new WebSocket(constants.WS_URL),
-		isAuthenticated: false,
+		ready: false,
 		topics: new Set(),
 		pending: { authenticate: 0, subscribe: 0, unsubscribe: 0 },
 		keepAliveMs: 0,
@@ -139,7 +140,17 @@ function createConnection() {
 
 	c.ws.addEventListener('open', () => {
 		logger.debug(`[Hermes] [connection ${c.id}] open`);
-		sendMessage(c, 'authenticate');
+		if (process.env.TWITCH_HERMES_TOKEN) {
+			sendMessage(c, 'authenticate');
+			return;
+		}
+		c.ready = true;
+		for (const topic of c.topics)
+			if (topic.state === constants.TopicState.UNSUBSCRIBING)
+				sendMessage(c, 'unsubscribe', topic);
+			else
+				sendMessage(c, 'subscribe', topic);
+		closeIfIdle(c);
 	});
 	c.ws.addEventListener('message', ({ data }) => {
 		resetHealthTimeout(c);
@@ -190,7 +201,7 @@ function sendMessage(c, type, topic) {
 		utils.randomString(utils.BASE64URL_CHARSET, constants.ID_LENGTH);
 	const msg = { type, id, timestamp: new Date().toISOString() };
 	if (type === 'authenticate')
-		msg.authenticate = { token: process.env.TWITCH_ANDROID_TOKEN };
+		msg.authenticate = { token: process.env.TWITCH_HERMES_TOKEN };
 	else
 		msg[type] = { id, type: 'pubsub', pubsub: { topic: topic.topicString } };
 	c.ws.send(JSON.stringify(msg));
@@ -219,7 +230,7 @@ const wsMessageHandlers = {
 			c.ws.close();
 			return;
 		}
-		c.isAuthenticated = true;
+		c.ready = true;
 		logger.debug(`[Hermes] [connection ${c.id}] authenticated`);
 		for (const topic of c.topics)
 			if (topic.state === constants.TopicState.UNSUBSCRIBING)
@@ -316,7 +327,7 @@ function cleanupTopic(topic) {
 	if (c) {
 		c.topics.delete(topic);
 		topic.connection = null;
-		if (c.isAuthenticated && c.ws.readyState === WebSocket.OPEN) closeIfIdle(c);
+		if (c.ready && c.ws.readyState === WebSocket.OPEN) closeIfIdle(c);
 	}
 	topicsById.delete(topic.id);
 	topicsByName.delete(topic.topicString);

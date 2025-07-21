@@ -135,13 +135,13 @@ export function splitString(str, len) {
 	const words = str.split(' ');
 	const chunks = [];
 	for (
-		let i = 0, j = 0, curr = words[0]?.length || 0;
-		i < words.length;
-		chunks.push(words.slice(j, i).join(' ')),
-			j = i,
-			curr = words[i]?.length ?? 0
+		let startI = 0, endI = 0, cLen = words[0].length;
+		endI < words.length;
+		chunks.push(words.slice(startI, endI).join(' ')),
+			startI = endI,
+			cLen = words[endI]?.length ?? 0
 	)
-		for (; ++i < words.length && (curr += 1 + words[i].length) <= len; );
+		for (; ++endI < words.length && (cLen += 1 + words[endI].length) <= len; );
 
 	return chunks;
 }
@@ -298,11 +298,6 @@ export function isValidHttpUrl(str) {
 	} catch {
 		return false;
 	}
-}
-
-export function safeToFixed(n, fractionDigits) {
-	if (Math.abs(n) < 0.5 * 10 ** -fractionDigits) n = 0;
-	return n.toFixed(fractionDigits);
 }
 
 export function deepInspect(obj, depth = 10) {

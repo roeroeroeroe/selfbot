@@ -73,7 +73,11 @@ export default {
 		try {
 			const link = await paste.create(
 				JSON.stringify(
-					commands.map(c => ({ ...c, trigger: String(c.trigger) })),
+					commands.map(c => ({
+						...c,
+						trigger: String(c.trigger),
+						whitelist: c.whitelist ? [...c.whitelist] : null,
+					})),
 					null,
 					2
 				)

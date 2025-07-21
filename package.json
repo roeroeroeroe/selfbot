@@ -8,7 +8,8 @@
 	"main": "index.js",
 	"scripts": {
 		"start": "node .",
-		"oauth": "node device_code_flow.js"
+		"oauth:android": "node device_code_flow.js kd1unb4b3q4t58fwlpcbzcbnm76a8fp",
+		"oauth:tv": "node device_code_flow.js ue6666qo983tsx6so1t0vnawi233wa"
 	},
 	"dependencies": {
 		"@mastondzn/dank-twitch-irc": "^7.2.0",

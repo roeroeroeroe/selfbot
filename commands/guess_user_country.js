@@ -56,6 +56,8 @@ for (const lang of STOPWORD_LANGUAGES)
 
 const chatterTypes = twitch.gql.channel.CHATTER_TYPES;
 
+const alignSep = utils.format.DEFAULT_ALIGN_SEPARATOR;
+
 const labelToFlagName = {};
 const weightFlags = [];
 for (const l of Object.values(FACTOR_LABELS)) {
@@ -181,7 +183,7 @@ export default {
 
 		const countryScores = {};
 		const verboseProgressLines = [
-			'factor__ALIGN__country__ALIGN__Δscore__ALIGN__score0__ALIGN__score1',
+			`factor${alignSep}country${alignSep}Δscore${alignSep}score0${alignSep}score1`,
 		];
 		const applyDeltaArgs = [countryScores, verbose, verboseProgressLines];
 
@@ -466,8 +468,8 @@ function applyDelta(label, country, delta, countryScores, verbose,
 
 	if (verbose)
 		verboseProgressLines.push(
-			`${label}__ALIGN__${country}__ALIGN__+${delta.toFixed(3)}` +
-			`__ALIGN__${before.toFixed(3)}__ALIGN__${after.toFixed(3)}`
+			`${label}${alignSep}${country}${alignSep}+${delta.toFixed(3)}` +
+			`${alignSep}${before.toFixed(3)}${alignSep}${after.toFixed(3)}`
 		);
 }
 // prettier-ignore
@@ -578,7 +580,7 @@ function processSKUs(skus, weight, applyDeltaArgs, verbose, out) {
 // prettier-ignore
 function buildVerbosePage(progressLines, skuStats, chatterCounts, followCounts,
                           countryScores) {
-	const skuLines = ['country__ALIGN__count__ALIGN__skus'];
+	const skuLines = [`country${alignSep}count${alignSep}skus`];
 	const sortedSkus =
 		Object.entries(skuStats).sort((a, b) => b[1].count - a[1].count);
 	for (let i = 0; i < sortedSkus.length; i++) {
@@ -590,27 +592,27 @@ function buildVerbosePage(progressLines, skuStats, chatterCounts, followCounts,
 			else
 				skuList.push(e.sku);
 		skuLines.push(
-			`${country}__ALIGN__${count}__ALIGN__${skuList.join(', ')}`
+			`${country}${alignSep}${count}${alignSep}${skuList.join(', ')}`
 		);
 	}
 
 	const countryScoresSection = buildVerbosePageSection(
 		'country scores',
-		'country__ALIGN__score',
+		`country${alignSep}score`,
 		countryScores,
-		([country, score]) => `${country}__ALIGN__${score.toFixed(3)}`
+		([country, score]) => `${country}${alignSep}${score.toFixed(3)}`
 	);
 	const chatterSection = buildVerbosePageSection(
 		"chatters' preferred languages",
-		'country__ALIGN__count',
+		`country${alignSep}count`,
 		chatterCounts,
-		([country, count]) => `${country}__ALIGN__${count}`
+		([country, count]) => `${country}${alignSep}${count}`
 	);
 	const followsSection = buildVerbosePageSection(
 		"following channels' preferred languages",
-		'country__ALIGN__count',
+		`country${alignSep}count`,
 		followCounts,
-		([country, count]) => `${country}__ALIGN__${count}`
+		([country, count]) => `${country}${alignSep}${count}`
 	);
 
 	const sections = [utils.format.align(progressLines)];

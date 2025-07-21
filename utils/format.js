@@ -6,6 +6,8 @@ const SI_PREFIXES = ['B', 'kB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
 // prettier-ignore
 const IEC_PREFIXES = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB'];
 
+const DEFAULT_ALIGN_SEPARATOR = '__ALIGN__';
+
 function trimString(str, lim = twitch.MAX_MESSAGE_LENGTH) {
 	str ??= '';
 	return str.length > lim ? str.slice(0, lim - 1) + '…' : str;
@@ -41,7 +43,7 @@ function toPlural(n, single, plural) {
 	return plural ?? single + 's';
 }
 
-function align(lines, separator = '__ALIGN__', padding = 3) {
+function align(lines, separator = DEFAULT_ALIGN_SEPARATOR, padding = 3) {
 	if (!Number.isInteger(padding) || padding < 1) {
 		logger.warning('align: invalid padding:', padding);
 		padding = 3;
@@ -51,7 +53,7 @@ function align(lines, separator = '__ALIGN__', padding = 3) {
 	if (!lines.length) return '';
 	if (typeof separator !== 'string' || !separator) {
 		logger.warning('align: invalid separator:', separator);
-		separator = '__ALIGN__';
+		separator = DEFAULT_ALIGN_SEPARATOR;
 	}
 
 	const rows = new Array(lines.length);
@@ -91,6 +93,8 @@ function align(lines, separator = '__ALIGN__', padding = 3) {
 }
 
 export default {
+	DEFAULT_ALIGN_SEPARATOR,
+
 	trim: trimString,
 	join: joinParts,
 	bytes: formatBytes,

@@ -7,7 +7,7 @@ const pool = new pg.Pool({
 	database: process.env.DB_NAME,
 	password: process.env.DB_PASSWORD,
 	port: +process.env.DB_PORT || 5432,
-	max: +process.env.DB_MAX_CLIENTS || 40,
+	max: +process.env.DB_MAX_CLIENTS || 10,
 	idleTimeoutMillis: 30000,
 	connectionTimeoutMillis: 5000,
 });

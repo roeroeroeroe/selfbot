@@ -7,6 +7,8 @@ import paste from '../services/paste/index.js';
 const ERR_REDEEM_NO_REDEMPTION_ID = 'NO_REDEMPTION_ID';
 const ERR_REDEEM_RPC = 'RPC_ERROR';
 
+const alignSep = utils.format.DEFAULT_ALIGN_SEPARATOR;
+
 const rewardProperties = {
 	title: 'title',
 	cost: 'cost',
@@ -19,6 +21,7 @@ const rewardProperties = {
 };
 const rewardPropertyKeys = Object.keys(rewardProperties),
 	rewardPropertyValues = Object.values(rewardProperties);
+
 export default {
 	name: 'redeemreward',
 	// prettier-ignore
@@ -329,7 +332,7 @@ function getRedeemable(rewards, canRedeemForFree, balance, isSubscribed,
 function getFormattedList(rewards, redeemable) {
 	const redeemableIds = new Set(redeemable.map(r => r.id));
 	const lines = [
-		'redeemable__ALIGN__' + rewardPropertyValues.join('__ALIGN__') + '\n',
+		`redeemable${alignSep}${rewardPropertyValues.join(alignSep)}\n`,
 	];
 	const sortedRewards = rewards.slice().sort((a, b) => a.cost - b.cost);
 	for (let i = 0; i < sortedRewards.length; i++) {
@@ -348,7 +351,7 @@ function getFormattedList(rewards, redeemable) {
 			}
 			parts.push(String(v));
 		}
-		lines.push(parts.join('__ALIGN__'));
+		lines.push(parts.join(alignSep));
 	}
 	return utils.format.align(lines);
 }

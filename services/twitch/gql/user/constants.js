@@ -1,1 +1,2 @@
 export const SEARCH_USERS_MAX_RESULTS = 1000;
+export const SUBSCRIPTION_BENEFIT_TIERS = { 1000: '1', 2000: '2', 3000: '3' };

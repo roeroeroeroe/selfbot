@@ -5,6 +5,8 @@ import logger from '../services/logger.js';
 import utils from '../utils/index.js';
 import paste from '../services/paste/index.js';
 
+const alignSep = utils.format.DEFAULT_ALIGN_SEPARATOR;
+
 const addressRecordTypes = ['A', 'AAAA'];
 const alpnProtocols = ['h2', 'http/1.1'];
 
@@ -163,18 +165,18 @@ async function getTLSConnectionState(ip, port, sni, timeoutMs) {
 }
 
 function buildCertificatePage(cert) {
-	const lines = [`subject CN:__ALIGN__${cert.subjectCN}`];
+	const lines = [`subject CN:${alignSep}${cert.subjectCN}`];
 
 	if (cert.subjectAltNames.length) {
-		lines.push(`SANs:__ALIGN__${cert.subjectAltNames[0]}`);
+		lines.push(`SANs:${alignSep}${cert.subjectAltNames[0]}`);
 		for (let i = 1; i < cert.subjectAltNames.length; i++)
-			lines.push(`__ALIGN__${cert.subjectAltNames[i]}`);
+			lines.push(`${alignSep}${cert.subjectAltNames[i]}`);
 	}
 
 	lines.push(
-		`issuer O:__ALIGN__${cert.issuer.O}`,
-		`valid from:__ALIGN__${utils.date.format(cert.notBefore)}`,
-		`valid to:__ALIGN__${utils.date.format(cert.notAfter)}`
+		`issuer O:${alignSep}${cert.issuer.O}`,
+		`valid from:${alignSep}${utils.date.format(cert.notBefore)}`,
+		`valid to:${alignSep}${utils.date.format(cert.notAfter)}`
 	);
 
 	return utils.format.align(lines);

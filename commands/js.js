@@ -1,6 +1,6 @@
 import exec from '../services/exec.js';
 import config from '../config.json' with { type: 'json' };
-import configuration from '../services/configuration.js';
+import configuration from '../services/configuration/index.js';
 import logger from '../services/logger.js';
 import twitch from '../services/twitch/index.js';
 import paste from '../services/paste/index.js';
@@ -43,11 +43,10 @@ export default {
 	execute: async msg => {
 		if (!msg.args.length) return { text: 'no input provided', mention: true };
 		const input = msg.args.join(' ');
-		context.msg = msg;
 
 		let result;
 		try {
-			result = await exec.js(input, context);
+			result = await exec.js(input, { ...context, msg });
 		} catch (err) {
 			return { text: err.message, mention: true };
 		}

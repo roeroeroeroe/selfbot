@@ -3,6 +3,8 @@ import paste from '../services/paste/index.js';
 import twitch from '../services/twitch/index.js';
 import utils from '../utils/index.js';
 
+const alignSep = utils.format.DEFAULT_ALIGN_SEPARATOR;
+
 const uiEntryPoints = twitch.gql.report.UI_ENTRY_POINTS;
 const reportContentTypes = twitch.gql.report.CONTENT_TYPES;
 
@@ -203,11 +205,11 @@ export default {
 			for (let i = 0; i < validDefs.length; i++) {
 				const def = validDefs[i];
 				if (i) lines.push('');
-				lines.push(`${def.id}__ALIGN__${def.description || 'N/A'}`);
+				lines.push(`${def.id}${alignSep}${def.description || 'N/A'}`);
 				if (!def.detailedReasons?.length) continue;
 				for (let j = 0; j < def.detailedReasons.length; j++) {
 					const dr = def.detailedReasons[j];
-					lines.push(`  ${dr.id}__ALIGN__${dr.description || 'N/A'}`);
+					lines.push(`  ${dr.id}${alignSep}${dr.description || 'N/A'}`);
 				}
 			}
 			let linkOrList;
@@ -234,7 +236,7 @@ export default {
 			const lines = [];
 			for (let i = 0; i < reasonDef.detailedReasons.length; i++) {
 				const dr = reasonDef.detailedReasons[i];
-				lines.push(`${dr.id}__ALIGN__${dr.description || 'N/A'}`);
+				lines.push(`${dr.id}${alignSep}${dr.description || 'N/A'}`);
 			}
 			let linkOrList;
 			try {

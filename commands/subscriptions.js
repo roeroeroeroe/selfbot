@@ -1,6 +1,9 @@
+import paste from '../services/paste/index.js';
 import logger from '../services/logger.js';
 import utils from '../utils/index.js';
 import twitch from '../services/twitch/index.js';
+
+const tiers = twitch.gql.user.SUBSCRIPTION_BENEFIT_TIERS;
 
 export default {
 	name: 'subscriptions',
@@ -18,76 +21,139 @@ export default {
 			defaultValue: false,
 			description: 'print available emotes',
 		},
+		{
+			name: 'verbose',
+			short: 'v',
+			long: 'verbose',
+			type: 'boolean',
+			required: false,
+			defaultValue: false,
+			description: 'show subscription details',
+		},
 	],
 	execute: async msg => {
-		let res;
+		let subscriptionBenefitEdges;
 		try {
-			res = await twitch.gql.user.getSelfSubscriptionBenefits();
+			subscriptionBenefitEdges =
+				await twitch.gql.user.getSelfSubscriptionBenefits();
 		} catch (err) {
 			logger.error('error getting subscription benefits:', err);
 			return { text: 'error getting subscription benefits', mention: true };
 		}
 
-		if (!res.length) return { text: '0 channels', mention: true };
+		const channelCount = subscriptionBenefitEdges.length;
+		if (!channelCount) return { text: '0 channels', mention: true };
 
-		const counters = {
-			gifted: 0,
-			tiers: {
-				1000: { count: 0, tier: '1' },
-				2000: { count: 0, tier: '2' },
-				3000: { count: 0, tier: '3' },
-			},
-		};
-		const allEmotes = [];
+		const { printEmotes, verbose } = msg.commandFlags;
 
-		for (const edge of res) {
-			const user = edge.node.user;
-			if (edge.node.gift?.isGift) counters.gifted++;
-			counters.tiers[edge.node.tier].count++;
+		const emoteTokens = [];
+		const verbosePageLines = [];
+		const tierCounts = {};
+		for (const t in tiers) tierCounts[t] = 0;
 
-			for (const set of user.channel?.localEmotesSets ?? [])
-				for (const e of set.emotes ?? []) if (e.token) allEmotes.push(e.token);
+		let giftedCount = 0,
+			totalEmoteCount = 0;
 
-			if (user.subscriptionProducts[0]?.emotes?.length)
-				for (const e of user.subscriptionProducts[0].emotes)
-					if (e.token) allEmotes.push(e.token);
+		let processEmotes;
+		if (printEmotes)
+			processEmotes = function (emotes, isAvailable = true) {
+				if (!Array.isArray(emotes)) return 0;
+				if (isAvailable) {
+					const before = emoteTokens.length;
+					for (let i = 0, t; i < emotes.length; i++)
+						if ((t = emotes[i].token)) emoteTokens.push(t);
+					return emoteTokens.length - before;
+				}
+				let c = 0;
+				for (let i = 0; i < emotes.length; i++) if (emotes[i].token) c++;
+				return c;
+			};
+		else
+			processEmotes = function (emotes, add) {
+				if (!Array.isArray(emotes)) return 0;
+				let c = 0;
+				for (let i = 0; i < emotes.length; i++) if (emotes[i].token) c++;
+				if (add) totalEmoteCount += c;
+				return c;
+			};
 
-			if (
-				user.subscriptionProducts[1]?.emotes?.length &&
-				edge.node.tier !== '1000'
-			)
-				for (const e of user.subscriptionProducts[1].emotes)
-					if (e.token) allEmotes.push(e.token);
+		for (let i = 0; i < channelCount; i++) {
+			const { purchasedWithPrime, tier, gift, user } =
+				subscriptionBenefitEdges[i].node;
+			tierCounts[tier]++;
+			if (gift?.isGift) giftedCount++;
 
-			if (
-				user.subscriptionProducts[2]?.emotes?.length &&
-				edge.node.tier === '3000'
-			)
-				for (const e of user.subscriptionProducts[2].emotes)
-					if (e.token) allEmotes.push(e.token);
-		}
+			let channelTotalEmoteCount = 0,
+				channelAvailableEmoteCount = 0;
 
-		const responseParts = [];
-		responseParts.push(
-			`${res.length} ${utils.format.plural(res.length, 'channel')}`
-		);
-		if (allEmotes.length)
-			responseParts.push(
-				`${allEmotes.length} ${utils.format.plural(allEmotes.length, 'emote')}`
+			const localEmotesSets = user.channel?.localEmotesSets;
+			if (localEmotesSets?.length)
+				for (let j = 0; j < localEmotesSets.length; j++) {
+					const c = processEmotes(localEmotesSets[j].emotes, true);
+					channelTotalEmoteCount += c;
+					channelAvailableEmoteCount += c;
+				}
+
+			const products = user.subscriptionProducts;
+			if (!products?.length) continue;
+
+			const tierNum = +tier;
+			for (let j = 0; j < products.length; j++) {
+				const product = products[j],
+					productTierNum = +product.tier;
+				if (Number.isNaN(productTierNum)) {
+					logger.warning('malformed subscription product tier:', product);
+					continue;
+				}
+				const isAvailable = productTierNum <= tierNum;
+				const c = processEmotes(product.emotes, isAvailable);
+				channelTotalEmoteCount += c;
+				if (isAvailable) channelAvailableEmoteCount += c;
+			}
+
+			if (!verbose) continue;
+
+			const verboseLineParts = [
+				`#${utils.pickName(user.login, user.displayName)}: ` +
+					(purchasedWithPrime ? 'Prime' : `tier ${tiers[tier]}`),
+			];
+			if (gift?.isGift) verboseLineParts.push('gifted');
+			verboseLineParts.push(
+				`${channelAvailableEmoteCount}/${channelTotalEmoteCount} ` +
+					`${utils.format.plural(channelTotalEmoteCount, 'emote')} available`
 			);
-		if (counters.gifted) responseParts.push(`gifted: ${counters.gifted}`);
-		for (const t in counters.tiers) {
-			const counter = counters.tiers[t];
-			if (counter.count)
-				responseParts.push(`tier ${counter.tier}: ${counter.count}`);
+			verbosePageLines.push(verboseLineParts.join(', '));
 		}
 
-		if (msg.commandFlags.printEmotes && allEmotes.length)
+		const responseParts = [
+			`${channelCount} ${utils.format.plural(channelCount, 'channel')}`,
+		];
+
+		if ((totalEmoteCount ||= emoteTokens.length))
+			responseParts.push(
+				`${totalEmoteCount} ${utils.format.plural(totalEmoteCount, 'emote')}`
+			);
+		if (giftedCount) responseParts.push(`gifted: ${giftedCount}`);
+		for (const t in tiers) {
+			const count = tierCounts[t];
+			if (count) responseParts.push(`tier ${tiers[t]}: ${count}`);
+		}
+
+		if (printEmotes && emoteTokens.length)
 			for (const message of utils.splitString(
-				allEmotes.join(' '),
+				emoteTokens.join(' '),
 				twitch.MAX_MESSAGE_LENGTH - 1
 			))
-				await msg.send(message);
+				msg.send(message);
+
+		if (verbose)
+			try {
+				const link = await paste.create(verbosePageLines.join('\n'));
+				responseParts.push(link);
+			} catch (err) {
+				logger.error('error creating paste:', err);
+				responseParts.push('error creating paste');
+			}
 
 		return { text: utils.format.join(responseParts), mention: true };
 	},

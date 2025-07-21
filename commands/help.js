@@ -6,6 +6,8 @@ import logger from '../services/logger.js';
 import paste from '../services/paste/index.js';
 import utils from '../utils/index.js';
 
+const alignSep = utils.format.DEFAULT_ALIGN_SEPARATOR;
+
 const packageName = (() => {
 	const pkgPath = path.join(
 		path.dirname(fileURLToPath(import.meta.url)),
@@ -35,7 +37,7 @@ Commands:`;
 		const usageLines = [];
 		for (const command of commands.commandsMap.values()) {
 			let line = `  ${[command.name, ...command.aliases].join(', ')}`;
-			if (command.description) line += `__ALIGN__${command.description}`;
+			if (command.description) line += `${alignSep}${command.description}`;
 			usageLines.push(line);
 		}
 		usagePage += `\n${utils.format.align(usageLines)}\nUse "${msg.prefix} <command> --help" for help about a specific command`;

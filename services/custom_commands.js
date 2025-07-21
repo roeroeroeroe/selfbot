@@ -11,13 +11,19 @@ function normalizeTrigger(command) {
 	return command;
 }
 
+function normalizeWhitelist(command) {
+	const wl = (command.whitelist ??= null);
+	if (wl !== null && !(wl instanceof Set))
+		throw new Error('whitelist must be a Set or null');
+	return command;
+}
+
 async function add(command, persist = true) {
 	if (byName.has(command.name))
 		throw new Error(`duplicate command name: ${command.name}`);
 
+	normalizeWhitelist(command);
 	normalizeTrigger(command);
-	if (Array.isArray(command.whitelist) && !command.whitelist.length)
-		command.whitelist = null;
 
 	if (persist)
 		await db.customCommand.insert(
@@ -26,7 +32,7 @@ async function add(command, persist = true) {
 			String(command.trigger),
 			command.response,
 			command.runcmd,
-			command.whitelist,
+			command.whitelist ? Array.from(command.whitelist) : null,
 			command.cooldown,
 			command.reply,
 			command.mention
@@ -58,7 +64,7 @@ async function deleteCommand(name, channelId = null, persist = true) {
 			if (!arr.length) commands.delete(key);
 		} else
 			logger.warning(
-				`[CUSTOMCOMMANDS] delete in-memory failed for ${name} in channel ${key || 'GLOBAL'}`
+				`[CUSTOMCOMMANDS] delete in-memory failed for ${name} in channel ${key ?? 'GLOBAL'}`
 			);
 	}
 	byName.delete(name);
@@ -77,12 +83,21 @@ async function edit(name, newValues = {}, persist = true) {
 
 	if (newValues.trigger instanceof RegExp)
 		newValues.trigger = String(newValues.trigger);
-	if (persist) await db.customCommand.update(name, newValues);
+
+	const whitelistChanged = 'whitelist' in newValues;
+	if (whitelistChanged) normalizeWhitelist(newValues);
+
+	if (persist)
+		if (whitelistChanged)
+			await db.customCommand.update(name, {
+				...newValues,
+				whitelist: newValues.whitelist ? Array.from(newValues.whitelist) : null,
+			});
+		else await db.customCommand.update(name, newValues);
 
 	const merged = { ...old, ...newValues };
 	normalizeTrigger(merged);
-	if (Array.isArray(merged.whitelist) && !merged.whitelist.length)
-		merged.whitelist = null;
+
 	const channelChanged =
 		'channel_id' in newValues && newValues.channel_id !== old.channel_id;
 	const nameChanged = 'name' in newValues && newValues.name !== name;
@@ -109,8 +124,10 @@ async function load() {
 
 	for (const command of await db.query('SELECT * FROM customcommands')) {
 		normalizeTrigger(command);
+		const wl = command.whitelist;
+		command.whitelist = Array.isArray(wl) && wl.length ? new Set(wl) : null;
 		const key = command.channel_id ?? null;
-		const arr = commands.get(key) || [];
+		const arr = commands.get(key) ?? [];
 		arr.push(command);
 		commands.set(key, arr);
 		byName.set(command.name, command);

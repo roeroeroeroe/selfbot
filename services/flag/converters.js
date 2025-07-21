@@ -27,7 +27,7 @@ export default {
 	},
 	url: v => {
 		if (v === null || !utils.isValidHttpUrl((v = v.trim())))
-			return [null, 'invalid url'];
+			return [null, 'invalid URL'];
 		return [v, null];
 	},
 	username: v => {

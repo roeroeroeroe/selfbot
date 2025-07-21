@@ -13,7 +13,7 @@ export default function send({
 	for (const k in query) {
 		const v = query[k];
 		if (Array.isArray(v))
-			for (const value of v) url.searchParams.append(k, value);
+			for (let i = 0; i < v.length; url.searchParams.append(k, v[i++]));
 		else url.searchParams.set(k, v);
 	}
 

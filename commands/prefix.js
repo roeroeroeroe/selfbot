@@ -1,5 +1,5 @@
 import config from '../config.json' with { type: 'json' };
-import configuration from '../services/configuration.js';
+import configuration from '../services/configuration/index.js';
 import logger from '../services/logger.js';
 import db from '../services/db/index.js';
 import utils from '../utils/index.js';
@@ -58,7 +58,10 @@ export default {
 				}
 
 				if (config.commands.defaultPrefix !== newPrefix) {
-					await configuration.update('commands.defaultPrefix', newPrefix);
+					await configuration.config.update(
+						'commands.defaultPrefix',
+						newPrefix
+					);
 					await db.query(
 						`ALTER TABLE channels ALTER COLUMN prefix SET DEFAULT '${config.commands.defaultPrefix}'`
 					);

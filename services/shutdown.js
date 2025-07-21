@@ -68,9 +68,8 @@ async function onSignal(sigName, errOrReason, sigNumber) {
 }
 
 function register(fn) {
-	if (typeof fn !== 'function')
-		throw new Error('shutdown task must be a function');
-	tasks.push(fn);
+	if (typeof fn !== 'function') throw new Error('task must be a function');
+	logger.debug(`[SHUTDOWN] registered task #${tasks.push(fn)}`);
 }
 
 function unregister(fn) {

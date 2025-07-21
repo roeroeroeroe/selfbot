@@ -157,7 +157,7 @@ export default {
 		if (customCommands.getCommandByName(commandName))
 			return { text: `command ${commandName} already exists`, mention: true };
 
-		let { whitelist } = msg.commandFlags;
+		let whitelist = msg.commandFlags.whitelist;
 		if (whitelist.length) {
 			try {
 				const usersMap = await twitch.helix.user.getMany(whitelist);
@@ -167,6 +167,7 @@ export default {
 					if (!u) return { text: `user ${n} does not exist`, mention: true };
 					whitelist[i] = u.id;
 				}
+				whitelist = new Set(whitelist);
 			} catch (err) {
 				logger.error('error getting users:', err);
 				return { text: 'error getting whitelist users', mention: true };

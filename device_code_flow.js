@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const CLIENT_ID = 'kd1unb4b3q4t58fwlpcbzcbnm76a8fp';
+const CLIENT_ID = process.argv[2];
 const SCOPES = 'analytics:read:extensions analytics:read:games bits:read \
 channel:bot channel:edit:commercial channel:manage:ads channel:manage:broadcast \
 channel:manage:extensions channel:manage:guest_star channel:manage:moderators \
@@ -41,6 +41,7 @@ async function oauthRequest(url, urlParams) {
 }
 
 async function main() {
+	if (!CLIENT_ID) fatal('client id is required');
 	let deviceCodeResponse;
 	try {
 		deviceCodeResponse = await oauthRequest(
@@ -91,7 +92,7 @@ async function main() {
 				);
 			log(
 				JSON.stringify(tokenResponse) +
-					`\n\naccess_token: ${tokenResponse.access_token}`
+					`\n\nclient_id: ${CLIENT_ID}, access_token: ${tokenResponse.access_token}`
 			);
 			break;
 		} catch (err) {

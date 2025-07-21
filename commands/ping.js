@@ -7,6 +7,8 @@ import paste from '../services/paste/index.js';
 import logger from '../services/logger.js';
 import cache from '../services/cache/index.js';
 
+const alignSep = utils.format.DEFAULT_ALIGN_SEPARATOR;
+
 export default {
 	name: 'ping',
 	aliases: ['status'],
@@ -71,7 +73,7 @@ async function getMetricsResponse() {
 	if (!lines.length) return { text: 'no metrics available', mention: true };
 
 	try {
-		const link = await paste.create(utils.format.join(lines, '\n'));
+		const link = await paste.create(lines.join('\n'));
 		return {
 			text: utils.format.join([
 				`snapshot from: ${utils.date.format(snapshot.timestamp)}`,
@@ -126,10 +128,10 @@ function formatMetrics(obj, sampleInterval) {
 		return utils.format.align(
 			Object.entries(obj).map(
 				([k, v]) =>
-					`${k}:__ALIGN__${v.value} (${v.rate.toFixed(1)}/${sampleInterval})`
+					`${k}:${alignSep}${v.value} (${v.rate.toFixed(1)}/${sampleInterval})`
 			)
 		);
 	return utils.format.align(
-		Object.entries(obj).map(([k, v]) => `${k}:__ALIGN__${v}`)
+		Object.entries(obj).map(([k, v]) => `${k}:${alignSep}${v}`)
 	);
 }

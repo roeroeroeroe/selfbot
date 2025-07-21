@@ -6,9 +6,11 @@ async function getWhisperThreads(limit = gql.DEFAULT_PAGINATION_LIMIT) {
 	const whisperThreads = [];
 	const variables = { cursor: null };
 
-	let res;
 	do {
-		res = await gql.request({ query: queries.GET_WHISPER_THREADS, variables });
+		const res = await gql.request({
+			query: queries.GET_WHISPER_THREADS,
+			variables,
+		});
 		const edges = res.data.currentUser?.whisperThreads?.edges;
 		if (!edges?.length) break;
 
