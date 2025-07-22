@@ -69,11 +69,11 @@ export default {
 				return c;
 			};
 		else
-			processEmotes = function (emotes, add) {
+			processEmotes = function (emotes, isAvailable = true) {
 				if (!Array.isArray(emotes)) return 0;
 				let c = 0;
 				for (let i = 0; i < emotes.length; i++) if (emotes[i].token) c++;
-				if (add) totalEmoteCount += c;
+				if (isAvailable) totalEmoteCount += c;
 				return c;
 			};
 
