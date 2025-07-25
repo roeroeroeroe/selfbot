@@ -56,24 +56,20 @@ function align(lines, separator = DEFAULT_ALIGN_SEPARATOR, padding = 3) {
 		separator = DEFAULT_ALIGN_SEPARATOR;
 	}
 
-	const rows = new Array(lines.length);
+	const rows = new Array(lines.length),
+		columnWidths = [];
 	let maxColumns = 0;
 	for (let i = 0; i < lines.length; i++) {
-		const cells = lines[i].split(separator);
-		rows[i] = cells;
+		const cells = (rows[i] = lines[i].split(separator));
 		if (cells.length > maxColumns) maxColumns = cells.length;
-	}
-	if (maxColumns < 2) return lines.join('\n');
-
-	const columnWidths = new Array(maxColumns - 1).fill(0);
-	for (let i = 0; i < lines.length; i++) {
-		const cells = rows[i];
 		if (cells.length < 2) continue;
-		for (let j = 0; j < cells.length && j < columnWidths.length; j++) {
-			const cellLen = cells[j].length;
-			if (cellLen > columnWidths[j]) columnWidths[j] = cellLen;
+		for (let j = 0; j < cells.length; j++) {
+			const len = cells[j].length;
+			if (columnWidths[j] === undefined || len > columnWidths[j])
+				columnWidths[j] = len;
 		}
 	}
+	if (maxColumns < 2) return lines.join('\n');
 
 	const alignedLines = new Array(lines.length);
 	for (let i = 0; i < lines.length; i++) {

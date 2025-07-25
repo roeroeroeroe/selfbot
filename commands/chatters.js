@@ -142,8 +142,11 @@ export default {
 		const responseParts = [totalCount];
 		try {
 			const link = await paste.create(list.join('\n'));
-			const collectedChattersCount = getTotalChatters(chatters);
-			if (collectedChattersCount !== totalCount)
+			const collectedChattersCount = Math.min(
+				getTotalChatters(chatters),
+				totalCount
+			);
+			if (collectedChattersCount < totalCount)
 				responseParts.push(`collected: ${collectedChattersCount}`);
 			responseParts.push(link);
 		} catch (err) {

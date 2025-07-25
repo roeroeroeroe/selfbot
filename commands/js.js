@@ -7,6 +7,7 @@ import paste from '../services/paste/index.js';
 import db from '../services/db/index.js';
 import metrics from '../services/metrics/index.js';
 import utils from '../utils/index.js';
+import color from '../services/color/index.js';
 import cooldown from '../services/cooldown.js';
 import cache from '../services/cache/index.js';
 import commands from '../services/commands.js';
@@ -25,6 +26,7 @@ const context = {
 	db,
 	metrics,
 	utils,
+	color,
 	cooldown,
 	cache,
 	commands,

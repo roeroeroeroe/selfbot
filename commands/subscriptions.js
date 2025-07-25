@@ -95,10 +95,9 @@ export default {
 				}
 
 			const products = user.subscriptionProducts;
-			if (!products?.length) continue;
 
 			const tierNum = +tier;
-			for (let j = 0; j < products.length; j++) {
+			for (let j = 0, N = products?.length ?? 0; j < N; j++) {
 				const product = products[j],
 					productTierNum = +product.tier;
 				if (Number.isNaN(productTierNum)) {

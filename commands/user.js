@@ -1,6 +1,7 @@
-import logger from '../services/logger.js';
-import paste from '../services/paste/index.js';
 import utils from '../utils/index.js';
+import logger from '../services/logger.js';
+import color from '../services/color/index.js';
+import paste from '../services/paste/index.js';
 import twitch from '../services/twitch/index.js';
 
 const MAX_USERS = 5000;
@@ -182,12 +183,16 @@ function buildUserSummary(user, banned, ageFn) {
 	if (user.selectedBadge?.title)
 		parts.push(`badge: ${user.selectedBadge.title}`);
 	if (user.chatColor) {
-		const color = utils.color.get(user.chatColor);
-		if (color) {
-			const { hex, shorthandHex, rgb, name: colorName } = color;
+		const colorData = color.get(user.chatColor);
+		if (colorData) {
+			const {
+				hex,
+				shorthandHex,
+				RGB: { R, G, B },
+				nearest: { name: colorName },
+			} = colorData;
 			parts.push(
-				`color: #${shorthandHex || hex} ${colorName} ` +
-					`rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`
+				`color: #${shorthandHex ?? hex} ${colorName} RGB(${R}, ${G}, ${B})`
 			);
 		} else parts.push(`color: ${user.chatColor}`);
 	} else parts.push('default color (never set)');

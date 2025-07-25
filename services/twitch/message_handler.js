@@ -90,7 +90,7 @@ export default async function handle(msg) {
 				`[HANDLER] got best match for command ${msg.commandName}: ${closest}`
 			);
 			sendResult(msg, {
-				text: `unknown command "${msg.commandName}", the most similar command is: ${closest}`,
+				text: `unknown command "${msg.commandName}", most similar command: ${closest}`,
 				mention: true,
 			});
 		}

@@ -370,10 +370,7 @@ async function getStreamLanguage(login) {
 async function getUserMessages(id) {
 	try {
 		const rows = await db.message.search(null, id);
-		if (!rows.length) return null;
-		const texts = [];
-		for (let i = 0; i < rows.length; i++) texts.push(rows[i].text);
-		return texts;
+		return rows.length ? rows.map(r => r.text) : null;
 	} catch (err) {
 		logger.error('error searching messages:', err);
 		return null;
