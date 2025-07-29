@@ -1,5 +1,5 @@
-import exec from '../services/exec.js';
 import config from '../config.json' with { type: 'json' };
+import exec from '../services/exec.js';
 import configuration from '../services/configuration/index.js';
 import logger from '../services/logger.js';
 import twitch from '../services/twitch/index.js';

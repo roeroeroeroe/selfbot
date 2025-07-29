@@ -3,7 +3,7 @@ import {
 	SRGB_OETF_THRESHOLD,
 	SRGB_OETF_A,
 	SRGB_OETF_B,
-	SRGB_OETF_GAMMA,
+	SRGB_OETF_EXPONENT,
 	INV_M_XR, INV_M_XG, INV_M_XB,
 	INV_M_YR, INV_M_YG, INV_M_YB,
 	INV_M_ZR, INV_M_ZG, INV_M_ZB,
@@ -32,7 +32,7 @@ export function xyzToHex(XYZ, validated = false) {
 export function oetfSRGB(L) {
 	if (L <= 0) return 0;
 	if (L < SRGB_OETF_THRESHOLD) return 12.92 * L;
-	return SRGB_OETF_A * L ** SRGB_OETF_GAMMA - SRGB_OETF_B;
+	return SRGB_OETF_A * L ** SRGB_OETF_EXPONENT - SRGB_OETF_B;
 }
 
 export function xyzToRgb(XYZ, validated = false) {

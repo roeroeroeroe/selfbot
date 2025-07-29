@@ -1,3 +1,4 @@
+import StringMatcher from '../services/string_matcher.js';
 import colors from '../data/color_names.json' with { type: 'json' };
 import logger from '../services/logger.js';
 import utils from '../utils/index.js';
@@ -20,6 +21,8 @@ for (let i = 0; i < colors.length; i++) {
 	const c = colors[i];
 	nameToHex.set(c.name.toLowerCase(), c.hex);
 }
+
+const colorNameMatcher = new StringMatcher([...nameToHex.keys()]);
 
 const colorModels = {
 	name: {
@@ -160,11 +163,13 @@ export default {
 		const model = colorModels[(fromModel = fromModel.toLowerCase())];
 
 		const colorInput = model.parse(msg.args);
-		if (!colorInput && fromModel === 'name')
-			return {
-				text: `unknown color: "${msg.args.join(' ').toLowerCase()}"`,
-				mention: true,
-			};
+		if (!colorInput && fromModel === 'name') {
+			const nameInput = msg.args.join(' ').toLowerCase();
+			let response = `unknown color: "${nameInput}"`;
+			const closestName = colorNameMatcher.getClosest(nameInput);
+			if (closestName) response += `, most similar name: ${closestName}`;
+			return { text: response, mention: true };
+		}
 		if (!model.validate(colorInput))
 			return {
 				text: `invalid ${model.label} input (${model.description})`,

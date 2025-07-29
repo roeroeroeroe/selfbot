@@ -1,3 +1,4 @@
+import StringMatcher from '../services/string_matcher.js';
 import logger from '../services/logger.js';
 import utils from '../utils/index.js';
 import twitch from '../services/twitch/index.js';
@@ -105,10 +106,17 @@ export default {
 			if (!matchingNode) {
 				let errorResponse = `emote "${msg.commandFlags.emoteToken}" not found`;
 				if (unlockableEmoteSuffixes.length) {
-					const closestSuffix = utils.getClosestString(
-						msg.commandFlags.emoteToken.slice(prefixLength),
-						unlockableEmoteSuffixes
-					);
+					let closestSuffix;
+					try {
+						closestSuffix = new StringMatcher(
+							unlockableEmoteSuffixes
+						).getClosest(msg.commandFlags.emoteToken.slice(prefixLength));
+					} catch (err) {
+						logger.warning(
+							'failed to initialize string matcher for emote suffixes:',
+							err
+						);
+					}
 					if (closestSuffix)
 						errorResponse += `, most similar emote: ${emotePrefix}${closestSuffix}`;
 				}

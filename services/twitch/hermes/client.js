@@ -224,10 +224,8 @@ const wsMessageHandlers = {
 	},
 	authenticateResponse: (c, msg) => {
 		c.pending.authenticate--;
-		if (msg.authenticateResponse?.result !== 'ok') {
-			logger.error(`[Hermes] [connection ${c.id}] auth error:`,
-			             msg.authenticateResponse);
-			c.ws.close();
+		if (msg.authenticateResponse.result === 'error') {
+			handleAuthError(c, msg.authenticateResponse);
 			return;
 		}
 		c.ready = true;
@@ -246,21 +244,15 @@ const wsMessageHandlers = {
 			closeIfIdle(c);
 			return;
 		}
-		if (topic.state === constants.TopicState.SUBSCRIBING &&
-		    msg.subscribeResponse?.result === 'ok') {
-			topic.state = constants.TopicState.SUBSCRIBED;
-			logger.debug(`[Hermes] [connection ${c.id}] subscribed ok`,
-			             `to ${topic.topicString}`);
-		} else if (msg.subscribeResponse?.result === 'error') {
-			const { error: err, errorCode: errCode } = msg.subscribeResponse;
-			if (err === 'too many subscriptions')
-				taskQueue.enqueue({ type: 'subscribe', topic });
-			else {
-				logger.error(`[Hermes] [connection ${c.id}] sub error:`,
-				             topic.topicString, err, errCode);
-				cleanupTopic(topic);
-			}
+		if (msg.subscribeResponse.result === 'error') {
+			handleSubError(c, topic, msg.subscribeResponse);
+			return;
 		}
+		if (topic.state !== constants.TopicState.SUBSCRIBING)
+			return;
+		topic.state = constants.TopicState.SUBSCRIBED;
+		logger.debug(`[Hermes] [connection ${c.id}] subscribed ok`,
+		             `to ${topic.topicString}`);
 	},
 	unsubscribeResponse: (c, msg) => {
 		c.pending.unsubscribe--;
@@ -321,6 +313,50 @@ const wsMessageHandlers = {
 		);
 	},
 };
+
+function handleAuthError(c, { error = 'N/A', errorCode = 'N/A' }) {
+	switch (errorCode) {
+		case constants.AUTH_ERROR.AUTH001:
+		case constants.AUTH_ERROR.AUTH002:
+			logger.fatal(
+				`[Hermes] [connection ${c.id}] auth error: ${errorCode} ${error}`
+			);
+			break;
+		default:
+			logger.warning(
+				`[Hermes] [connection ${c.id}] unknown auth error code:`,
+				errorCode,
+				error
+			);
+			c.ws.close();
+	}
+}
+
+function handleSubError(c, topic, { error = 'N/A', errorCode = 'N/A' }) {
+	logger.warning(
+		`[Hermes] [connection ${c.id}] sub error:`,
+		topic.topicString,
+		errorCode,
+		error
+	);
+	switch (errorCode) {
+		case constants.SUB_ERROR.SUB001:
+		case constants.SUB_ERROR.SUB006:
+			taskQueue.enqueue({ type: 'subscribe', topic });
+			break;
+		case constants.SUB_ERROR.SUB002:
+		case constants.SUB_ERROR.SUB004:
+		case constants.SUB_ERROR.SUB007:
+			cleanupTopic(topic);
+			break;
+		default:
+			logger.warning(
+				`[Hermes] [connection ${c.id}] unknown sub error code:`,
+				`${errorCode} ${error} for topic ${topic.topicString}`
+			);
+			cleanupTopic(topic);
+	}
+}
 
 function cleanupTopic(topic) {
 	const c = topic.connection;

@@ -1,4 +1,10 @@
-import { mkdirSync, createWriteStream } from 'fs';
+import {
+	mkdirSync,
+	openSync,
+	createWriteStream,
+	fsyncSync,
+	closeSync,
+} from 'fs';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import config from '../config.json' with { type: 'json' };
@@ -14,17 +20,6 @@ const ANSI = {
 	white: '\x1b[37m',
 	reset: '\x1b[0m',
 };
-
-const logsDirectory = path.join(
-	path.dirname(fileURLToPath(import.meta.url)),
-	'../logs'
-);
-try {
-	mkdirSync(logsDirectory, { recursive: true });
-} catch (err) {
-	process.stderr.write(`failed to mkdir logs: ${err.message}\n`);
-	process.exit(1);
-}
 // prettier-ignore
 const levels = {
 	debug: { priority: 0, standardStream: process.stdout, color: null, writeToFile: true },
@@ -41,6 +36,18 @@ const fileLevels = Object.values(levels).filter(
 	l => l.writeToFile && l.priority >= minPriority
 );
 
+const logsDirectory = path.join(
+	path.dirname(fileURLToPath(import.meta.url)),
+	'../logs'
+);
+try {
+	mkdirSync(logsDirectory, { recursive: true });
+} catch (err) {
+	process.stderr.write(`failed to mkdir logs: ${err.message}\n`);
+	for (let i = 0; i < fileLevels.length; fileLevels[i++].writeToFile = false);
+	fileLevels.length = 0;
+}
+
 for (const level in levels) {
 	const cfg = levels[level];
 	cfg.name = level;
@@ -55,10 +62,24 @@ for (const level in levels) {
 let rotationTimeout, tickTimeout;
 
 function openAllFiles(dateString) {
-	for (const cfg of fileLevels) {
-		if (cfg.file) cfg.file.end();
+	for (let i = 0; i < fileLevels.length; i++) {
+		const cfg = fileLevels[i];
+		if (cfg.file) {
+			cfg.file.end();
+			close(cfg);
+		}
 		const filePath = path.join(logsDirectory, `${cfg.name}_${dateString}.log`);
-		cfg.file = createWriteStream(filePath, { flags: 'a' });
+		cfg.filePath = filePath;
+		let fd;
+		try {
+			fd = openSync(filePath, 'a');
+		} catch (err) {
+			process.stderr.write(`failed to open ${filePath}: ${err.message}\n`);
+			cfg.fd = cfg.file = null;
+			continue;
+		}
+		cfg.fd = fd;
+		cfg.file = createWriteStream(null, { fd, autoClose: false });
 		cfg.file.cork();
 		cfg.file.on('error', err =>
 			process.stderr.write(`file stream error (${filePath}): ${err.message}\n`)
@@ -87,7 +108,7 @@ scheduleRotation();
 
 const flushInterval = setInterval(() => {
 	for (let i = 0, cfg; i < fileLevels.length; i++) {
-		if (!(cfg = fileLevels[i]).file.writableLength) continue;
+		if (!(cfg = fileLevels[i]).file?.writableLength) continue;
 		cfg.file.uncork();
 		cfg.file.cork();
 	}
@@ -173,18 +194,39 @@ async function cleanup() {
 	clearInterval(flushInterval);
 	clearTimeout(rotationTimeout);
 	clearTimeout(tickTimeout);
-	const streams = fileLevels.map(l => l.file).filter(Boolean);
-	if (!streams.length) return;
-	for (const stream of streams) stream.uncork();
-	await Promise.all(
-		streams.map(
-			stream =>
-				new Promise(res => {
-					stream.once('finish', res);
-					stream.end();
-				})
-		)
-	);
+	for (let i = 0; i < fileLevels.length; i++) {
+		const cfg = fileLevels[i];
+		cfg.writeToFile = false;
+		const stream = cfg.file;
+		if (stream) {
+			stream.uncork();
+			await new Promise(res => {
+				stream.once('finish', res);
+				stream.end();
+			});
+		}
+		close(cfg);
+	}
+}
+
+function close(cfg) {
+	const fd = cfg.fd;
+	if (typeof fd !== 'number') return;
+	try {
+		fsyncSync(fd);
+	} catch (err) {
+		process.stderr.write(
+			`failed to fsync fd ${fd} for ${cfg.name} (${cfg.filePath}): ${err.message}\n`
+		);
+	}
+	try {
+		closeSync(fd);
+	} catch (err) {
+		process.stderr.write(
+			`failed to close fd ${fd} for ${cfg.name} (${cfg.filePath}): ${err.message}\n`
+		);
+	}
+	cfg.fd = null;
 }
 
 const debug = makeLogger('debug');
@@ -193,9 +235,19 @@ const warning = makeLogger('warning');
 const error = makeLogger('error');
 function fatal(...args) {
 	error(...args);
-	cleanup()
-		.catch(err => error('logger cleanup error:', err))
-		.finally(() => process.exit(1));
+	clearInterval(flushInterval);
+	clearTimeout(rotationTimeout);
+	clearTimeout(tickTimeout);
+	for (let i = 0; i < fileLevels.length; i++) {
+		const cfg = fileLevels[i];
+		if (cfg.file) {
+			cfg.file.uncork();
+			cfg.file.end();
+		}
+		close(cfg);
+	}
+
+	process.exit(1);
 }
 
 export default {

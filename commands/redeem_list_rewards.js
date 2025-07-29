@@ -1,3 +1,4 @@
+import StringMatcher from '../services/string_matcher.js';
 import config from '../config.json' with { type: 'json' };
 import logger from '../services/logger.js';
 import twitch from '../services/twitch/index.js';
@@ -182,10 +183,17 @@ export default {
 				res.user.login
 			);
 			if (!redeemable.length) return { text: errorResponse, mention: true };
-			const closestTitle = utils.getClosestString(
-				rewardTitle,
-				redeemable.map(r => r.title)
-			);
+			let closestTitle;
+			try {
+				closestTitle = new StringMatcher(
+					redeemable.map(r => r.title)
+				).getClosest(rewardTitle);
+			} catch (err) {
+				logger.warning(
+					'failed to initialize string matcher for reward titles:',
+					err
+				);
+			}
 			if (closestTitle)
 				errorResponse += `, most similar redeemable reward: ${closestTitle}`;
 			return { text: errorResponse, mention: true };

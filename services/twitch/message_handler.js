@@ -78,22 +78,12 @@ export default async function handle(msg) {
 	}
 
 	if (!ccTriggered && msg.commandName && config.commands.suggestClosest) {
-		logger.debug(
-			`[HANDLER] unknown command ${msg.commandName}, trying to get closest match`
-		);
-		const closest = utils.getClosestString(
-			msg.commandName,
-			commands.getKnownNames()
-		);
-		if (closest) {
-			logger.debug(
-				`[HANDLER] got best match for command ${msg.commandName}: ${closest}`
-			);
+		const closest = commands.getClosestKnownName(msg.commandName);
+		if (closest)
 			sendResult(msg, {
 				text: `unknown command "${msg.commandName}", most similar command: ${closest}`,
 				mention: true,
 			});
-		}
 	}
 }
 

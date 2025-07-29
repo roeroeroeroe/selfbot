@@ -15,7 +15,7 @@ for (let i = 0; i < 256; i++)
 export const SRGB_OETF_THRESHOLD = 0.0031308;
 export const SRGB_OETF_A = 1.055;
 export const SRGB_OETF_B = 0.055;
-export const SRGB_OETF_GAMMA = 0.4166666666666667;
+export const SRGB_OETF_EXPONENT = 0.4166666666666667; // 1 / 2.4
 
 export const SRGB_EOTF_LUT = new Float64Array(256);
 // sRGB <= 0.04045 (~10.3 in 8-bit)

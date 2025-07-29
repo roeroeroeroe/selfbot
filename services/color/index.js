@@ -109,7 +109,6 @@ function getColor(colorInput) {
 	} else return color /* null */;
 
 	color.shorthandHex = models.hex.toShorthand(color.hex, true, true);
-	if (!color.RGB) color.RGB = models.hex.toRgb(color.hex, true, true);
 	if (!color.HSL) color.HSL = models.rgb.toHsl(color.RGB, true);
 	if (!color.XYZ) color.XYZ = models.rgb.toXyz(color.RGB, true);
 	if (!color.Lab) color.Lab = models.xyz.toLab(color.XYZ, true);

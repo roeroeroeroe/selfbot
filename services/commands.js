@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
+import StringMatcher from './string_matcher.js';
 import config from '../config.json' with { type: 'json' };
 import logger from './logger.js';
 import flag from './flag/index.js';
@@ -8,12 +9,14 @@ import utils from '../utils/index.js';
 
 const VALID_LOCKS = new Set(['GLOBAL', 'CHANNEL', 'NONE']);
 
+const MAX_COMMAND_NAME_DISTANCE = 5;
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const commands = new Map();
 const aliases = new Map();
-let knownCommands = [],
-	dirty = false;
+let dirty = false,
+	commandNameMatcher;
 
 const alignSep = utils.format.DEFAULT_ALIGN_SEPARATOR;
 
@@ -62,12 +65,26 @@ function getCommandByName(commandName) {
 	return commands.get(commandName) ?? commands.get(aliases.get(commandName));
 }
 
-function getKnownNames() {
+function getClosestKnownName(commandNameInput) {
 	if (dirty) {
-		knownCommands = [...commands.keys(), ...aliases.keys()];
+		try {
+			commandNameMatcher = new StringMatcher([
+				...commands.keys(),
+				...aliases.keys(),
+			]);
+		} catch (err) {
+			logger.warning(
+				'failed to initialize string matcher for command names:',
+				err
+			);
+		}
 		dirty = false;
 	}
-	return knownCommands;
+	if (!commandNameMatcher) return null;
+	return commandNameMatcher.getClosest(
+		commandNameInput,
+		MAX_COMMAND_NAME_DISTANCE
+	);
 }
 
 function has(commandName) {
@@ -124,7 +141,7 @@ function validateCommand(command) {
 async function load() {
 	commands.clear();
 	aliases.clear();
-	knownCommands.length = 0;
+	if (commandNameMatcher) commandNameMatcher = null;
 	dirty = false;
 	const commandFiles = fs
 		.readdirSync(path.join(__dirname, '../commands'))
@@ -165,7 +182,7 @@ export default {
 	add,
 	delete: deleteCommand,
 	getCommandByName,
-	getKnownNames,
+	getClosestKnownName,
 	get commandsMap() {
 		return commands;
 	},
