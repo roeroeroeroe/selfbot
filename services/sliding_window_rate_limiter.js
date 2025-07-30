@@ -16,7 +16,7 @@ export default class SlidingWindowRateLimiter {
 			throw new Error('maxPerWindow must be a positive integer');
 		this.#windowMs = windowMs;
 		this.#maxPerWindow = maxPerWindow;
-		this.#buffer = new RingBuffer(maxPerWindow, {
+		this.#buffer = new RingBuffer(maxPerWindow === 1 ? 2 : maxPerWindow, {
 			bufferFactory: cap => new Float64Array(cap),
 			resizable: false,
 		});

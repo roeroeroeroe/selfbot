@@ -16,8 +16,8 @@ export default class RingBuffer {
 		initialCapacity,
 		{ bufferFactory = cap => new Array(cap), resizable = true } = {}
 	) {
-		if (!Number.isInteger(initialCapacity) || initialCapacity < 1)
-			throw new Error('initialCapacity must be a positive integer');
+		if (!Number.isInteger(initialCapacity) || initialCapacity < 2)
+			throw new Error('initialCapacity must be an integer >= 2');
 		const lzb = 32 - Math.clz32(initialCapacity - 1);
 		if (lzb > 30)
 			throw new Error(

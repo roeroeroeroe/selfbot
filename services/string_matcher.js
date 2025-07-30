@@ -20,9 +20,9 @@ export default class StringMatcher {
 	#lengthTolerance;
 	#maxCandidateCount;
 	#earlyExitDistance;
+	#maxQueryLength;
 
 	#dpBuffer;
-	#dpCols;
 	#prevPrevRow;
 	#prevRow;
 	#currRow;
@@ -37,6 +37,7 @@ export default class StringMatcher {
 	 * min(`strings.length`, max(50, `maxCandidateCount`))
 	 * @param {number} [options.candidateFactor]
 	 * @param {number} [options.earlyExitDistance]
+	 * @param {number} [options.maxQueryLength]
 	 */
 	constructor(strings, options = {}) {
 		if (!Array.isArray(strings) || !strings.length)
@@ -46,7 +47,7 @@ export default class StringMatcher {
 			lengthTolerance = StringMatcher.#DEFAULT_LENGTH_TOLERANCE,
 			earlyExitDistance = StringMatcher.#DEFAULT_EARLY_EXIT_DISTANCE,
 		} = options;
-		let { maxCandidateCount, candidateFactor } = options;
+		let { maxCandidateCount, candidateFactor, maxQueryLength } = options;
 
 		this.#validateLengthTolerance(lengthTolerance);
 		if (maxCandidateCount !== undefined)
@@ -54,6 +55,8 @@ export default class StringMatcher {
 		if (candidateFactor !== undefined)
 			this.#validateCandidateFactor(candidateFactor);
 		this.#validateEarlyExitDistance(earlyExitDistance);
+		if (maxQueryLength !== undefined)
+			this.#validateMaxQueryLength(maxQueryLength);
 
 		this.#strings = strings.slice();
 		if (!caseSensitive)
@@ -103,12 +106,31 @@ export default class StringMatcher {
 			write, Math.max(StringMatcher.#MIN_CANDIDATES, maxCandidateCount)
 		);
 
+		maxQueryLength ??=
+			maxLength +
+				(lengthTolerance !== Number.POSITIVE_INFINITY
+					? lengthTolerance
+					: StringMatcher.#DEFAULT_LENGTH_TOLERANCE);
+
 		this.#caseSensitive     = caseSensitive;
 		this.#lengthTolerance   = lengthTolerance;
 		this.#maxCandidateCount = maxCandidateCount;
 		this.#earlyExitDistance = earlyExitDistance;
+		this.#maxQueryLength    = maxQueryLength;
 
-		this.#initDpBuffer(maxLength + 1);
+		const maxDistance = Math.max(maxQueryLength, maxLength);
+		let DpArray;
+		if (maxDistance <= StringMatcher.#MAX_UINT8)
+			DpArray = Uint8Array;
+		else if (maxDistance <= StringMatcher.#MAX_UINT16)
+			DpArray = Uint16Array;
+		else
+			DpArray = Uint32Array;
+		const cols = maxLength + 1;
+		this.#dpBuffer    = new DpArray(cols * 3);
+		this.#prevPrevRow = this.#dpBuffer.subarray(0, cols);
+		this.#prevRow     = this.#dpBuffer.subarray(cols, cols * 2);
+		this.#currRow     = this.#dpBuffer.subarray(cols * 2, cols * 3);
 	}
 
 	#validateLengthTolerance(lengthTolerance) {
@@ -134,40 +156,25 @@ export default class StringMatcher {
 			throw new Error('earlyExitDistance must be a positive integer');
 	}
 
-	#initDpBuffer(cols) {
-		let DpArray;
-		if (cols <= StringMatcher.#MAX_UINT8)
-			DpArray = Uint8Array;
-		else if (cols <= StringMatcher.#MAX_UINT16)
-			DpArray = Uint16Array;
-		else
-			DpArray = Uint32Array;
-		logger.debug(`[StringMatcher] initDpBuffer: ${this.#dpCols ?? 0}`,
-		             `-> ${cols} columns`);
-		this.#dpBuffer = new DpArray(cols * 3);
-		this.#dpCols = cols;
-		this.#prevPrevRow = this.#dpBuffer.subarray(0, cols);
-		this.#prevRow = this.#dpBuffer.subarray(cols, cols * 2);
-		this.#currRow = this.#dpBuffer.subarray(cols * 2, cols * 3);
+	#validateMaxQueryLength(maxQueryLength) {
+		if (!Number.isInteger(maxQueryLength) || maxQueryLength <= 0)
+			throw new Error('maxQueryLength must be a positive integer');
 	}
 
-	#OSADistance(a, b, bestDistance = Infinity) {
-		const aLen = a.length,
-		      bLen = b.length,
-		      cols = Math.max(aLen, bLen) + 1;
-
-		if (this.#dpCols < cols)
-			this.#initDpBuffer(cols);
+	#OSADistance(query, candidate, bestDistance = Infinity) {
+		const qLen = query.length,
+		      cLen = candidate.length,
+		      cols = cLen + 1;
 
 		for (let j = 0; j < cols; j++)
 			this.#prevRow[j] = j;
 
-		for (let i = 1; i <= aLen; i++) {
-			const aC = a[i - 1];
+		for (let i = 1; i <= qLen; i++) {
+			const qC = query[i - 1];
 			let rowMin = (this.#currRow[0] = i);
-			for (let j = 1; j <= bLen; j++) {
-				const bC = b[j - 1];
-				const cost = aC === bC ? 0 : 1;
+			for (let j = 1; j <= cLen; j++) {
+				const cC = candidate[j - 1];
+				const cost = qC === cC ? 0 : 1;
 
 				let distance = this.#prevRow[j] + 1; // deletion
 				const insertion = this.#currRow[j - 1] + 1;
@@ -179,7 +186,7 @@ export default class StringMatcher {
 					distance = substitution;
 
 				if (i > 1 && j > 1 &&
-				    aC === b[j - 2] && a[i - 2] === bC) {
+				    qC === candidate[j - 2] && query[i - 2] === cC) {
 					const transposition = this.#prevPrevRow[j - 2] + 1;
 					if (transposition < distance)
 						distance = transposition;
@@ -196,7 +203,7 @@ export default class StringMatcher {
 			this.#currRow = temp;
 		}
 
-		return this.#prevRow[bLen];
+		return this.#prevRow[cLen];
 	}
 
 	/**
@@ -212,6 +219,11 @@ export default class StringMatcher {
 		}
 		if (!query)
 			return null;
+		const qLen = query.length;
+		if (qLen > this.#maxQueryLength) {
+			logger.warning('[StringMatcher] getClosest: query too long:', qLen);
+			return null;
+		}
 		if (maxDistance !== Number.POSITIVE_INFINITY &&
 		    (!Number.isInteger(maxDistance) || maxDistance < this.#earlyExitDistance)) {
 			logger.warning('[StringMatcher] getClosest: invalid maxDistance:',
@@ -223,8 +235,7 @@ export default class StringMatcher {
 			query = query.toLowerCase();
 
 		const minLen = this.#minLength,
-		      maxLen = this.#maxLength,
-		      qLen   = query.length;
+		      maxLen = this.#maxLength;
 
 		let startLen;
 		if (qLen < minLen)
@@ -300,6 +311,7 @@ export default class StringMatcher {
 	get lengthTolerance() { return this.#lengthTolerance; }
 	get maxCandidateCount() { return this.#maxCandidateCount; }
 	get earlyExitDistance() { return this.#earlyExitDistance; }
+	get maxQueryLength() { return this.#maxQueryLength; }
 
 	set lengthTolerance(lengthTolerance) {
 		this.#validateLengthTolerance(lengthTolerance);

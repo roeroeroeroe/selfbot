@@ -8,7 +8,7 @@ export default class AsyncQueue {
 	#processing = false;
 	#canceled = false;
 
-	constructor(worker, initialCapacity = 16) {
+	constructor(worker, initialCapacity = 1 << 4) {
 		this.#worker = worker;
 		this.#buffer = new RingBuffer(initialCapacity);
 		this.#minCapacity = this.#buffer.capacity;

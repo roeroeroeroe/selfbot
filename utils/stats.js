@@ -62,7 +62,8 @@ function getPopulationVariance(arr, accessor) {
 		for (let i = 1; i < arr.length; i++) {
 			const v = accessor(arr[i]);
 			const delta = v - mean;
-			M2 += delta * (v - (mean += delta / (i + 1)));
+			mean += delta / (i + 1);
+			M2 += delta * (v - mean);
 		}
 		return M2 / arr.length;
 	}
@@ -71,7 +72,8 @@ function getPopulationVariance(arr, accessor) {
 	for (let i = 1; i < arr.length; i++) {
 		const v = arr[i];
 		const delta = v - mean;
-		M2 += delta * (v - (mean += delta / (i + 1)));
+		mean += delta / (i + 1);
+		M2 += delta * (v - mean);
 	}
 	return M2 / arr.length;
 }
