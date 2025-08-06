@@ -178,6 +178,8 @@ function buildUserSummary(user, banned, ageFn) {
 		);
 	const roles = getRoles(user.roles);
 	if (roles.length) parts.push(`roles: ${roles.join(', ')}`);
+	if (user.payoutInvite?.category)
+		parts.push(`onboarding: ${user.payoutInvite.category}`);
 	if (user.emoticonPrefix?.name)
 		parts.push(`prefix: ${user.emoticonPrefix.name}`);
 	if (user.selectedBadge?.title)

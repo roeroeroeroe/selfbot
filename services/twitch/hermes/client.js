@@ -53,8 +53,8 @@ function subscribe(sub, channelId) {
 	topicsByName.set(topicString, topic);
 	metrics.gauge.set(metrics.names.gauges.HERMES_TOPICS, topicsById.size);
 
-	logger.debug('[Hermes] subscribe: enqueued task for', topicString);
 	taskQueue.enqueue({ type: 'subscribe', topic });
+	logger.debug('[Hermes] subscribe: enqueued task for', topicString);
 }
 
 function subscribeToChannel(channelId) {

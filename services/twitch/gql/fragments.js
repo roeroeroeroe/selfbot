@@ -26,15 +26,17 @@ fragment UserFragment on User {
 	emoticonPrefix {
 		name
 	}
+	payoutInvite {
+		category
+	}
+	selectedBadge {
+		title
+	}
 	followers(first: 1) {
 		totalCount
 	}
 	follows(first: 1) {
 		totalCount
-	}
-	selectedBadge {
-		title
-		version
 	}
 	panels(hideExtensions: false) {
 		id
@@ -66,7 +68,6 @@ fragment UserFragment on User {
 			count
 		}
 		socialMedias {
-			name
 			url
 		}
 	}

@@ -76,6 +76,7 @@ function openAllFiles(dateString) {
 		} catch (err) {
 			process.stderr.write(`failed to open ${filePath}: ${err.message}\n`);
 			cfg.fd = cfg.file = null;
+			cfg.writeToFile = false;
 			continue;
 		}
 		cfg.fd = fd;
