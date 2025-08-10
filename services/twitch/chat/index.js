@@ -60,11 +60,10 @@ export default {
 	...constants,
 	BOT_NONCE,
 
-	send: (
-		channelId, channelLogin, userLogin, text, mention, privileged, parentId
-	) => chatService.send(
-		channelId, channelLogin, userLogin, text, mention, privileged, parentId
-	),
+	send: (channelId, channelLogin, userLogin, text, mention, privileged,
+	       parentId, action) =>
+		chatService.send(channelId, channelLogin, userLogin, text, mention,
+		                 privileged, parentId, action),
 	recordSend: channelId => chatService.recordSend(channelId),
 	setSlowModeDuration: (channelId, ms) => chatService.setSlowModeDuration(channelId, ms),
 	join: c => channelManager.join(c),

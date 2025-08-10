@@ -121,13 +121,8 @@ async function handleCommand(msg, command) {
 
 		const pre = await flag.globalFlags.preHandle(msg, command);
 		if (pre) return pre;
+		if (errors.length) return { text: errors.join('; '), mention: true };
 
-		if (errors.length) {
-			let errorResponse = errors[0];
-			if (errors.length > 1)
-				errorResponse += ` (${errors.length - 1} more ${utils.format.plural(errors.length - 1, 'error')}...)`;
-			return { text: errorResponse, mention: true };
-		}
 		logger.debug(`[HANDLER] trying to execute command ${msg.commandName}`);
 		return await flag.globalFlags.postHandle(msg, await command.execute(msg));
 	} catch (err) {
@@ -196,10 +191,11 @@ async function executeCustomCommand(msg, customCommand, cooldownKey) {
 
 function sendResult(msg, result) {
 	if (result?.text === undefined || result?.text === null) return;
+	const { text, reply, mention, action } = result;
 	logger.debug(
-		`[HANDLER] sending result: text: ${result.text}, reply: ${result.reply}, mention: ${result.mention}`
+		`[HANDLER] sending result: text=${text}, reply=${reply}, mention=${mention}, action=${action}`
 	);
-	msg.send(result.text, result.reply, result.mention);
+	msg.send(text, reply, mention, action);
 }
 
 function buildArgs(msg, force = false) {

@@ -88,8 +88,7 @@ export default {
 			type: 'boolean',
 			required: false,
 			defaultValue: false,
-			description:
-				'bypass reward checks and try to redeem anyway (redeem only)',
+			description: 'skip reward checks and try to redeem anyway (redeem only)',
 		},
 	],
 	execute: async msg => {

@@ -65,10 +65,25 @@ query($searchQuery: String! $cursor: Cursor) {
 }
 ${BASIC_USER}`;
 
+export const GET_SELF_CHAT_COLOR = `
+query {
+	currentUser {
+		chatColor
+	}
+}`;
+
 export const GET_SELF_EMAIL = `
 query {
 	currentUser {
 		email
+	}
+}`;
+
+export const GET_SELF_HAS_PRIME_OR_TURBO = `
+query {
+	currentUser {
+		hasPrime
+		hasTurbo
 	}
 }`;
 
@@ -251,6 +266,15 @@ ${BASIC_USER}`;
 export const UPDATE_DISPLAY_NAME = `
 mutation($input: UpdateUserInput!) {
 	updateUser(input: $input) {
+		error {
+			code
+		}
+	}
+}`;
+
+export const UPDATE_CHAT_COLOR = `
+mutation($input: UpdateChatColorV2Input!) {
+	updateChatColorV2(input: $input) {
 		error {
 			code
 		}

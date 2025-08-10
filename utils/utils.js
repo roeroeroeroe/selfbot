@@ -167,11 +167,13 @@ export function canFitAll(arr, limit, separatorLength) {
 	return i === N && total <= limit;
 }
 
-export function getMaxMessageLength(login, reply, mention) {
+export function getMaxMessageLength(login, reply, mention, action) {
 	login ??= '';
-	if (reply) return twitch.MAX_MESSAGE_LENGTH - login.length - 2;
-	if (mention) return twitch.MAX_MESSAGE_LENGTH - login.length - 3;
-	return twitch.MAX_MESSAGE_LENGTH;
+	let max = twitch.MAX_MESSAGE_LENGTH;
+	if (reply) max -= login.length + twitch.chat.REPLY_OVERHEAD_LENGTH;
+	else if (mention) max -= login.length + twitch.chat.MENTION_OVERHEAD_LENGTH;
+	if (action) max -= twitch.chat.ACTION_OVERHEAD_LENGTH;
+	return max;
 }
 
 export async function retry(

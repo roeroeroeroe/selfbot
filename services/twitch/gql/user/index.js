@@ -102,10 +102,24 @@ async function searchUsers(searchQuery, getAll = false) {
 	return users;
 }
 
+async function getSelfChatColor() {
+	const res = await gql.request({ query: queries.GET_SELF_CHAT_COLOR });
+
+	return res.data?.currentUser?.chatColor ?? null;
+}
+
 async function getSelfEmail() {
 	const res = await gql.request({ query: queries.GET_SELF_EMAIL });
 
 	return res.data?.currentUser?.email;
+}
+
+async function getSelfHasPrimeOrTurbo() {
+	const res = await gql.request({ query: queries.GET_SELF_HAS_PRIME_OR_TURBO });
+
+	const currentUser = res.data?.currentUser;
+	if (!currentUser) return false;
+	return currentUser.hasPrime || currentUser.hasTurbo;
 }
 
 async function getSelfStrikeStatus(channelId) {
@@ -259,6 +273,15 @@ async function updateDisplayName(newDisplayName) {
 	return res.data;
 }
 
+async function updateChatColor(newColor) {
+	const res = await gql.request({
+		query: queries.UPDATE_CHAT_COLOR,
+		variables: { input: { color: newColor } },
+	});
+
+	return res.data;
+}
+
 export default {
 	...constants,
 	queries,
@@ -267,7 +290,9 @@ export default {
 	getUserWithBanReason,
 	getMany,
 	search: searchUsers,
+	getSelfChatColor,
 	getSelfEmail,
+	getSelfHasPrimeOrTurbo,
 	getSelfStrikeStatus,
 	getSelfSubscriptionBenefits,
 	getSelfFollowRelationship,
@@ -278,4 +303,5 @@ export default {
 	follow: followUser,
 	unfollow: unfollowUser,
 	updateDisplayName,
+	updateChatColor,
 };

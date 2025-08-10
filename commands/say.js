@@ -84,7 +84,7 @@ export default {
 			type: 'boolean',
 			required: false,
 			defaultValue: false,
-			description: 'bypass chat restrictions and send anyway',
+			description: 'skip chat restrictions checks and try to send anyway',
 		},
 	],
 	execute: async msg => {

@@ -1,5 +1,7 @@
 import StringMatcher from '../services/string_matcher.js';
+import config from '../config.json' with { type: 'json' };
 import colors from '../data/color_names.json' with { type: 'json' };
+import twitch from '../services/twitch/index.js';
 import logger from '../services/logger.js';
 import utils from '../utils/index.js';
 import color from '../services/color/index.js';
@@ -15,6 +17,10 @@ const DELTA_E00_THRESHOLDS = [
 	[49.0, 'noticeably different but still visually related'],
 	[Infinity, 'opposite/complementary colors'],
 ];
+
+const FULL_BLOCK = '█';
+const DEFAULT_SWATCH_WIDTH = 5;
+const DEFAULT_CHAT_COLOR_APPLY_DELAY_MS = 1000;
 
 const nameToHex = new Map();
 for (let i = 0; i < colors.length; i++) {
@@ -83,10 +89,11 @@ export default {
 	aliases: ['colour'],
 	description: 'convert/name/compare colors',
 	unsafe: false,
-	lock: 'NONE',
+	lock: 'GLOBAL',
 	exclusiveFlagGroups: [
 		['fromModel', 'distanceBetween'],
 		['toModel', 'distanceBetween'],
+		['distanceBetween', 'updateChatColor'],
 	],
 	flags: [
 		{
@@ -129,9 +136,49 @@ export default {
 			required: false,
 			description: 'get ΔE₀₀ between two hex colors (e.g., "f00 0f0")',
 		},
+		{
+			name: 'updateChatColor',
+			short: 'u',
+			long: 'update',
+			type: 'boolean',
+			defaultValue: false,
+			required: false,
+			description: 'set as chatColor (requires Prime/Turbo)',
+		},
+		{
+			name: 'swatchWidth',
+			short: 'w',
+			long: 'swatch-width',
+			type: 'int',
+			defaultValue: DEFAULT_SWATCH_WIDTH,
+			required: false,
+			description: `swatch width (default: ${DEFAULT_SWATCH_WIDTH}, min: 1, max: 100)`,
+			validator: v => v >= 1 && v <= 100,
+		},
+		{
+			name: 'applyDelay',
+			short: 'D',
+			long: 'apply-delay',
+			type: 'duration',
+			defaultValue: DEFAULT_CHAT_COLOR_APPLY_DELAY_MS,
+			required: false,
+			description:
+				'time to wait for the chatColor update to apply before sending the message ' +
+				`(default: ${DEFAULT_CHAT_COLOR_APPLY_DELAY_MS}, min: 750ms, max: 3s)`,
+			validator: v => v >= 750 && v <= 3000,
+		},
+		{
+			name: 'force',
+			short: null,
+			long: 'force',
+			type: 'boolean',
+			defaultValue: false,
+			required: false,
+			description:
+				'skip Prime/Turbo status check and try to change chatColor anyway',
+		},
 	],
-	// TODO change chatColor?
-	execute: msg => {
+	execute: async msg => {
 		if (msg.commandFlags.distanceBetween.length) {
 			const [hex1, hex2] = msg.commandFlags.distanceBetween;
 			const [Lab1, Lab2] = [
@@ -141,7 +188,7 @@ export default {
 			const distance = color.deltaE00(Lab1, Lab2);
 			if (distance === null) {
 				logger.warning('hexToLab failed for valid hex:', !Lab1 ? hex1 : hex2);
-				return { text: 'Lab convertion failed', mention: true };
+				return { text: 'Lab conversion failed', mention: true };
 			}
 			return { text: formatDistance(distance), mention: true };
 		}
@@ -151,38 +198,87 @@ export default {
 		const formatColorData =
 			toModel === 'all' ? formatAll : colorModels[toModel].format;
 
+		let response, colorData;
 		if (!msg.args.length) {
-			const colorData = color.get({
+			colorData = color.get({
 				R: (Math.random() * 256) | 0,
 				G: (Math.random() * 256) | 0,
 				B: (Math.random() * 256) | 0,
 			});
-			return { text: `(random) ${formatColorData(colorData)}`, mention: true };
+			response = `(random) ${formatColorData(colorData)}`;
+		} else {
+			fromModel = fromModel.toLowerCase();
+			const model = colorModels[fromModel];
+
+			const colorInput = model.parse(msg.args);
+			if (!colorInput && fromModel === 'name') {
+				const nameInput = msg.args.join(' ').toLowerCase();
+				let errResponse = `unknown color: "${nameInput}"`;
+				const closestName = colorNameMatcher.getClosest(nameInput);
+				if (closestName) errResponse += `, most similar name: ${closestName}`;
+				return { text: errResponse, mention: true };
+			}
+			if (!model.validate(colorInput))
+				return {
+					text: `invalid ${model.label} input (${model.description})`,
+					mention: true,
+				};
+
+			colorData = color.get(colorInput);
+			if (!colorData) {
+				logger.warning('failed to get color:', colorInput);
+				return { text: 'failed to get color', mention: true };
+			}
+			response = formatColorData(colorData);
 		}
 
-		const model = colorModels[(fromModel = fromModel.toLowerCase())];
+		const { updateChatColor, swatchWidth, applyDelay, force } =
+			msg.commandFlags;
 
-		const colorInput = model.parse(msg.args);
-		if (!colorInput && fromModel === 'name') {
-			const nameInput = msg.args.join(' ').toLowerCase();
-			let response = `unknown color: "${nameInput}"`;
-			const closestName = colorNameMatcher.getClosest(nameInput);
-			if (closestName) response += `, most similar name: ${closestName}`;
-			return { text: response, mention: true };
+		if (!updateChatColor) return { text: response, mention: true };
+
+		if (!force)
+			try {
+				if (!(await twitch.gql.user.getSelfHasPrimeOrTurbo()))
+					return {
+						text: 'Prime or Turbo is required to change the chat color',
+						mention: true,
+					};
+			} catch (err) {
+				logger.error('error getting Prime/Turbo status:', err);
+				return { text: 'error getting Prime/Turbo status', mention: true };
+			}
+
+		let currentChatColor;
+		if (msg.senderUserID === config.bot.id) currentChatColor = msg.colorRaw;
+		else
+			try {
+				currentChatColor = await twitch.gql.user.getSelfChatColor();
+			} catch (err) {
+				logger.error('error getting own chat color:', err);
+				return { text: 'error getting current chat color', mention: true };
+			}
+		if (currentChatColor)
+			currentChatColor = color.hex.normalize(currentChatColor);
+
+		if (currentChatColor !== colorData.hex) {
+			try {
+				const res = await twitch.gql.user.updateChatColor('#' + colorData.hex);
+				const errCode = res.updateChatColorV2.error?.code;
+				if (errCode) {
+					const errMessage = `error updating chat color: ${errCode}`;
+					logger.error(errMessage);
+					return { text: errMessage, mention: true };
+				}
+			} catch (err) {
+				logger.error('error updating chat color:', err);
+				return { text: 'error updating chat color', mention: true };
+			}
+			await utils.sleep(applyDelay);
 		}
-		if (!model.validate(colorInput))
-			return {
-				text: `invalid ${model.label} input (${model.description})`,
-				mention: true,
-			};
 
-		const colorData = color.get(colorInput);
-		if (!colorData) {
-			logger.warning('failed to get color:', colorInput);
-			return { text: 'failed to get color', mention: true };
-		}
-
-		return { text: formatColorData(colorData), mention: true };
+		response = `${FULL_BLOCK.repeat(swatchWidth)} ${response}`;
+		return { text: response, mention: true, action: true };
 	},
 };
 

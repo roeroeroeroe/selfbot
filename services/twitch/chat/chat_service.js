@@ -50,14 +50,20 @@ export default class ChatService {
 		text,
 		mention = false,
 		privileged = false,
-		parentId = ''
+		parentId = '',
+		action = false
 	) {
 		if (!channelId) throw new Error('missing channelId');
 		if (!channelLogin) throw new Error('missing channelLogin');
 		if (typeof text !== 'string') text = String(text);
 		if (parentId && !userLogin) parentId = '';
 
-		const maxLength = utils.getMaxMessageLength(userLogin, !!parentId, mention);
+		const maxLength = utils.getMaxMessageLength(
+			userLogin,
+			!!parentId,
+			mention,
+			action
+		);
 		text = utils.format.trim(text, maxLength).replace(/[\r\n]/g, ' ');
 
 		const tosMatch = utils.regex.checkMessage(text);
@@ -79,6 +85,7 @@ export default class ChatService {
 			privileged,
 			mention,
 			parentId,
+			action,
 		});
 		logger.debug(`[CHAT] enqueued: #${channelLogin} ${text}`);
 	}
@@ -91,10 +98,12 @@ export default class ChatService {
 		text,
 		privileged,
 		mention,
-		parentId
+		parentId,
+		action
 	) {
 		const now = performance.now();
 		if (mention && userLogin && !parentId) text = `@${userLogin}, ${text}`;
+		if (action) text = `/me ${text}`;
 
 		if (!privileged) {
 			const reply = !!parentId;
@@ -145,7 +154,7 @@ export default class ChatService {
 			};
 			this.worker = async (
 				state,
-				{ channelId, channelLogin, userLogin, text, mention, privileged, parentId }
+				{ channelId, channelLogin, userLogin, text, mention, privileged, parentId, action }
 			) => {
 				if (privileged) {
 					this.rateLimiters.normal.forceAdd();
@@ -165,7 +174,7 @@ export default class ChatService {
 					}
 				}
 				await this.#dispatchMessage(state, channelId, channelLogin,
-					userLogin, text, privileged, mention, parentId);
+					userLogin, text, privileged, mention, parentId, action);
 			};
 		} else if (config.bot.rateLimits === 'verified') {
 			this.rateLimiters.verified = new SlidingWindowRateLimiter(
@@ -179,7 +188,7 @@ export default class ChatService {
 			};
 			this.worker = async (
 				state,
-				{ channelId, channelLogin, userLogin, text, mention, privileged, parentId }
+				{ channelId, channelLogin, userLogin, text, mention, privileged, parentId, action }
 			) => {
 				await this.rateLimiters.verified.wait();
 				if (!privileged) {
@@ -195,7 +204,7 @@ export default class ChatService {
 					}
 				}
 				await this.#dispatchMessage(state, channelId, channelLogin,
-					userLogin, text, privileged, mention, parentId);
+					userLogin, text, privileged, mention, parentId, action);
 			};
 		} else throw new Error(`unknown rate limits preset: ${config.bot.rateLimits}`);
 	}

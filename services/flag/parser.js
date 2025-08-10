@@ -125,6 +125,9 @@ function createParser(schema, exclusiveGroups) {
 		} else
 			flag.converter = converters[flag.type];
 
+		if (!('defaultValue' in flag))
+			throw new Error(`'defaultValue' must be provided for flag "${flag.name}"`);
+
 		if (flag.defaultValue !== null) {
 			if (flag.list) {
 				if (typeof flag.defaultValue !== 'string')

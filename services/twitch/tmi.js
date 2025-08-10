@@ -82,10 +82,10 @@ export default function init(chatService) {
 				}
 		}
 
-		msg.send = (text, reply = false, mention = false) =>
-			chatService.send(msg.channelID, msg.channelName,
-			                 msg.senderUsername, text, mention,
-			                 msg.query.privileged, reply ? msg.messageID : '');
+		msg.send = (text, reply = false, mention = false, action = false) =>
+			chatService.send(msg.channelID, msg.channelName, msg.senderUsername,
+			                 text, mention, msg.query.privileged,
+			                 reply ? msg.messageID : '', action);
 		handle(msg);
 	});
 
