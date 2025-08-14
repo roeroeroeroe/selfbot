@@ -58,7 +58,7 @@ const chatterTypes = twitch.gql.channel.CHATTER_TYPES;
 
 const alignSep = utils.format.DEFAULT_ALIGN_SEPARATOR;
 
-const labelToFlagName = {};
+const labelToFlagName = Object.create(null);
 const weightFlags = [];
 for (const l of Object.values(FACTOR_LABELS)) {
 	const flagName = `w${l[0].toUpperCase()}${l.slice(1)}`;
@@ -181,13 +181,13 @@ export default {
 			chatterSaturationPoint, followSaturationPoint,
 		} = msg.commandFlags;
 
-		const countryScores = {};
+		const countryScores = Object.create(null);
 		const verboseProgressLines = [
 			`factor${alignSep}country${alignSep}Δscore${alignSep}score0${alignSep}score1`,
 		];
 		const applyDeltaArgs = [countryScores, verbose, verboseProgressLines];
 
-		const weights = {};
+		const weights = Object.create(null);
 		for (const label in labelToFlagName)
 			weights[label] = msg.commandFlags[labelToFlagName[label]];
 
@@ -214,7 +214,7 @@ export default {
 		processDescription(description, weights[FACTOR_LABELS.DESCRIPTION],
 		                   applyDeltaArgs);
 
-		const chatterCounts = {};
+		const chatterCounts = Object.create(null);
 		if (chatters?.logins?.length) {
 			const langs = await getUILanguages(chatters.logins);
 			if (langs?.length)
@@ -224,7 +224,7 @@ export default {
 				                verbose, chatterCounts);
 		}
 
-		const followCounts = {}, skuStats = {};
+		const followCounts = Object.create(null), skuStats = Object.create(null);
 		if (follows?.users?.length) {
 			processFollows(follows.users, follows.totalCount,
 			               weights[FACTOR_LABELS.FOLLOWED_CHANNEL_LANGS],
@@ -288,7 +288,7 @@ function languageDelta(langTag, baseWeight, fraction = 1) {
 }
 
 function detectPrimaryLangTag(texts, { minWords = 3, minHitsFull = 3 } = {}) {
-	const languageScores = {};
+	const languageScores = Object.create(null);
 	for (
 		let i = 0;
 		i < STOPWORD_LANGUAGES.length;
@@ -301,7 +301,7 @@ function detectPrimaryLangTag(texts, { minWords = 3, minHitsFull = 3 } = {}) {
 			.split(/[^\p{L}]+/u)
 			.filter(Boolean);
 		if (words.length < minWords) continue;
-		const hitsByLang = {};
+		const hitsByLang = Object.create(null);
 		for (let j = 0; j < words.length; j++) {
 			const langs = STOPWORD_WORD_TO_LANGUAGES.get(words[j]);
 			if (!langs) continue;
@@ -507,7 +507,7 @@ function processDescription(description, weight, applyDeltaArgs) {
 // prettier-ignore
 function processChatters(chatters, totalCount, langs, weight, applyDeltaArgs,
                          saturationPoint, verbose, out) {
-	const counts = {};
+	const counts = Object.create(null);
 	for (let i = 0, l; i < langs.length; i++)
 		counts[(l = langs[i].toLowerCase())] = (counts[l] || 0) + 1;
 
@@ -527,7 +527,7 @@ function processChatters(chatters, totalCount, langs, weight, applyDeltaArgs,
 // prettier-ignore
 function processFollows(follows, totalCount, weight, applyDeltaArgs,
                         saturationPoint, verbose, out) {
-	const counts = {};
+	const counts = Object.create(null);
 	for (let i = 0, l; i < follows.length; i++)
 		counts[(l = follows[i].lang.toLowerCase())] = (counts[l] || 0) + 1;
 
@@ -546,7 +546,7 @@ function processFollows(follows, totalCount, weight, applyDeltaArgs,
 }
 // prettier-ignore
 function processSKUs(skus, weight, applyDeltaArgs, verbose, out) {
-	const countryToSkus = {};
+	const countryToSkus = Object.create(null);
 	let total = skus.length;
 	for (let i = 0, sku; i < skus.length; i++) {
 		const country = skuToCountryCode((sku = skus[i]));
@@ -554,7 +554,7 @@ function processSKUs(skus, weight, applyDeltaArgs, verbose, out) {
 			total--;
 			continue;
 		}
-		countryToSkus[country] ??= {};
+		countryToSkus[country] ??= Object.create(null);
 		countryToSkus[country][sku] =
 			(countryToSkus[country][sku] || 0) + 1;
 	}

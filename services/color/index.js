@@ -1,7 +1,7 @@
 import colors from '../../data/color_names.json' with { type: 'json' };
 import * as constants from './constants.js';
+import CIEDE2000 from './ciede2000.js';
 import vpTree from './vp_tree.js';
-import deltaE00 from './deltaE00.js';
 import models from './models/index.js';
 import logger from '../logger.js';
 
@@ -44,33 +44,46 @@ import logger from '../logger.js';
  * @property {number} distance ΔE₀₀ to the nearest named color
  */
 
-const points = new Array(colors.length);
-const pointIndices = new Uint16Array(colors.length);
-const hexToPointIndex = new Map();
+const N = colors.length;
+const bufLen = Math.max(0, N - 1);
 
-for (let i = 0; i < colors.length; pointIndices[i] = i++) {
+let IndexArray;
+if (N <= 0xff) IndexArray = Uint8Array;
+else if (N <= 0xffff) IndexArray = Uint16Array;
+else IndexArray = Uint32Array;
+
+const labData = new Float64Array(N * 3);
+const names = new Array(N);
+const indices = new IndexArray(N);
+const hexToIndex = new Map();
+
+for (let i = 0; i < N; indices[i] = i++) {
 	const c = colors[i];
 	const { L, a, b } = models.rgb.toLab(
 		models.hex.toRgb(c.hex, true, true),
 		true
 	);
-	points[i] = { L, a, b, name: c.name };
-	hexToPointIndex.set(c.hex, i);
+	const offset = i * 3;
+	labData[offset] = L;
+	labData[offset + 1] = a;
+	labData[offset + 2] = b;
+	names[i] = c.name;
+	hexToIndex.set(c.hex, i);
 }
 
 const t0 = performance.now();
 const tree = vpTree.build(
-	points,
-	pointIndices,
+	labData,
+	indices,
 	0,
-	colors.length,
-	new Uint16Array(colors.length),
-	new Float64Array(colors.length)
+	N,
+	new IndexArray(bufLen),
+	new Float64Array(bufLen)
 );
 const t1 = performance.now();
 logger.debug(
 	`[COLOR] built VP tree in ${(t1 - t0).toFixed(3)}ms`,
-	`(${pointIndices.length} indices)`
+	`(${indices.length} indices)`
 );
 
 /**
@@ -113,15 +126,30 @@ function getColor(colorInput) {
 	if (!color.XYZ) color.XYZ = models.rgb.toXyz(color.RGB, true);
 	if (!color.Lab) color.Lab = models.xyz.toLab(color.XYZ, true);
 
-	const index = hexToPointIndex.get(color.hex);
-	if (index !== undefined) color.nearest = { ...points[index], distance: 0 };
-	else {
+	const index = hexToIndex.get(color.hex);
+	if (index !== undefined) {
+		const offset = index * 3;
+		color.nearest = {
+			L: labData[offset],
+			a: labData[offset + 1],
+			b: labData[offset + 2],
+			name: names[index],
+			distance: 0,
+		};
+	} else {
 		const { index: nearestIndex, distance } = vpTree.nearest(
 			tree,
-			points,
+			labData,
 			color.Lab
 		);
-		color.nearest = { ...points[nearestIndex], distance };
+		const offset = nearestIndex * 3;
+		color.nearest = {
+			L: labData[offset],
+			a: labData[offset + 1],
+			b: labData[offset + 2],
+			name: names[nearestIndex],
+			distance,
+		};
 	}
 
 	return color;
@@ -130,15 +158,16 @@ function getColor(colorInput) {
 export default {
 	...constants,
 	...models,
+
 	/**
 	 * @param {Lab} Lab1
 	 * @param {Lab} Lab2
 	 * @returns {number|null}
 	 */
-	deltaE00: (Lab1, Lab2) =>
+	CIEDE2000: (Lab1, Lab2) =>
 		// the internal implementation skips input validation for performance
 		models.lab.isValid(Lab1) && models.lab.isValid(Lab2)
-			? deltaE00(Lab1, Lab2)
+			? CIEDE2000(Lab1.L, Lab1.a, Lab1.b, Lab2.L, Lab2.a, Lab2.b)
 			: null,
 	get: getColor,
 };

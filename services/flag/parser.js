@@ -65,7 +65,7 @@ function createParser(schema, exclusiveGroups) {
 	const requiredFlags   = [];
 	const flagsToValidate = [];
 	const listFlags       = [];
-	const defaultOptions  = {};
+	const defaultOptions  = Object.create(null);
 
 	const mergedSchema          = [...globalFlags.SCHEMA, ...schema];
 	const mergedExclusiveGroups = [...globalFlags.EXCLUSIVE_GROUPS, ...exclusiveGroups];
@@ -194,7 +194,7 @@ function createParser(schema, exclusiveGroups) {
 		flag.conflicts = conflictsMap.get(flag.name) || [];
 
 	function parse(argv) {
-		const options       = Object.assign({}, defaultOptions);
+		const options       = Object.assign(Object.create(null), defaultOptions);
 		const providedFlags = Object.create(null);
 		const errors        = [];
 		const rest          = [];

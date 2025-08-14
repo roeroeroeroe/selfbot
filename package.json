@@ -8,8 +8,12 @@
 	"main": "index.js",
 	"scripts": {
 		"start": "node .",
-		"oauth:android": "node device_code_flow.js kd1unb4b3q4t58fwlpcbzcbnm76a8fp",
-		"oauth:tv": "node device_code_flow.js ue6666qo983tsx6so1t0vnawi233wa"
+		"oauth:android": "node scripts/device_code_flow.js kd1unb4b3q4t58fwlpcbzcbnm76a8fp",
+		"oauth:tv": "node scripts/device_code_flow.js ue6666qo983tsx6so1t0vnawi233wa",
+		"gen_data": "npm run gen:color_names && npm run gen:stopwords && npm run gen:country_codes",
+		"gen:color_names": "node scripts/get_color_names.js && mv -vf color_names.json data",
+		"gen:stopwords": "python3 scripts/get_stopwords.py && mv -vf stopwords.json data",
+		"gen:country_codes": "python3 scripts/get_country_codes.py && mv -vf country_codes.json data"
 	},
 	"dependencies": {
 		"@mastondzn/dank-twitch-irc": "^7.2.0",

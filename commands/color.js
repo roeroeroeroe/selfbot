@@ -185,12 +185,12 @@ export default {
 				color.hex.toLab(hex1, true),
 				color.hex.toLab(hex2, true),
 			];
-			const distance = color.deltaE00(Lab1, Lab2);
-			if (distance === null) {
+			const deltaE00 = color.CIEDE2000(Lab1, Lab2);
+			if (deltaE00 === null) {
 				logger.warning('hexToLab failed for valid hex:', !Lab1 ? hex1 : hex2);
 				return { text: 'Lab conversion failed', mention: true };
 			}
-			return { text: formatDistance(distance), mention: true };
+			return { text: formatDeltaE00(deltaE00), mention: true };
 		}
 
 		let { fromModel, toModel } = msg.commandFlags;
@@ -285,7 +285,7 @@ export default {
 function formatName(colorData) {
 	const { name: nearestColorName, distance } = colorData.nearest;
 	return distance
-		? `${nearestColorName} (${formatDistance(distance)})`
+		? `${nearestColorName} (${formatDeltaE00(distance)})`
 		: nearestColorName;
 }
 
@@ -330,12 +330,12 @@ function formatAll(colorData) {
 	return utils.format.join(parts);
 }
 
-function formatDistance(distance) {
+function formatDeltaE00(deltaE00) {
 	let description;
 	for (let i = 0; i < DELTA_E00_THRESHOLDS.length; i++)
-		if (distance <= DELTA_E00_THRESHOLDS[i][0]) {
+		if (deltaE00 <= DELTA_E00_THRESHOLDS[i][0]) {
 			description = DELTA_E00_THRESHOLDS[i][1];
 			break;
 		}
-	return `ΔE₀₀: ${distance.toFixed(DELTA_E00_PRECISION)} -- ${description}`;
+	return `ΔE₀₀: ${deltaE00.toFixed(DELTA_E00_PRECISION)} -- ${description}`;
 }

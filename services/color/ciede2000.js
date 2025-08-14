@@ -16,10 +16,7 @@ function hPrime(ap, b) {
 	return h;
 }
 
-export default function deltaE00(Lab1, Lab2) {
-	const { L: L1, a: a1, b: b1 } = Lab1;
-	const { L: L2, a: a2, b: b2 } = Lab2;
-
+export default function CIEDE2000(L1, a1, b1, L2, a2, b2) {
 	const C1 = sqrt(a1 ** 2 + b1 ** 2);
 	const C2 = sqrt(a2 ** 2 + b2 ** 2);
 	const Cbar7 = ((C1 + C2) / 2) ** 7;

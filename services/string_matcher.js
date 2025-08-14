@@ -1,8 +1,8 @@
 import logger from './logger.js';
 // prettier-ignore
 export default class StringMatcher {
-	static #MAX_UINT8  = (1 << 8) - 1;
-	static #MAX_UINT16 = (1 << 16) - 1;
+	static #MAX_UINT8  = 0xff;
+	static #MAX_UINT16 = 0xffff;
 
 	static #DEFAULT_LENGTH_TOLERANCE    = 2;
 	static #DEFAULT_CANDIDATE_FACTOR    = 0.1;

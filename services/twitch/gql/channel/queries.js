@@ -6,7 +6,7 @@ import {
 } from '../fragments.js';
 
 export const GET_MODS = `
-query($login: String!, $cursor: Cursor) {
+query($login: String! $cursor: Cursor) {
 	user(login: $login lookupType: ALL) {
 		mods(first: ${DEFAULT_PAGE_SIZE} after: $cursor) {
 			edges {

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 const CLIENT_ID = process.argv[2];
+const POLLING_MS = 1000;
 const SCOPES = 'analytics:read:extensions analytics:read:games bits:read \
 channel:bot channel:edit:commercial channel:manage:ads channel:manage:broadcast \
 channel:manage:extensions channel:manage:guest_star channel:manage:moderators \
@@ -27,7 +28,9 @@ user:manage:chat_color user:manage:whispers user:read:blocked_users \
 user:read:broadcast user:read:chat user:read:email user:read:emotes \
 user:read:follows user:read:moderated_channels user:read:subscriptions \
 user:write:chat whispers:edit whispers:read';
-const POLLING_MS = 1000;
+
+function log(str) { process.stdout.write(str + '\n'); }
+function fatal(str) { process.stderr.write(str + '\n'); process.exit(1); }
 
 async function oauthRequest(url, urlParams) {
 	const res = await fetch(url, {
@@ -57,8 +60,7 @@ async function main() {
 		device_code: deviceCode,
 		verification_uri: verificationUrl = 'https://www.twitch.tv/activate',
 	} = deviceCodeResponse;
-	// seconds
-	let { expires_in: expiresIn = 1800 } = deviceCodeResponse;
+	const expiresIn = (deviceCodeResponse.expires_in || 1800) * 1000;
 
 	if (!userCode || !deviceCode)
 		fatal(
@@ -66,13 +68,13 @@ async function main() {
 				JSON.stringify(deviceCodeResponse)
 		);
 
-	const expiresAt = Date.now() + (expiresIn *= 1000);
+	const expiresAt = Date.now() + expiresIn;
 	log(
 		`${verificationUrl}\ncode: ${userCode} ` +
 			`(expires in ${expiresIn / 1000 / 60} minutes)`
 	);
 
-	const tokenPayload = new URLSearchParams({
+	const tokenParams = new URLSearchParams({
 		client_id: CLIENT_ID,
 		device_code: deviceCode,
 		grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
@@ -83,7 +85,7 @@ async function main() {
 		try {
 			const tokenResponse = await oauthRequest(
 				'https://id.twitch.tv/oauth2/token',
-				tokenPayload
+				tokenParams
 			);
 			if (!tokenResponse.access_token)
 				fatal(
@@ -105,9 +107,4 @@ async function main() {
 	}
 }
 
-const log = str => process.stdout.write(str + '\n');
-const fatal = str => { process.stderr.write(str + '\n'); process.exit(1); };
-
-main().catch(err =>
-	fatal(`unexpected error: ${err.stack ?? err.message ?? err}`)
-);
+main().catch(err => fatal(err.stack ?? err.message));

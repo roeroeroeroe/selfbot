@@ -1,4 +1,4 @@
-import deltaE00 from './deltaE00.js';
+import CIEDE2000 from './ciede2000.js';
 
 function partition(distances, indices, left, right, pivotIndex) {
 	const pivotDistance = distances[pivotIndex];
@@ -51,18 +51,29 @@ function quickSelect(distances, indices, left, right, k) {
 	}
 }
 
-function buildVpTree(points, indices, start, end, iBuf, dBuf) {
+function buildVpTree(labData, indices, start, end, iBuf, dBuf) {
 	if (start >= end) return null;
 	const pivotIndex = indices[start];
 	const count = end - start;
 	if (count === 1)
 		return { index: pivotIndex, radius: 0, inner: null, outer: null };
 
-	const center = points[pivotIndex];
+	const offset = pivotIndex * 3;
+	const centerL = labData[offset],
+		centerA = labData[offset + 1],
+		centerB = labData[offset + 2];
 	for (let si = start + 1, bi = 0; si < end; si++, bi++) {
 		const index = indices[si];
+		const offset = index * 3;
 		iBuf[bi] = index;
-		dBuf[bi] = deltaE00(center, points[index]);
+		dBuf[bi] = CIEDE2000(
+			centerL,
+			centerA,
+			centerB,
+			labData[offset],
+			labData[offset + 1],
+			labData[offset + 2]
+		);
 	}
 
 	const mid = (count - 1) >>> 1;
@@ -78,15 +89,28 @@ function buildVpTree(points, indices, start, end, iBuf, dBuf) {
 	return {
 		index: pivotIndex,
 		radius,
-		inner: buildVpTree(points, indices, start + 1, iPtr, iBuf, dBuf),
-		outer: buildVpTree(points, indices, iPtr, end, iBuf, dBuf),
+		inner: buildVpTree(labData, indices, start + 1, iPtr, iBuf, dBuf),
+		outer: buildVpTree(labData, indices, iPtr, end, iBuf, dBuf),
 	};
 }
 
-function vpNearest(node, points, target, best = { distance: Infinity, index: -1 }) {
+function vpNearest(
+	node,
+	labData,
+	target,
+	best = { distance: Infinity, index: -1 }
+) {
 	if (node === null) return best;
 
-	const dVp = deltaE00(target, points[node.index]);
+	const offset = node.index * 3;
+	const dVp = CIEDE2000(
+		target.L,
+		target.a,
+		target.b,
+		labData[offset],
+		labData[offset + 1],
+		labData[offset + 2]
+	);
 	if (dVp < best.distance) {
 		best.distance = dVp;
 		best.index = node.index;
@@ -101,9 +125,9 @@ function vpNearest(node, points, target, best = { distance: Infinity, index: -1 
 		farther = node.inner;
 	}
 
-	best = vpNearest(nearer, points, target, best);
+	best = vpNearest(nearer, labData, target, best);
 	if (Math.abs(dVp - node.radius) <= best.distance)
-		best = vpNearest(farther, points, target, best);
+		best = vpNearest(farther, labData, target, best);
 
 	return best;
 }
