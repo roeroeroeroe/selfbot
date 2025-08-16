@@ -176,6 +176,7 @@ export function getMaxMessageLength(login, reply, mention, action) {
 	return max;
 }
 
+const defaultCanRetry = err => err.retryable === true;
 export async function retry(
 	fn,
 	{
@@ -185,19 +186,18 @@ export async function retry(
 		requestsCounter,
 		retriesCounter,
 		logLabel = '',
-		canRetry = err => err.retryable === true,
+		canRetry = defaultCanRetry,
 	} = {}
 ) {
 	const logPrefix = logLabel ? `[${logLabel}] ` : '';
 
-	let lastError;
 	for (let i = 0; i <= maxRetries; i++) {
 		const attempt = i + 1;
 		if (i) {
-			const backoff = baseDelay * 2 ** (i - 1) * (1 + Math.random() * jitter);
-			logger.debug(
-				`${logPrefix}retry ${i}, backing off ${Math.round(backoff)}ms`
-			);
+			const exp = 2 ** (i - 1);
+			const jitterFactor = 1 + Math.random() * jitter;
+			const backoff = Math.round(baseDelay * exp * jitterFactor);
+			logger.debug(`${logPrefix}retry ${i}, backing off ${backoff}ms`);
 			await sleep(backoff);
 			if (retriesCounter) metrics.counter.increment(retriesCounter);
 		}
@@ -209,10 +209,9 @@ export async function retry(
 			logger.debug(`${logPrefix}succeeded on attempt ${attempt}`);
 			return result;
 		} catch (err) {
-			lastError = err;
 			if (i === maxRetries || !canRetry(err)) {
 				logger.warning(`${logPrefix}giving up after ${attempt} attempts`);
-				throw lastError;
+				throw err;
 			}
 			logger.warning(`${logPrefix}error on attempt ${attempt}:`, err);
 		}

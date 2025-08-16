@@ -47,7 +47,7 @@ for c in pycountry.countries:
 out = {{k: data[k] for k in sorted(data.keys())}}
 
 with open(OUT_FILE, "w", encoding="utf-8") as f:
-	json.dump(out, f, ensure_ascii=False, separators=(',', ':'))
+	json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
 """
 
 with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as tmp:

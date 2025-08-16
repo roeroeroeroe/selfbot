@@ -45,13 +45,13 @@ import cooldown from './services/cooldown.js';
 		logger.info(`[INIT] loaded ${c} ${utils.format.plural(c, 'custom command')}`);
 
 		await twitch.chat.connect();
+		const t7 = performance.now();
 		shutdown.register(twitch.cleanup);
 		shutdown.register(db.cleanup);
 		shutdown.register(cache.cleanup);
 		shutdown.register(metrics.cleanup);
 		shutdown.register(cooldown.cleanup);
 		shutdown.register(logger.cleanup);
-		const t7 = performance.now();
 		logger.info(`[INIT] finished in ${(t7 - t0).toFixed(3)}ms`,
 		            `(config: ${(t1 - t0).toFixed(3)}ms,`,
 		            `env: ${(t2 - t1).toFixed(3)}ms,`,

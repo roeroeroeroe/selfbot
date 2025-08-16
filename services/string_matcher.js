@@ -1,9 +1,6 @@
 import logger from './logger.js';
 // prettier-ignore
 export default class StringMatcher {
-	static #MAX_UINT8  = 0xff;
-	static #MAX_UINT16 = 0xffff;
-
 	static #DEFAULT_LENGTH_TOLERANCE    = 2;
 	static #DEFAULT_CANDIDATE_FACTOR    = 0.1;
 	static #DEFAULT_EARLY_EXIT_DISTANCE = 1;
@@ -106,11 +103,16 @@ export default class StringMatcher {
 			write, Math.max(StringMatcher.#MIN_CANDIDATES, maxCandidateCount)
 		);
 
-		maxQueryLength ??=
-			maxLength +
-				(lengthTolerance !== Number.POSITIVE_INFINITY
-					? lengthTolerance
-					: StringMatcher.#DEFAULT_LENGTH_TOLERANCE);
+		if (maxQueryLength === undefined) {
+			if (lengthTolerance === Number.POSITIVE_INFINITY) {
+				maxQueryLength =
+					maxLength + StringMatcher.#DEFAULT_LENGTH_TOLERANCE;
+				logger.warning('[StringMatcher] lengthTolerance=Infinity,',
+				               'but maxQueryLength was not provided;',
+				               `setting maxQueryLength to ${maxQueryLength}`);
+			} else
+				maxQueryLength = maxLength + lengthTolerance;
+		}
 
 		this.#caseSensitive     = caseSensitive;
 		this.#lengthTolerance   = lengthTolerance;
@@ -120,9 +122,9 @@ export default class StringMatcher {
 
 		const maxDistance = Math.max(maxQueryLength, maxLength);
 		let DpArray;
-		if (maxDistance <= StringMatcher.#MAX_UINT8)
+		if (maxDistance <= 0xff)
 			DpArray = Uint8Array;
-		else if (maxDistance <= StringMatcher.#MAX_UINT16)
+		else if (maxDistance <= 0xffff)
 			DpArray = Uint16Array;
 		else
 			DpArray = Uint32Array;

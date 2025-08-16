@@ -1,9 +1,8 @@
 import colors from '../../data/color_names.json' with { type: 'json' };
 import * as constants from './constants.js';
+import VPTree from './vp_tree.js';
 import CIEDE2000 from './ciede2000.js';
-import vpTree from './vp_tree.js';
 import models from './models/index.js';
-import logger from '../logger.js';
 
 /** @typedef {string} Hex A lowercase 6-digit hex string */
 
@@ -45,24 +44,14 @@ import logger from '../logger.js';
  */
 
 const N = colors.length;
-const bufLen = Math.max(0, N - 1);
-
-let IndexArray;
-if (N <= 0xff) IndexArray = Uint8Array;
-else if (N <= 0xffff) IndexArray = Uint16Array;
-else IndexArray = Uint32Array;
 
 const labData = new Float64Array(N * 3);
 const names = new Array(N);
-const indices = new IndexArray(N);
 const hexToIndex = new Map();
 
-for (let i = 0; i < N; indices[i] = i++) {
+for (let i = 0; i < N; i++) {
 	const c = colors[i];
-	const { L, a, b } = models.rgb.toLab(
-		models.hex.toRgb(c.hex, true, true),
-		true
-	);
+	const { L, a, b } = models.hex.toLab(c.hex, true, true);
 	const offset = i * 3;
 	labData[offset] = L;
 	labData[offset + 1] = a;
@@ -71,20 +60,7 @@ for (let i = 0; i < N; indices[i] = i++) {
 	hexToIndex.set(c.hex, i);
 }
 
-const t0 = performance.now();
-const tree = vpTree.build(
-	labData,
-	indices,
-	0,
-	N,
-	new IndexArray(bufLen),
-	new Float64Array(bufLen)
-);
-const t1 = performance.now();
-logger.debug(
-	`[COLOR] built VP tree in ${(t1 - t0).toFixed(3)}ms`,
-	`(${indices.length} indices)`
-);
+const tree = new VPTree(labData);
 
 /**
  * @param {Hex | RGB | HSL | XYZ | Lab} colorInput
@@ -137,11 +113,7 @@ function getColor(colorInput) {
 			distance: 0,
 		};
 	} else {
-		const { index: nearestIndex, distance } = vpTree.nearest(
-			tree,
-			labData,
-			color.Lab
-		);
+		const { index: nearestIndex, distance } = tree.nearest(color.Lab);
 		const offset = nearestIndex * 3;
 		color.nearest = {
 			L: labData[offset],

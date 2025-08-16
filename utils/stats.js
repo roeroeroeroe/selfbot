@@ -46,21 +46,21 @@ function getRange(arr, accessor = identity) {
 
 function getPopulationVariance(arr, accessor = identity) {
 	if (!isValidArray(arr)) return null;
-	let mean = accessor(arr[0]),
-		M2 = 0;
-	for (let i = 1; i < arr.length; i++) {
-		const v = accessor(arr[i]);
-		const delta = v - mean;
-		mean += delta / (i + 1);
-		M2 += delta * (v - mean);
+	const mean = getMean(arr, accessor);
+
+	let sumSq = 0;
+	for (let i = 0; i < arr.length; i++) {
+		const diff = accessor(arr[i]) - mean;
+		sumSq += diff ** 2;
 	}
-	return M2 / arr.length;
+
+	return sumSq / arr.length;
 }
 
 function getSampleVariance(arr, accessor = identity) {
 	if (!isValidArray(arr) || arr.length < 2) return null;
-	const variance = getPopulationVariance(arr, accessor);
-	return variance === null ? null : variance * (arr.length / (arr.length - 1));
+	const N = arr.length;
+	return getPopulationVariance(arr, accessor) * (N / (N - 1));
 }
 
 function getPopulationStdDev(arr, accessor = identity) {
@@ -136,7 +136,8 @@ function getMode(arr, accessor = identity) {
 		half = arr.length >>> 1;
 	let mode = accessor(arr[0]),
 		maxCount = 1;
-	for (let i = 0; i < arr.length; i++) {
+	freq.set(mode, 1);
+	for (let i = 1; i < arr.length; i++) {
 		const v = accessor(arr[i]);
 		const c = (freq.get(v) || 0) + 1;
 		freq.set(v, c);

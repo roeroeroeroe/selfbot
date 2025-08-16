@@ -103,7 +103,7 @@ if not data:
 	raise SystemExit(1)
 
 with open(OUT_FILE, "w", encoding="utf-8") as f:
-	json.dump(data, f, ensure_ascii=False, separators=(',', ':'))
+	json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
 
 shutil.rmtree(nltk_temp_dir, ignore_errors=True)
 """
