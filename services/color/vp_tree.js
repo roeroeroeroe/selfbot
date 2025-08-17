@@ -12,14 +12,13 @@ export default class VPTree {
 		const N = labData.length / 3;
 
 		let IndexArray;
-		if (N <= 0xff) IndexArray = Uint8Array;
-		else if (N <= 0xffff) IndexArray = Uint16Array;
+		if (N - 1 <= 0xff) IndexArray = Uint8Array;
+		else if (N - 1 <= 0xffff) IndexArray = Uint16Array;
 		else IndexArray = Uint32Array;
 
-		// IDs 0..N-1, hence <= 128/32768
 		let IdArray;
-		if (N <= 128) IdArray = Int8Array;
-		else if (N <= 32768) IdArray = Int16Array;
+		if (N - 1 <= 127) IdArray = Int8Array;
+		else if (N - 1 <= 32767) IdArray = Int16Array;
 		else IdArray = Int32Array;
 
 		this.#labData = labData;
@@ -80,9 +79,9 @@ export default class VPTree {
 				if (dBuf[i] <= radius) indices[iPtr++] = iBuf[i];
 				else indices[oPtr--] = iBuf[i];
 
-			const childrenOffset = nodeId * 2;
-			this.#childIds[childrenOffset] = build(start + 1, iPtr);
-			this.#childIds[childrenOffset + 1] = build(iPtr, end);
+			const childOffset = nodeId * 2;
+			this.#childIds[childOffset] = build(start + 1, iPtr);
+			this.#childIds[childOffset + 1] = build(iPtr, end);
 
 			return nodeId;
 		};
@@ -166,8 +165,8 @@ export default class VPTree {
 		);
 
 		if (distance < best.distance) {
-			best.distance = distance;
 			best.index = pivotIndex;
+			best.distance = distance;
 		}
 
 		const childOffset = nodeId * 2;

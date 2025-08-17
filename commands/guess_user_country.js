@@ -334,7 +334,20 @@ function langToCountryCode(langTag) {
 function skuToCountryCode(sku) {
 	if (!sku)
 		return null;
-	const parts = sku.split(/[-_]/);
+	// the SKU format we're parsing:
+	// chansub_t1_1month_US_2024_07 -> "US"
+	// chansub_t1_1month_id_2021_07 -> "ID"
+	// chansub_t1_3month_us_2024_07 -> "US"
+	// n.b. other formats observed:
+	// numeric, e.g., 10120035
+	// chansub-23301
+	// chansub-tier-{2,3}-{3,6}months
+	// chansub-tier-{2,3}-v2
+	// chansub-tier-3 # tier-2 likely exists
+	// tv.twitch.android.iap.subscription.group[1..11].tier1 # tier{2,3} likely exist
+	// tv.twitch.android.iap.subscription.group[1..11].tier1.{3,6}month # ditto
+	// tv.twitch.ios.iap.subscription
+	const parts = sku.split('_');
 	for (let i = parts.length - 1, p; i >= 0; i--)
 		if (/^[A-Z]{2}$/.test((p = parts[i].toUpperCase())) &&
 		    VALID_COUNTRY_CODES.has(p))
