@@ -73,7 +73,7 @@ async function preHandle(msg, command) {
 	if (msg.commandFlags.fromPaste)
 		try {
 			const content = await paste.get(msg.commandFlags.fromPaste);
-			for (const arg of utils.tokenizeArgs(content)) msg.args.push(arg);
+			utils.tokenize(content, msg.args);
 		} catch (err) {
 			logger.error('error getting paste:', err);
 			return { text: `error getting paste: ${err.message}`, mention: true };

@@ -26,6 +26,7 @@ const validators = {
 	'messages.responsePartsSeparator': assert.nonEmptyString,
 	'messages.logByDefault': assert.bool,
 	'twitch.sender.backend': v => assert.stringOneOf(v, ['irc', 'gql']),
+	'twitch.sender.clientNoncePlatform': v => assert.stringOneOf(v, ['web', 'android', 'ios']),
 	'twitch.irc.socket': v => assert.stringOneOf(v, ['tcp', 'websocket']),
 	'twitch.irc.maxChannelCountPerConnection': assert.nonNegativeInt,
 	'twitch.irc.connectionsPoolSize': v => {

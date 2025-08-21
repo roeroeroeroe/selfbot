@@ -138,12 +138,19 @@ export default {
 			if (count) responseParts.push(`tier ${tiers[t]}: ${count}`);
 		}
 
-		if (printEmotes && emoteTokens.length)
-			for (const message of utils.splitString(
-				emoteTokens.join(' '),
-				twitch.MAX_MESSAGE_LENGTH - 1
-			))
-				msg.send(message);
+		if (printEmotes && emoteTokens.length) {
+			const maxLen = twitch.MAX_MESSAGE_LENGTH;
+			let message = emoteTokens[0];
+			for (let i = 1; i < emoteTokens.length; i++) {
+				const t = emoteTokens[i];
+				if (message.length + 1 + t.length <= maxLen) message += ` ${t}`;
+				else {
+					msg.send(message);
+					message = t;
+				}
+			}
+			if (message) msg.send(message);
+		}
 
 		if (verbose)
 			try {

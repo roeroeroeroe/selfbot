@@ -1,5 +1,4 @@
 import 'dotenv/config';
-import config from './config.json' with { type: 'json' };
 import configuration from './services/configuration/index.js';
 import twitch from './services/twitch/index.js';
 import metrics from './services/metrics/index.js';
@@ -14,52 +13,54 @@ import cooldown from './services/cooldown.js';
 // prettier-ignore
 (async () => {
 	try {
-		const t0 = performance.now();
-		logger.debug('[INIT] validating config:', config);
+		const timings = {};
+		function mark(step) { timings[step] = performance.now(); }
+		mark('start');
+
 		configuration.config.validate();
-		const t1 = performance.now();
+		mark('config');
 
-		logger.debug('[INIT] validating environment variables...');
 		await configuration.env.validate();
-		const t2 = performance.now();
+		mark('env');
 
-		logger.debug('[INIT] initializing metrics');
 		metrics.init();
-		const t3 = performance.now();
+		mark('metrics');
 
-		logger.debug('[INIT] initializing db');
 		await db.init();
-		const t4 = performance.now();
+		mark('db');
 
-		logger.debug('[INIT] initializing hermes');
 		twitch.hermes.init();
+		mark('hermes');
 
-		logger.debug('[INIT] loading commands');
 		let c = await commands.load();
-		const t5 = performance.now();
+		mark('commands');
 		logger.info(`[INIT] loaded ${c} ${utils.format.plural(c, 'command')}`);
 
-		logger.debug('[INIT] loading custom commands');
 		c = await customCommands.load();
-		const t6 = performance.now();
+		mark('custom commands');
 		logger.info(`[INIT] loaded ${c} ${utils.format.plural(c, 'custom command')}`);
 
 		await twitch.chat.connect();
-		const t7 = performance.now();
+		mark('chat');
+
 		shutdown.register(twitch.cleanup);
 		shutdown.register(db.cleanup);
 		shutdown.register(cache.cleanup);
 		shutdown.register(metrics.cleanup);
 		shutdown.register(cooldown.cleanup);
 		shutdown.register(logger.cleanup);
-		logger.info(`[INIT] finished in ${(t7 - t0).toFixed(3)}ms`,
-		            `(config: ${(t1 - t0).toFixed(3)}ms,`,
-		            `env: ${(t2 - t1).toFixed(3)}ms,`,
-		            `metrics: ${(t3 - t2).toFixed(3)}ms,`,
-		            `db: ${(t4 - t3).toFixed(3)}ms,`,
-		            `commands: ${(t5 - t4).toFixed(3)}ms,`,
-		            `custom commands: ${(t6 - t5).toFixed(3)}ms,`,
-		            `chat: ${(t7 - t6).toFixed(3)}ms)`);
+		mark('shutdown');
+
+		const steps = Object.keys(timings);
+		const total = timings[steps[steps.length - 1]] - timings.start;
+		const formattedTimings = [];
+		for (let i = 1; i < steps.length; i++) {
+			const step = steps[i];
+			const delta = timings[step] - timings[steps[i - 1]];
+			formattedTimings.push(`${step}: ${delta.toFixed(3)}ms`);
+		}
+		logger.info(`[INIT] finished in ${total.toFixed(3)}ms`,
+		            `(${formattedTimings.join(', ')})`);
 	} catch (err) {
 		logger.fatal('init error:', err);
 	}

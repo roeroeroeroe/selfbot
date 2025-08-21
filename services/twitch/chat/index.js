@@ -1,19 +1,35 @@
+import { randomUUID } from 'crypto';
 import {
 	ChatClient,
 	ConnectionPool,
 	ReconnectError,
 } from '@mastondzn/dank-twitch-irc';
+import config from '../../../config.json' with { type: 'json' };
 import ChatService from './chat_service.js';
 import * as constants from './constants.js';
 import initTMI from '../tmi.js';
 import createIrcSender from './irc_sender.js';
 import createGqlSender from './gql_sender.js';
-import config from '../../../config.json' with { type: 'json' };
 import logger from '../../logger.js';
 import utils from '../../../utils/index.js';
 
-// base16 32char string - emulate webchat
-const BOT_NONCE = utils.randomString('0123456789abcdef', 32);
+let BOT_NONCE;
+switch (config.twitch.sender.clientNoncePlatform) {
+	case 'web':
+		BOT_NONCE = utils.randomString(utils.BASE16_CHARSET, 32);
+		break;
+	case 'android':
+		BOT_NONCE = randomUUID();
+		break;
+	case 'ios':
+		BOT_NONCE = randomUUID().toUpperCase();
+		break;
+	default:
+		throw new Error(
+			'unknown client nonce platform: ' +
+				config.twitch.sender.clientNoncePlatform
+		);
+}
 
 let backend;
 switch (config.twitch.sender.backend) {

@@ -36,7 +36,8 @@ vi config.json
   },
   "twitch": {
     "sender": {
-      "backend": "irc"                  // "irc" | "gql"
+      "backend": "irc",                 // "irc" | "gql"
+      "clientNoncePlatform": "web"      // "web" | "android" | "ios"
     },
     "irc": {
       "socket": "websocket",            // "tcp" | "websocket"

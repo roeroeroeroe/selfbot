@@ -7,7 +7,6 @@ import metrics from '../metrics/index.js';
 import handle from './message_handler.js';
 
 export default function init(chatService) {
-	logger.debug('[TMI] initializing...');
 	const tmi = new ChatClient({
 		connection: { type: config.twitch.irc.socket, secure: true },
 		maxChannelCountPerConnection:

@@ -200,11 +200,10 @@ function sendResult(msg, result) {
 
 function buildArgs(msg, force = false) {
 	if (msg.args && !force) return;
-	msg.args = utils.tokenizeArgs(msg.messageText);
+	msg.args = utils.tokenize(msg.messageText);
 	const parent = msg.ircTags['reply-parent-msg-body'];
 	if (parent) {
 		msg.args.shift();
-		const parentArgs = utils.tokenizeArgs(parent);
-		for (let i = 0; i < parentArgs.length; msg.args.push(parentArgs[i++]));
+		utils.tokenize(parent, msg.args);
 	}
 }

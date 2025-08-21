@@ -17,7 +17,8 @@
 	},
 	"twitch": {
 		"sender": {
-			"backend": "irc"
+			"backend": "irc",
+			"clientNoncePlatform": "web"
 		},
 		"irc": {
 			"socket": "websocket",

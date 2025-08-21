@@ -30,91 +30,82 @@ export function withTimeout(promise, ms) {
 /**
  * - Whitespace characters (`' '`, `\t`, `\n`) outside of quotes split arguments.
  * - Matching single or double quotes group enclosed content as a single argument.
+ * - Empty quotes produce an empty string if surrounded by whitespace
+ *   boundaries (e.g., `a "" b` -> `['a', '', 'b']`).
+ *   Empty quotes adjacent to a non-whitespace character on one side are ignored
+ *   and do not produce a token (e.g., `a ""b` -> `['a', 'b']`).
  * - Backslash outside quotes is treated as a literal character.
- * - Inside quotes, a backslash can escape the matching quote (e.g., `\'` or `\"`).
- * - Quotes surrounded by non-whitespace characters on both sides are treated
- *   as literal characters.
+ *   Backslash inside quotes can escape the matching quote
+ *   (e.g., `"a\\"b"` -> `['a"b']`).
+ * - Quotes surrounded by non-whitespace characters on both sides are treated as
+ *   literal characters (e.g., `a"b"c` -> `['a"b"c']`, `a""b` -> `['a""b']`).
  * - Unmatched quotes are treated as literal characters.
  */
-export function tokenizeArgs(str) {
-	const args = [];
-	let current = '', inSingle = false, inDouble = false, wasQuoted = false;
-
-	for (let i = 0; i < str.length; i++) {
-		const c = str[i];
-		if (c === '\\') {
-			const next = str[i + 1];
-			if ((inSingle && next === "'") ||
-			    (inDouble && next === '"')) {
-				current += next;
-				i++;
-			} else
-				current += '\\';
-			continue;
-		}
-		if (c === "'" && !inDouble) {
-			if (inSingle) {
-				inSingle = !(wasQuoted = true);
-				continue;
-			}
-			let matchIndex = -1;
-			for (let j = i + 1; j < str.length; j++)
-				if (str[j] === "'" && str[j - 1] !== '\\') {
-					matchIndex = j;
-					break;
-				}
-			if (matchIndex !== -1) {
-				const lc = str[i - 1], rc = str[matchIndex + 1];
-				if (lc && rc && lc !== ' ' && lc !== '\n' &&
-				    lc !== '\t' && rc !== ' ' && rc !== '\n' &&
-				    rc !== '\t') {
-					current += "'";
-					continue;
-				}
-				inSingle = wasQuoted = true;
-				continue;
-			}
-			current += "'";
-			continue;
-		}
-		if (c === '"' && !inSingle) {
-			if (inDouble) {
-				inDouble = !(wasQuoted = true);
-				continue;
-			}
-			let matchIndex = -1;
-			for (let j = i + 1; j < str.length; j++)
-				if (str[j] === '"' && str[j - 1] !== '\\') {
-					matchIndex = j;
-					break;
-				}
-			if (matchIndex !== -1) {
-				const lc = str[i - 1], rc = str[matchIndex + 1];
-				if (lc && rc && lc !== ' ' && lc !== '\n' &&
-				    lc !== '\t' && rc !== ' ' && rc !== '\n' &&
-				    rc !== '\t') {
-					current += '"';
-					continue;
-				}
-				inDouble = wasQuoted = true;
-				continue;
-			}
-			current += '"';
-			continue;
-		}
-		if (!inSingle && !inDouble &&
-		    (c === ' ' || c === '\n' || c === '\t')) {
-			if (wasQuoted || current)
-				args.push(current);
-			current = '';
-			wasQuoted = false;
-			continue;
-		}
-		current += c;
+export function tokenize(str, out = []) {
+	if (!Array.isArray(out)) {
+		logger.warning('tokenize: out must be an array');
+		out = [];
 	}
-	if (wasQuoted || current)
-		args.push(current);
-	return args;
+	if (!str)
+		return out;
+	const N = str.length;
+	let token = '';
+
+	for (let i = 0; i < N; i++) {
+		const c = str[i];
+		if (c === "'" || c === '"') {
+			let closingAt = i + 1;
+			for (; closingAt < N; closingAt++)
+				if (str[closingAt] === c && str[closingAt - 1] !== '\\')
+					break;
+			if (closingAt === N) {
+				token += c;
+				continue;
+			}
+
+			const lc = str[i - 1],
+				rc = str[closingAt + 1],
+				isLeftBoundary = !lc || lc === ' ' || lc === '\n' || lc === '\t',
+				isRightBoundary = !rc || rc === ' ' || rc === '\n' || rc === '\t';
+			if (!isLeftBoundary && !isRightBoundary) {
+				token += c;
+				continue;
+			}
+
+			if (closingAt === i + 1) {
+				if (isLeftBoundary && isRightBoundary && !token)
+					out.push('');
+				i = closingAt;
+				continue;
+			}
+
+			for (let innerIndex = i + 1; innerIndex < closingAt; ) {
+				const ic = str[innerIndex];
+				if (ic === '\\' && str[innerIndex + 1] === c) {
+					token += c;
+					innerIndex += 2;
+				} else {
+					token += ic;
+					innerIndex++;
+				}
+			}
+
+			i = closingAt;
+			continue;
+		}
+		if (c === ' ' || c === '\n' || c === '\t') {
+			if (token) {
+				out.push(token);
+				token = '';
+			}
+			continue;
+		}
+		token += c;
+	}
+	if (token)
+		out.push(token);
+
+	return out;
 }
 
 export function splitArray(arr, len) {
@@ -125,23 +116,6 @@ export function splitArray(arr, len) {
 		i < arr.length;
 		chunks[chunkIndex++] = arr.slice(i, (i += len))
 	);
-
-	return chunks;
-}
-
-export function splitString(str, len) {
-	if (!str) return [''];
-	if (str.length <= len) return [str];
-	const words = str.split(' ');
-	const chunks = [];
-	for (
-		let startI = 0, endI = 0, cLen = words[0].length;
-		endI < words.length;
-		chunks.push(words.slice(startI, endI).join(' ')),
-			startI = endI,
-			cLen = words[endI]?.length ?? 0
-	)
-		for (; ++endI < words.length && (cLen += 1 + words[endI].length) <= len; );
 
 	return chunks;
 }
