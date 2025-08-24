@@ -79,13 +79,7 @@ function parse(str, defaultUnit = 'millisecond') {
 
 function format(
 	ms,
-	{
-		maxParts = 3,
-		separator = ', ',
-		lastSeparator = ', and ',
-		shortForm = true,
-		smallest = 'second',
-	} = {}
+	{ maxParts = 3, shortForm = true, smallest = 'second' } = {}
 ) {
 	if (typeof ms !== 'number' || !Number.isFinite(ms) || ms < 0) return null;
 
@@ -111,9 +105,11 @@ function format(
 			return shortForm ? `0${UNIT_ALIASES[end][0]}` : `0 ${UNIT_PLURALS[end]}`;
 		case 1:
 			return parts[0];
+		case 2:
+			return `${parts[0]} and ${parts[1]}`;
 		default:
 			const last = parts.pop();
-			return parts.join(separator) + lastSeparator + last;
+			return `${parts.join(', ')}, and ${last}`;
 	}
 }
 
