@@ -1,6 +1,8 @@
 import logger from '../services/logger.js';
 import twitch from '../services/twitch/index.js';
 
+const identity = x => x;
+
 export default {
 	name: 'say',
 	aliases: [],
@@ -8,7 +10,8 @@ export default {
 	unsafe: false,
 	lock: 'NONE',
 	exclusiveFlagGroups: [
-		['fill', 'repeat'],
+		['split', 'fill', 'repeat'],
+		['split', 'count'],
 		['upper', 'lower'],
 	],
 	flags: [
@@ -78,6 +81,24 @@ export default {
 			description: 'convert to lowercase',
 		},
 		{
+			name: 'split',
+			short: 's',
+			long: 'split',
+			type: 'boolean',
+			required: false,
+			defaultValue: false,
+			description: 'send one argument per message',
+		},
+		{
+			name: 'action',
+			short: 'a',
+			long: 'action',
+			type: 'boolean',
+			required: false,
+			defaultValue: false,
+			description: 'send an ACTION message (/me)',
+		},
+		{
 			name: 'force',
 			short: null,
 			long: 'force',
@@ -108,7 +129,10 @@ export default {
 			privileged = msg.query.privileged;
 		}
 
-		if (!msg.commandFlags.force) {
+		const { count, fill, repeat, reverse, upper, lower, split, action, force } =
+			msg.commandFlags;
+
+		if (!force) {
 			const { allowed, slowMode, error, strikeStatus } =
 				await twitch.gql.chat.canSend(channel.id, channel.login, privileged);
 			if (!allowed) return { text: error, mention: true };
@@ -132,38 +156,50 @@ export default {
 			twitch.chat.setSlowModeDuration(channel.id, slowMode);
 		}
 
-		const phrase = msg.args.join(' ');
-		let text;
-		if (msg.commandFlags.fill) text = fill(phrase);
-		else if (msg.commandFlags.repeat)
-			text = repeat(phrase, msg.commandFlags.repeat);
-		if (msg.commandFlags.upper) text = text.toUpperCase();
-		else if (msg.commandFlags.lower) text = text.toLowerCase();
-		if (msg.commandFlags.reverse) text = text.split('').reverse().join('');
+		const transformers = [];
+		if (!split) {
+			if (fill) transformers.push(s => Array(maxRepeats(s)).fill(s).join(' '));
+			else if (repeat)
+				transformers.push(s =>
+					Array(Math.min(repeat, maxRepeats(s)))
+						.fill(s)
+						.join(' ')
+				);
+		}
+		if (upper) transformers.push(s => s.toUpperCase());
+		else if (lower) transformers.push(s => s.toLowerCase());
+		if (reverse) transformers.push(s => s.split('').reverse().join(''));
 
-		for (let i = 0; i < msg.commandFlags.count; i++)
+		let transform;
+		if (transformers.length)
+			transform = s => {
+				if (!s) return s;
+				for (let i = 0; i < transformers.length; i++) s = transformers[i](s);
+				return s;
+			};
+		else transform = identity;
+
+		const send = text =>
 			twitch.chat.send(
 				channel.id,
 				channel.login,
 				undefined, // userLogin
-				text || phrase,
+				text,
 				false, // mention
 				privileged,
-				'' // parentId
+				'', // parentId
+				action
 			);
+
+		if (split)
+			for (let i = 0; i < msg.args.length; i++) send(transform(msg.args[i]));
+		else {
+			const message = transform(msg.args.join(' '));
+			for (let i = 0; i < count; i++) send(message);
+		}
 	},
 };
 
-function maxRepeats(phrase) {
-	return ((twitch.MAX_MESSAGE_LENGTH + 1) / (phrase.length + 1)) | 0;
-}
-
-function fill(phrase) {
-	return Array(maxRepeats(phrase)).fill(phrase).join(' ');
-}
-
-function repeat(phrase, times) {
-	return Array(Math.min(times, maxRepeats(phrase)))
-		.fill(phrase)
-		.join(' ');
+function maxRepeats(str) {
+	return ((twitch.MAX_MESSAGE_LENGTH + 1) / (str.length + 1)) | 0;
 }

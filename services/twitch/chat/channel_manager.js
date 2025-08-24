@@ -10,6 +10,7 @@ export default class ChannelManager {
 	#joinControllers = new Map();
 	#loadInterval;
 	#joinedChannelsCache = { channels: null, expiresAt: 0 };
+
 	constructor(anonClient) {
 		this.anon = anonClient;
 		this.joinQueue = new AsyncQueue(job => this.#joinWorker(job));
@@ -36,30 +37,33 @@ export default class ChannelManager {
 			logger.debug(`[ChannelManager] load: db: ${channels.length} in`,
 			             `${(t1 - t0).toFixed(3)}ms, twitch: ${usersMap.size}`,
 			             `in ${(t2 - t1).toFixed(3)}ms`);
-			for (let i = 0, c, u; i < channels.length; i++) {
-				if (!(u = usersMap.get((c = channels[i]).id))) {
-					if (!c.suspended) {
-						await db.channel.update(c.id, 'suspended', true);
+			for (let i = 0; i < channels.length; i++) {
+				const channel = channels[i];
+				const user = usersMap.get(channel.id);
+				if (!user) {
+					if (!channel.suspended) {
+						await db.channel.update(channel.id, 'suspended', true);
 						logger.info('[ChannelManager] channel suspended:',
-						            c.login);
+						            channel.login);
 					}
 					continue;
 				}
-				if (c.suspended) {
-					await db.channel.update(c.id, 'suspended', false);
+				if (channel.suspended) {
+					await db.channel.update(channel.id, 'suspended', false);
 					logger.info('[ChannelManager] channel unsuspended:',
-					            c.login);
+					            channel.login);
 				}
-				if (c.login !== u.login) {
-					await db.channel.update(c.id, 'login', u.login);
-					logger.info(`[ChannelManager] name change: ${c.login}`,
-					            `-> ${u.login}`);
+				if (channel.login !== user.login) {
+					await db.channel.update(channel.id, 'login', user.login);
+					logger.info(`[ChannelManager] name change: ${channel.login}`,
+					            `-> ${user.login}`);
 				}
-				if (c.display_name !== u.display_name)
-					await db.channel.update(c.id, 'display_name', u.display_name);
+				if (channel.display_name !== user.display_name)
+					await db.channel.update(channel.id, 'display_name',
+					                        user.display_name);
 
-				twitch.hermes.subscribeToChannel(c.id);
-				this.join(u.login);
+				twitch.hermes.subscribeToChannel(channel.id);
+				this.join(user.login);
 			}
 		} catch (err) {
 			logger.error('error loading channels:', err);
@@ -145,6 +149,8 @@ export default class ChannelManager {
 		clearInterval(this.#loadInterval);
 	}
 
+	// we cache to avoid repeatedly calling the library's getter, which creates
+	// a union of all connections' `joinedChannels`
 	get joinedChannels() {
 		const now = performance.now();
 		if (now < this.#joinedChannelsCache.expiresAt)

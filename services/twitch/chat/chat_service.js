@@ -56,6 +56,10 @@ export default class ChatService {
 		if (!channelId) throw new Error('missing channelId');
 		if (!channelLogin) throw new Error('missing channelLogin');
 		if (typeof text !== 'string') text = String(text);
+		if (!(text = text.trim())) {
+			logger.warning(`[CHAT] send: empty message (channelId=${channelId})`);
+			return;
+		}
 		if (parentId && !userLogin) parentId = '';
 
 		const maxLength = utils.getMaxMessageLength(
@@ -130,8 +134,13 @@ export default class ChatService {
 		state.lastSend = now;
 		metrics.counter.increment(metrics.names.counters.TMI_MESSAGES_TX);
 		logger.debug(`[CHAT] sending: #${channelLogin} ${text}`);
-		// prettier-ignore
-		await this.sender.send(channelId, channelLogin, text, this.botNonce, parentId);
+		await this.sender.send(
+			channelId,
+			channelLogin,
+			text,
+			this.botNonce,
+			parentId
+		);
 	}
 
 	// prettier-ignore

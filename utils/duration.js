@@ -1,3 +1,4 @@
+import logger from '../services/logger.js';
 import utils from './index.js';
 // prettier-ignore
 const UNIT_NAMES = [
@@ -45,10 +46,17 @@ const durationPattern = new RegExp(
 	'g'
 );
 
-function parse(str) {
+function parse(str, defaultUnit = 'millisecond') {
 	if (typeof str !== 'string' || !(str = str.trim().toLowerCase())) return null;
 
-	if (numberPattern.test(str)) return Math.round(parseFloat(str));
+	if (numberPattern.test(str)) {
+		const unitMs = aliasToMs.get(defaultUnit);
+		if (!unitMs) {
+			logger.warning('parse: invalid defaultUnit:', defaultUnit);
+			return Math.round(parseFloat(str));
+		}
+		return Math.round(parseFloat(str) * unitMs);
+	}
 	let total = 0,
 		match;
 
@@ -74,7 +82,7 @@ function format(
 	{
 		maxParts = 3,
 		separator = ', ',
-		lastSeparator = ' and ',
+		lastSeparator = ', and ',
 		shortForm = true,
 		smallest = 'second',
 	} = {}

@@ -49,15 +49,32 @@ export function tokenize(str, out = []) {
 	if (!str)
 		return out;
 	const N = str.length;
-	let token = '';
 
+	let IndexArray;
+	if (N <= 0xff) IndexArray = Uint8Array;
+	else if (N <= 0xffff) IndexArray = Uint16Array;
+	else IndexArray = Uint32Array;
+
+	const nextSingle = new IndexArray(N + 1).fill(N);
+	const nextDouble = new IndexArray(N + 1).fill(N);
+	for (let i = N - 1; i >= 0; i--) {
+		nextSingle[i] = nextSingle[i + 1];
+		nextDouble[i] = nextDouble[i + 1];
+		const c = str[i];
+		if (c === "'") {
+			if (str[i - 1] !== '\\')
+				nextSingle[i] = i;
+		} else if (c === '"') {
+			if (str[i - 1] !== '\\')
+				nextDouble[i] = i;
+		}
+	}
+
+	let token = '';
 	for (let i = 0; i < N; i++) {
 		const c = str[i];
 		if (c === "'" || c === '"') {
-			let closingAt = i + 1;
-			for (; closingAt < N; closingAt++)
-				if (str[closingAt] === c && str[closingAt - 1] !== '\\')
-					break;
+			const closingAt = (c === "'" ? nextSingle : nextDouble)[i + 1];
 			if (closingAt === N) {
 				token += c;
 				continue;

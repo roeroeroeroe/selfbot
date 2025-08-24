@@ -31,6 +31,10 @@ switch (config.twitch.sender.clientNoncePlatform) {
 		);
 }
 
+logger.debug(
+	`[CHAT] BOT_NONCE=${BOT_NONCE} (${config.twitch.sender.clientNoncePlatform})`
+);
+
 let backend;
 switch (config.twitch.sender.backend) {
 	case 'irc':
