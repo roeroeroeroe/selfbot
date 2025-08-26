@@ -92,5 +92,6 @@ export default {
 	ping: () => tmi.ping(),
 	cleanup,
 	get connections() { return tmi.connections; },
-	get joinedChannels() { return tmi.joinedChannels; },
+	get joinedChannels() { return channelManager.joinedChannels; },
+	get joinedCount() { return channelManager.joinedCount; },
 };

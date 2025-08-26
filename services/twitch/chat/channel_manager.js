@@ -161,4 +161,8 @@ export default class ChannelManager {
 			now + constants.JOINED_CHANNELS_CACHE_TTL_MS;
 		return channels;
 	}
+
+	get joinedCount() {
+		return utils.stats.sum(this.anon.connections, c => c.joinedChannels.size);
+	}
 }

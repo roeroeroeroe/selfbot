@@ -39,8 +39,8 @@ export const K_L = 1.0;
 export const K_C = 1.0;
 export const K_H = 1.0;
 export const POWER_25_TO_7 = 25 ** 7;
-export const LAB_EPSILON = 0.008856;
-export const LAB_KAPPA = 903.3;
+export const LAB_EPSILON = 0.008856451679035631; // 216 / 24389
+export const LAB_KAPPA = 903.2962962962963; // 24389 / 27
 
 export const DEG_TO_RAD = Math.PI / 180;
 export const RAD_TO_DEG = 180 / Math.PI;

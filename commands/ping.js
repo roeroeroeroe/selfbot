@@ -98,7 +98,7 @@ async function getGenericResponse(msg) {
 		rss = utils.format.bytes(processMemory.rss),
 		heapUsed = utils.format.bytes(processMemory.heapUsed),
 		heapTotal = utils.format.bytes(processMemory.heapTotal);
-	const channels = twitch.chat.joinedChannels.size;
+	const channels = twitch.chat.joinedCount;
 	let cachePart;
 	try {
 		const dbsize = await cache.dbsize();
