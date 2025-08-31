@@ -22,15 +22,6 @@ export default {
 			description: 'channel to get chatters for',
 		},
 		{
-			name: 'raw',
-			short: 'r',
-			long: 'raw',
-			type: 'boolean',
-			required: false,
-			defaultValue: false,
-			description: 'print usernames only',
-		},
-		{
 			name: 'maxRequests',
 			short: 'm',
 			long: 'max-requests',
@@ -82,15 +73,14 @@ export default {
 				return { text: 'error resolving channel', mention: true };
 			}
 		} else channelLogin = msg.channelName;
-		let req = 0,
-			totalCount = 0;
-		const chatters = {
-			broadcasters: new Set(),
-			moderators: new Set(),
-			vips: new Set(),
-			viewers: new Set(),
-		};
 
+		const chatters = Object.create(null);
+		for (let i = 0; i < chatterTypes.length; i++)
+			chatters[chatterTypes[i]] = new Set();
+
+		let req = 0,
+			failedRequests = 0,
+			totalCount = 0;
 		do {
 			const promises = [];
 			for (
@@ -98,18 +88,22 @@ export default {
 				i < msg.commandFlags.batchSize && req < msg.commandFlags.maxRequests;
 				i++, req++
 			)
-				promises.push(twitch.gql.channel.getChatters(channelLogin));
+				promises.push(
+					twitch.gql.channel
+						.getChatters(channelLogin)
+						.catch(err => logger.error('error getting chatters:', err))
+				);
 
 			const responses = await Promise.all(promises);
 
-			for (const data of responses) {
-				if (!data.user)
-					return {
-						text: `channel ${channelLogin} does not exist`,
-						mention: true,
-					};
+			for (let i = 0; i < responses.length; i++) {
+				const data = responses[i];
+				if (!data?.user) {
+					failedRequests++;
+					continue;
+				}
 
-				const chattersData = data.user.channel?.chatters || {};
+				const chattersData = data.user.channel?.chatters;
 				if (!chattersData?.count)
 					return {
 						text: `there are 0 chatters in #${channelLogin}`,
@@ -125,29 +119,26 @@ export default {
 				msg.commandFlags.minPercent
 		);
 
-		const list = [];
-		if (msg.commandFlags.raw) {
-			const allChatters = [];
-			for (const t in chatters)
-				for (const c of chatters[t]) allChatters.push(c);
-			for (const c of allChatters.sort()) list.push(c);
-		} else {
-			for (const t in chatters)
-				if (chatters[t].size) {
-					list.push(`${list.length ? '\n' : ''}${t} (${chatters[t].size}):`);
-					for (const c of Array.from(chatters[t]).sort()) list.push(c);
-				}
-		}
+		if (failedRequests === req)
+			return { text: 'error getting chatters', mention: true };
 
 		const responseParts = [totalCount];
+		const collectedCount = Math.min(getTotalChatters(chatters), totalCount);
+		if (collectedCount < totalCount)
+			responseParts.push(`collected: ${collectedCount}`);
+
+		const list = [];
+		for (let i = 0; i < chatterTypes.length; i++) {
+			const t = chatterTypes[i],
+				cT = chatters[t];
+			if (!cT.size) continue;
+			list.push(`${list.length ? '\n' : ''}${t} (${cT.size}):`);
+			const sorted = [...cT].sort();
+			for (let j = 0; j < sorted.length; j++) list.push(sorted[j]);
+		}
+
 		try {
 			const link = await paste.create(list.join('\n'));
-			const collectedChattersCount = Math.min(
-				getTotalChatters(chatters),
-				totalCount
-			);
-			if (collectedChattersCount < totalCount)
-				responseParts.push(`collected: ${collectedChattersCount}`);
 			responseParts.push(link);
 		} catch (err) {
 			logger.error('error creating paste:', err);
@@ -164,17 +155,15 @@ function addChatters(chatters, data) {
 			existing = chatters[t],
 			incoming = data[t];
 		for (let j = 0; j < incoming.length; j++) {
-			const c = incoming[j];
-			if (c.login) existing.add(c.login);
+			const login = incoming[j]?.login;
+			if (login) existing.add(login);
 		}
 	}
 }
 
 function getTotalChatters(chatters) {
-	return (
-		chatters.broadcasters.size +
-		chatters.moderators.size +
-		chatters.vips.size +
-		chatters.viewers.size
-	);
+	let sum = 0;
+	for (let i = 0; i < chatterTypes.length; i++)
+		sum += chatters[chatterTypes[i]].size;
+	return sum;
 }

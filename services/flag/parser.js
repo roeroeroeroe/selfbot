@@ -244,7 +244,7 @@ function createParser(schema, exclusiveGroups) {
 					while (i < argc) rest.push(argv[i++]);
 					break;
 				}
-				const eqIndex = arg.indexOf('=');
+				const eqIndex = arg.indexOf('=', 2);
 				if (eqIndex !== -1) {
 					const k = arg.slice(2, eqIndex);
 					if (k.length > 1) {

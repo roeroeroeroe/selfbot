@@ -81,6 +81,9 @@ query($login: String!) {
 				vips {
 					login
 				}
+				chatbots {
+					login
+				}
 				viewers {
 					login
 				}
