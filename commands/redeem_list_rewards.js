@@ -10,18 +10,36 @@ const ERR_REDEEM_RPC = 'RPC_ERROR';
 
 const alignSep = utils.format.DEFAULT_ALIGN_SEPARATOR;
 
+const defaultRewardPropertyFormatter = v =>
+	v === null || v === undefined ? '' : String(v);
+
 const rewardProperties = {
-	title: 'title',
-	cost: 'cost',
-	isEnabled: 'enabled',
-	isPaused: 'paused',
-	isInStock: 'in stock',
-	isSubOnly: 'sub-only',
-	isUserInputRequired: 'requires input',
-	cooldownExpiresAt: 'cooldown expires at',
+	title: { label: 'title', format: defaultRewardPropertyFormatter },
+	cost: { label: 'cost', format: defaultRewardPropertyFormatter },
+	isEnabled: { label: 'enabled', format: defaultRewardPropertyFormatter },
+	isPaused: { label: 'paused', format: defaultRewardPropertyFormatter },
+	isInStock: { label: 'in stock', format: defaultRewardPropertyFormatter },
+	isSubOnly: { label: 'sub-only', format: defaultRewardPropertyFormatter },
+	isUserInputRequired: {
+		label: 'requires input',
+		format: defaultRewardPropertyFormatter,
+	},
+	cooldownExpiresAt: {
+		label: 'cooldown expires at',
+		format: v =>
+			v === null || v === undefined
+				? '<not on cooldown>'
+				: utils.date.format(v),
+	},
 };
-const rewardPropertyKeys = Object.keys(rewardProperties),
-	rewardPropertyValues = Object.values(rewardProperties);
+const rewardPropertyKeys = [],
+	rewardPropertyLabels = [];
+for (const k in rewardProperties) {
+	rewardPropertyKeys.push(k);
+	rewardPropertyLabels.push(rewardProperties[k].label);
+}
+const formattedListHeader =
+	'redeemable' + alignSep + rewardPropertyLabels.join(alignSep);
 
 export default {
 	name: 'redeemreward',
@@ -338,25 +356,14 @@ function getRedeemable(rewards, canRedeemForFree, balance, isSubscribed,
 
 function getFormattedList(rewards, redeemable) {
 	const redeemableIds = new Set(redeemable.map(r => r.id));
-	const lines = [
-		`redeemable${alignSep}${rewardPropertyValues.join(alignSep)}\n`,
-	];
+	const lines = [formattedListHeader];
 	const sortedRewards = rewards.slice().sort((a, b) => a.cost - b.cost);
 	for (let i = 0; i < sortedRewards.length; i++) {
-		const r = sortedRewards[i];
-		const parts = [String(redeemableIds.has(r.id))];
+		const reward = sortedRewards[i];
+		const parts = [String(redeemableIds.has(reward.id))];
 		for (let j = 0; j < rewardPropertyKeys.length; j++) {
 			const k = rewardPropertyKeys[j];
-			const v = r[k];
-			if (v === null || v === undefined) {
-				parts.push('');
-				continue;
-			}
-			if (k === 'cooldownExpiresAt') {
-				parts.push(utils.date.format(v));
-				continue;
-			}
-			parts.push(String(v));
+			parts.push(rewardProperties[k].format(reward[k]));
 		}
 		lines.push(parts.join(alignSep));
 	}

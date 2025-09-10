@@ -97,7 +97,6 @@ vi config.json
   },
   "metrics": {
     "enabled": false,
-    "sampleIntervalMs": 5000,           // how often to sample and compute rates
     "prometheus": {
       "enabled": false,
       "host": "127.0.0.1",

@@ -20,8 +20,9 @@ let dirty = false,
 
 const alignSep = utils.format.DEFAULT_ALIGN_SEPARATOR;
 
-function add(command) {
+async function add(command) {
 	validateCommand(command);
+	if (command.init) await command.init();
 	const {
 		flags: flagData,
 		exclusiveGroups,
@@ -134,6 +135,9 @@ function validateCommand(command) {
 	}
 	if (!Array.isArray(command.flags))
 		throw new Error(`'flags' for command "${command.name}" must be an array`);
+	if (command.init !== undefined && command.init !== null &&
+	    typeof command.init !== 'function')
+		throw new Error(`'init' for command "${command.name}" must be a function`);
 	if (typeof command.execute !== 'function')
 		throw new Error(`'execute' for command "${command.name}" must be a function`);
 }
@@ -161,7 +165,7 @@ async function load() {
 				);
 				continue;
 			}
-			add(command);
+			await add(command);
 			const t2 = performance.now();
 			logger.debug(
 				`[COMMANDS] loaded ${f} in ${(t2 - t0).toFixed(3)}ms`,

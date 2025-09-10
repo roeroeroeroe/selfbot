@@ -19,8 +19,14 @@ function getPaste(url) {
 		: false;
 	return utils.retry(
 		async () => {
+			let res;
 			if (isNullPtr) {
-				const res = await fetch(url, GET_PASTE_FETCH_OPTIONS);
+				try {
+					res = await fetch(url, GET_PASTE_FETCH_OPTIONS);
+				} catch (err) {
+					err.retryable = true;
+					throw err;
+				}
 				if (res.status >= 400 && res.status < 500)
 					throw new Error(`PASTE-GET ${res.status}: ${res.statusText}`);
 				if (!res.ok) {
@@ -31,7 +37,12 @@ function getPaste(url) {
 				return res.text();
 			}
 
-			const res = await fetch(url, GET_PASTE_FETCH_OPTIONS);
+			try {
+				res = await fetch(url, GET_PASTE_FETCH_OPTIONS);
+			} catch (err) {
+				err.retryable = true;
+				throw err;
+			}
 			if (res.status >= 400 && res.status < 500)
 				throw new Error(`PASTE-GET ${res.status}: ${res.statusText}`);
 			if (!res.ok) {

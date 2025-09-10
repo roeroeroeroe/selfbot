@@ -19,9 +19,6 @@ function getMessageQueueEntry(channelId) {
 }
 
 function queueMessageInsert(channelId, userId, text, timestamp) {
-	if (text.includes('\t'))
-		return logger.warning('[DB] not queuing message: \\t not allowed:', text);
-
 	const record = `${userId}\t${text.replace(/\\/g, '\\\\')}\t${timestamp}`;
 	getMessageQueueEntry(channelId).buffer.push(record);
 	logger.debug(`[DB] queued message for ${channelId}: ${record}`);

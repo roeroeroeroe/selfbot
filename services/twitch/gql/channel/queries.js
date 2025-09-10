@@ -156,7 +156,6 @@ query($login: String!) {
 					cost
 					defaultCost
 					isEnabled
-					minimumCost
 					type
 				}
 				emoteVariants {
@@ -209,20 +208,6 @@ query($login: String!) {
 					isSubOnly
 					isUserInputRequired
 					cooldownExpiresAt
-					redemptionsRedeemedCurrentStream
-					shouldRedemptionsSkipRequestQueue
-					globalCooldownSetting {
-						isEnabled
-						globalCooldownSeconds
-					}
-					maxPerStreamSetting {
-						isEnabled
-						maxPerStream
-					}
-					maxPerUserPerStreamSetting {
-						isEnabled
-						maxPerUserPerStream
-					}
 				}
 			}
 		}

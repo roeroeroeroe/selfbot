@@ -6,13 +6,16 @@ import metrics from '../services/metrics/index.js';
 import paste from '../services/paste/index.js';
 import logger from '../services/logger.js';
 import cache from '../services/cache/index.js';
+import exec from '../services/exec.js';
 
 const alignSep = utils.format.DEFAULT_ALIGN_SEPARATOR;
+
+let currentCommitPart = 'commit: N/A';
 
 export default {
 	name: 'ping',
 	aliases: ['status'],
-	description: 'show bot status',
+	description: 'get bot status',
 	unsafe: false,
 	lock: 'CHANNEL',
 	exclusiveFlagGroups: [['host', 'metrics']],
@@ -33,9 +36,14 @@ export default {
 			type: 'boolean',
 			required: false,
 			defaultValue: false,
-			description: 'print latest metrics snapshot',
+			description: 'print metrics',
 		},
 	],
+	init: async () => {
+		if (!config.shell) return;
+		const { stdout, exitCode } = await exec.shell('git rev-parse --short HEAD');
+		if (stdout && !exitCode) currentCommitPart = `commit: ${stdout}`;
+	},
 	execute: msg => {
 		if (msg.commandFlags.host) return getHostResponse();
 		if (msg.commandFlags.metrics) return getMetricsResponse();
@@ -45,8 +53,8 @@ export default {
 };
 
 function getHostResponse() {
-	const totalMem = os.totalmem();
-	const usedMem = totalMem - os.freemem();
+	const totalMem = os.totalmem(),
+		usedMem = totalMem - os.freemem();
 
 	return {
 		text: utils.format.join([
@@ -62,35 +70,41 @@ function getHostResponse() {
 async function getMetricsResponse() {
 	if (!config.metrics.enabled)
 		return { text: 'metrics are disabled', mention: true };
-	const sampleInterval = utils.duration.format(config.metrics.sampleIntervalMs);
-	const snapshot = metrics.get();
-	const counters = formatMetrics(snapshot.counters, sampleInterval);
-	const gauges = formatMetrics(snapshot.gauges);
 
-	const lines = [];
-	if (counters.length) lines.push('counters:', counters);
-	if (gauges.length) lines.push(`${lines.length ? '\n' : ''}gauges:`, gauges);
-	if (!lines.length) return { text: 'no metrics available', mention: true };
+	const { counters, gauges } = metrics;
+	let page = buildMetricsPageSection('counters', counters);
+	page = buildMetricsPageSection('gauges', gauges, page);
+	if (!page) return { text: 'no metrics available', mention: true };
 
 	try {
-		const link = await paste.create(lines.join('\n'));
-		return {
-			text: utils.format.join([
-				`snapshot from: ${utils.date.format(snapshot.timestamp)}`,
-				link,
-			]),
-			mention: true,
-		};
+		const link = await paste.create(page);
+		return { text: link, mention: true };
 	} catch (err) {
 		logger.error('error creating paste:', err);
 		return { text: 'error creating paste', mention: true };
 	}
 }
 
+function buildMetricsPageSection(label, map, page) {
+	if (!map.size) return page;
+	if (!page) page = `${label}:\n`;
+	else page += `\n\n${label}:\n`;
+	const lines = [];
+	for (const [k, v] of map) lines.push(`${k}:${alignSep}${v}`);
+	return page + utils.format.align(lines);
+}
+
 async function getGenericResponse(msg) {
 	const t0 = performance.now();
-	await twitch.chat.ping();
-	const t1 = performance.now();
+	let tmiLatencyPart;
+	try {
+		await twitch.chat.ping();
+		const t1 = performance.now();
+		tmiLatencyPart = `tmi: ${(t1 - t0) | 0}ms`;
+	} catch (err) {
+		logger.error(err);
+		tmiLatencyPart = 'tmi: N/A';
+	}
 	let topics = 0;
 	for (const topic of twitch.hermes.topics.values())
 		if (topic.state === twitch.hermes.TopicState.SUBSCRIBED) topics++;
@@ -109,7 +123,7 @@ async function getGenericResponse(msg) {
 	}
 	return {
 		text: utils.format.join([
-			`tmi: ${(t1 - t0) | 0}ms`,
+			tmiLatencyPart,
 			`handler: ${(t0 - msg.receivedAt).toFixed(2)}ms`,
 			`uptime: ${utils.duration.format(process.uptime() * 1000, { maxParts: 2 })}`,
 			`rss: ${rss}, heap: ${heapUsed}/${heapTotal}`,
@@ -117,21 +131,9 @@ async function getGenericResponse(msg) {
 			`irc: ${twitch.chat.connections.length} (${channels} ${utils.format.plural(channels, 'channel')})`,
 			`hermes: ${twitch.hermes.connections.size} (${topics} ${utils.format.plural(topics, 'topic')})`,
 			`node: ${process.version}`,
+			currentCommitPart,
 			`pid: ${process.pid}, ppid: ${process.ppid}`,
 		]),
 		mention: true,
 	};
-}
-
-function formatMetrics(obj, sampleInterval) {
-	if (sampleInterval)
-		return utils.format.align(
-			Object.entries(obj).map(
-				([k, v]) =>
-					`${k}:${alignSep}${v.value} (${v.rate.toFixed(1)}/${sampleInterval})`
-			)
-		);
-	return utils.format.align(
-		Object.entries(obj).map(([k, v]) => `${k}:${alignSep}${v}`)
-	);
 }

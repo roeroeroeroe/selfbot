@@ -185,7 +185,25 @@ export default {
 		const verboseProgressLines = [
 			`factor${alignSep}country${alignSep}Δscore${alignSep}score0${alignSep}score1`,
 		];
-		const applyDeltaArgs = [countryScores, verbose, verboseProgressLines];
+		let applyDelta;
+		if (verbose)
+			applyDelta = function (label, country, delta) {
+				if (!country)
+					return;
+				const before = countryScores[country] ?? 0,
+				      after  = (countryScores[country] = before + delta);
+				verboseProgressLines.push(
+					`${label}${alignSep}${country}${alignSep}+${delta.toFixed(3)}` +
+					`${alignSep}${before.toFixed(3)}${alignSep}${after.toFixed(3)}`
+				);
+			};
+		else
+			applyDelta = function (_, country, delta) {
+				if (!country)
+					return;
+				countryScores[country] =
+					(countryScores[country] ?? 0) + delta;
+			};
 
 		const weights = Object.create(null);
 		for (const label in labelToFlagName)
@@ -200,27 +218,26 @@ export default {
 			getChatters(user.login), getFollows(user.login, followsLimit),
 			getDescription(user.login),
 		]);
-		processUILanguage(uiLangs, weights[FACTOR_LABELS.UI_LANG],
-		                  applyDeltaArgs);
+		processUILanguage(uiLangs, weights[FACTOR_LABELS.UI_LANG], applyDelta);
 		processStreamLanguage(streamLang, weights[FACTOR_LABELS.STREAM_LANG],
-		                      applyDeltaArgs);
+		                      applyDelta);
 		processMessages(FACTOR_LABELS.USER_MESSAGES_LANG, userMessages,
 		                weights[FACTOR_LABELS.USER_MESSAGES_LANG],
-		                applyDeltaArgs);
+		                applyDelta);
 		processMessages(FACTOR_LABELS.CHANNEL_RECENT_MESSAGES_LANG,
 		                channelRecentMessages,
 		                weights[FACTOR_LABELS.CHANNEL_RECENT_MESSAGES_LANG],
-		                applyDeltaArgs);
+		                applyDelta);
 		processDescription(description, weights[FACTOR_LABELS.DESCRIPTION],
-		                   applyDeltaArgs);
+		                   applyDelta);
 
 		const chatterCounts = Object.create(null);
 		if (chatters?.logins?.length) {
 			const langs = await getUILanguages(chatters.logins);
 			if (langs?.length)
-				processChatters(chatters.logins, chatters.totalCount, langs,
-				                weights[FACTOR_LABELS.CHATTER_LANGS],
-				                applyDeltaArgs, chatterSaturationPoint,
+				processChatters(chatters.logins.length, chatters.totalCount,
+				                langs, weights[FACTOR_LABELS.CHATTER_LANGS],
+				                applyDelta, chatterSaturationPoint,
 				                verbose, chatterCounts);
 		}
 
@@ -228,14 +245,14 @@ export default {
 		if (follows?.users?.length) {
 			processFollows(follows.users, follows.totalCount,
 			               weights[FACTOR_LABELS.FOLLOWED_CHANNEL_LANGS],
-			               applyDeltaArgs, followSaturationPoint, verbose,
+			               applyDelta, followSaturationPoint, verbose,
 			               followCounts);
 			const skus = await getSubscriptionBenefitThirdPartySKUs(
 				user.login, follows.users
 			);
 			if (skus?.length)
 				processSKUs(skus, weights[FACTOR_LABELS.SUBSCRIPTION_SKUS],
-				            applyDeltaArgs, verbose, skuStats);
+				            applyDelta, verbose, skuStats);
 		}
 
 		let best = null, bestScore = 0;
@@ -298,7 +315,7 @@ function detectPrimaryLangTag(texts, { minWords = 3, minHitsFull = 3 } = {}) {
 	for (let i = 0; i < texts.length; i++) {
 		const words = texts[i]
 			.toLowerCase()
-			.split(/[^\p{L}]+/u)
+			.split(utils.regex.patterns.wordSplit)
 			.filter(Boolean);
 		if (words.length < minWords) continue;
 		const hitsByLang = Object.create(null);
@@ -306,7 +323,7 @@ function detectPrimaryLangTag(texts, { minWords = 3, minHitsFull = 3 } = {}) {
 			const langs = STOPWORD_WORD_TO_LANGUAGES.get(words[j]);
 			if (!langs) continue;
 			for (let k = 0, lang; k < langs.length; k++)
-				hitsByLang[(lang = langs[k])] = (hitsByLang[lang] || 0) + 1;
+				hitsByLang[(lang = langs[k])] = (hitsByLang[lang] ?? 0) + 1;
 		}
 		for (const lang in hitsByLang) {
 			const c = hitsByLang[lang];
@@ -468,61 +485,43 @@ async function getSubscriptionBenefitThirdPartySKUs(login, follows) {
 	}
 }
 // prettier-ignore
-function applyDelta(label, country, delta, countryScores, verbose,
-                    verboseProgressLines) {
-	if (!country)
-		return;
-	const before = countryScores[country] || 0;
-	const after  = before + delta;
-	countryScores[country] = after;
-
-	if (verbose)
-		verboseProgressLines.push(
-			`${label}${alignSep}${country}${alignSep}+${delta.toFixed(3)}` +
-			`${alignSep}${before.toFixed(3)}${alignSep}${after.toFixed(3)}`
-		);
-}
-// prettier-ignore
-function processUILanguage(uiLangs, weight, applyDeltaArgs) {
+function processUILanguage(uiLangs, weight, applyDelta) {
 	if (!uiLangs?.length)
 		return;
 	const tag = uiLangs[0]?.toLowerCase();
 	const delta = languageDelta(tag, weight);
-	applyDelta(FACTOR_LABELS.UI_LANG, langToCountryCode(tag), delta,
-	           ...applyDeltaArgs);
+	applyDelta(FACTOR_LABELS.UI_LANG, langToCountryCode(tag), delta);
 }
 // prettier-ignore
-function processStreamLanguage(streamLang, weight, applyDeltaArgs) {
+function processStreamLanguage(streamLang, weight, applyDelta) {
 	if (!streamLang)
 		return;
 	const tag = streamLang.toLowerCase();
 	const delta = languageDelta(tag, weight);
-	applyDelta(FACTOR_LABELS.STREAM_LANG, langToCountryCode(tag), delta,
-	           ...applyDeltaArgs);
+	applyDelta(FACTOR_LABELS.STREAM_LANG, langToCountryCode(tag), delta);
 }
 
-function processMessages(label, messages, weight, applyDeltaArgs) {
+function processMessages(label, messages, weight, applyDelta) {
 	if (!messages?.length) return;
 	const tag = detectPrimaryLangTag(messages);
 	const delta = languageDelta(tag, weight);
-	applyDelta(label, langToCountryCode(tag), delta, ...applyDeltaArgs);
+	applyDelta(label, langToCountryCode(tag), delta);
 }
 // prettier-ignore
-function processDescription(description, weight, applyDeltaArgs) {
+function processDescription(description, weight, applyDelta) {
 	if (!description)
 		return;
 	const tag = detectPrimaryLangTag([description]);
 	const delta = languageDelta(tag, weight);
-	applyDelta(FACTOR_LABELS.DESCRIPTION, langToCountryCode(tag), delta,
-	           ...applyDeltaArgs);
+	applyDelta(FACTOR_LABELS.DESCRIPTION, langToCountryCode(tag), delta);
 }
 
 // prettier-ignore
-function processChatters(chatters, totalCount, langs, weight, applyDeltaArgs,
+function processChatters(sampleSize, totalCount, langs, weight, applyDelta,
                          saturationPoint, verbose, out) {
 	const counts = Object.create(null);
 	for (let i = 0, l; i < langs.length; i++)
-		counts[(l = langs[i].toLowerCase())] = (counts[l] || 0) + 1;
+		counts[(l = langs[i].toLowerCase())] = (counts[l] ?? 0) + 1;
 
 	weight *= saturationFactor(totalCount, saturationPoint);
 
@@ -530,19 +529,18 @@ function processChatters(chatters, totalCount, langs, weight, applyDeltaArgs,
 		const country = langToCountryCode(tag);
 		if (!country)
 			continue;
-		const delta = languageDelta(tag, weight, counts[tag] / chatters.length);
-		applyDelta(FACTOR_LABELS.CHATTER_LANGS, country, delta,
-		           ...applyDeltaArgs);
+		const delta = languageDelta(tag, weight, counts[tag] / sampleSize);
+		applyDelta(FACTOR_LABELS.CHATTER_LANGS, country, delta);
 		if (verbose)
-			out[country] = (out[country] || 0) + counts[tag];
+			out[country] = (out[country] ?? 0) + counts[tag];
 	}
 }
 // prettier-ignore
-function processFollows(follows, totalCount, weight, applyDeltaArgs,
+function processFollows(follows, totalCount, weight, applyDelta,
                         saturationPoint, verbose, out) {
 	const counts = Object.create(null);
 	for (let i = 0, l; i < follows.length; i++)
-		counts[(l = follows[i].lang.toLowerCase())] = (counts[l] || 0) + 1;
+		counts[(l = follows[i].lang.toLowerCase())] = (counts[l] ?? 0) + 1;
 
 	weight *= saturationFactor(totalCount, saturationPoint);
 
@@ -551,41 +549,47 @@ function processFollows(follows, totalCount, weight, applyDeltaArgs,
 		if (!country)
 			continue;
 		const delta = languageDelta(tag, weight, counts[tag] / follows.length);
-		applyDelta(FACTOR_LABELS.FOLLOWED_CHANNEL_LANGS, country, delta,
-		           ...applyDeltaArgs);
+		applyDelta(FACTOR_LABELS.FOLLOWED_CHANNEL_LANGS, country, delta);
 		if (verbose)
-			out[country] = (out[country] || 0) + counts[tag];
+			out[country] = (out[country] ?? 0) + counts[tag];
 	}
 }
 // prettier-ignore
-function processSKUs(skus, weight, applyDeltaArgs, verbose, out) {
+function processSKUs(skus, weight, applyDelta, verbose, out) {
 	const countryToSkus = Object.create(null);
 	let total = skus.length;
+
 	for (let i = 0, sku; i < skus.length; i++) {
 		const country = skuToCountryCode((sku = skus[i]));
 		if (!country) {
 			total--;
 			continue;
 		}
-		countryToSkus[country] ??= Object.create(null);
-		countryToSkus[country][sku] =
-			(countryToSkus[country][sku] || 0) + 1;
+		if (verbose) {
+			const e = (countryToSkus[country] ??= {
+				count: 0,
+				skuCounts: Object.create(null),
+			});
+			e.count++;
+			e.skuCounts[sku] = (e.skuCounts[sku] ?? 0) + 1;
+		} else
+			countryToSkus[country] = (countryToSkus[country] ?? 0) + 1;
 	}
 
-	for (const country in countryToSkus) {
-		const skus = countryToSkus[country];
-		let count = 0;
-		for (const sku in skus)
-			count += skus[sku];
-		applyDelta(FACTOR_LABELS.SUBSCRIPTION_SKUS, country,
-		           weight * (count / total), ...applyDeltaArgs);
-		if (verbose) {
+	if (verbose)
+		for (const country in countryToSkus) {
+			const { count, skuCounts } = countryToSkus[country];
+			applyDelta(FACTOR_LABELS.SUBSCRIPTION_SKUS, country,
+			           weight * (count / total));
 			const skuList = [];
-			for (const sku in skus)
-				skuList.push({ sku, count: skus[sku] });
+			for (const sku in skuCounts)
+				skuList.push({ sku, count: skuCounts[sku] });
 			out[country] = { count: count, skus: skuList };
 		}
-	}
+	else
+		for (const country in countryToSkus)
+			applyDelta(FACTOR_LABELS.SUBSCRIPTION_SKUS, country,
+			           weight * (countryToSkus[country] / total));
 }
 // prettier-ignore
 function buildVerbosePage(progressLines, skuStats, chatterCounts, followCounts,

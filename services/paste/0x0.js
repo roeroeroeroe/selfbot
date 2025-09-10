@@ -13,14 +13,20 @@ function create(text) {
 	const form = new FormData();
 	form.append('file', new Blob([text], BLOB_OPTIONS));
 	if (config.paste.nullPtr.secret) form.append('secret', '');
-	const fetchOptions = {
+	const options = {
 		method: 'POST',
 		body: form,
 		headers: { 'User-Agent': UAG },
 	};
 	return utils.retry(
 		async () => {
-			const res = await fetch(config.paste.nullPtr.instance, fetchOptions);
+			let res;
+			try {
+				res = await fetch(config.paste.nullPtr.instance, options);
+			} catch (err) {
+				err.retryable = true;
+				throw err;
+			}
 			if (res.status >= 400 && res.status < 500)
 				throw new Error(`0x0-CREATE ${res.status}: ${res.statusText}`);
 			if (!res.ok) {

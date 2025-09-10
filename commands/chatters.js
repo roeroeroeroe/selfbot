@@ -78,16 +78,14 @@ export default {
 		for (let i = 0; i < chatterTypes.length; i++)
 			chatters[chatterTypes[i]] = new Set();
 
+		const { maxRequests, batchSize, minPercent } = msg.commandFlags;
+
 		let req = 0,
 			failedRequests = 0,
 			totalCount = 0;
 		do {
 			const promises = [];
-			for (
-				let i = 0;
-				i < msg.commandFlags.batchSize && req < msg.commandFlags.maxRequests;
-				i++, req++
-			)
+			for (let i = 0; i < batchSize && req < maxRequests; i++, req++)
 				promises.push(
 					twitch.gql.channel
 						.getChatters(channelLogin)
@@ -114,9 +112,8 @@ export default {
 				addChatters(chatters, chattersData);
 			}
 		} while (
-			req < msg.commandFlags.maxRequests &&
-			(getTotalChatters(chatters) / totalCount) * 100 <
-				msg.commandFlags.minPercent
+			req < maxRequests &&
+			(getTotalChatters(chatters) / totalCount) * 100 < minPercent
 		);
 
 		if (failedRequests === req)

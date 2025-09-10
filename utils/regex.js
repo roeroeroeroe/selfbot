@@ -11,6 +11,7 @@ const patterns = {
 	homophobia: /\b(\W|_)?f+\s*[aа@]+\s*(g|8)+/i,
 	username: /^(?!_)\w{1,25}$/,
 	id: /^[1-9]\d*$/,
+	wordSplit: /[^\p{L}]+/u,
 };
 
 function checkMessage(str) {

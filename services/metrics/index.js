@@ -4,40 +4,16 @@ import logger from '../logger.js';
 import names from './metric_names.js';
 
 const counters = new Map(),
-	gauges = new Map(),
-	lastCounterValues = new Map();
+	gauges = new Map();
 
-let lastSampleTs = Date.now(),
-	latestSnapshot = { timestamp: lastSampleTs, counters: {}, gauges: {} },
-	server,
-	initialized = false,
-	snapshotInterval;
+let initialized = false,
+	server;
 
 function init() {
 	if (initialized || !config.metrics.enabled) return;
 	initialized = true;
 	for (const k in names.counters) createCounter(names.counters[k]);
 	for (const k in names.gauges) createGauge(names.gauges[k]);
-	snapshotInterval = setInterval(() => {
-		const now = Date.now();
-		const invDeltaSec = 1000 / (now - lastSampleTs);
-
-		const ctrs = {};
-		for (const [k, v] of counters) {
-			const prev = lastCounterValues.get(k) || 0;
-			ctrs[k] = {
-				value: v,
-				rate: Math.max(0, (v - prev) * invDeltaSec),
-			};
-			lastCounterValues.set(k, v);
-		}
-		const gs = {};
-		for (const [k, v] of gauges) gs[k] = v;
-
-		latestSnapshot = { timestamp: now, counters: ctrs, gauges: gs };
-		lastSampleTs = now;
-	}, config.metrics.sampleIntervalMs);
-
 	const { enabled, host, port, endpoint, prefix } = config.metrics.prometheus;
 	if (enabled) server = startServer({ host, port, endpoint, prefix });
 }
@@ -45,19 +21,19 @@ function init() {
 function createCounter(name) {
 	if (counters.has(name)) return;
 	counters.set(name, 0);
-	lastCounterValues.set(name, 0);
 	logger.debug(`[METRICS] created counter ${name}`);
 }
 
 function incCounter(name, by = 1) {
-	if (!counters.has(name)) throw new Error(`counter "${name}" not defined`);
-	counters.set(name, counters.get(name) + by);
+	const curr = counters.get(name);
+	if (curr === undefined) throw new Error(`counter "${name}" not defined`);
+	counters.set(name, curr + by);
 }
 
 function getCounter(name) {
-	const snap = latestSnapshot.counters;
-	if (!(name in snap)) throw new Error(`counter "${name}" not defined`);
-	return snap[name];
+	const curr = counters.get(name);
+	if (curr === undefined) throw new Error(`counter "${name}" not defined`);
+	return curr;
 }
 
 function createGauge(name) {
@@ -72,27 +48,24 @@ function setGauge(name, val) {
 }
 
 function incGauge(name, by = 1) {
-	if (!gauges.has(name)) throw new Error(`gauge "${name}" not defined`);
-	gauges.set(name, gauges.get(name) + by);
+	const curr = gauges.get(name);
+	if (curr === undefined) throw new Error(`gauge "${name}" not defined`);
+	gauges.set(name, curr + by);
 }
 
 function decGauge(name, by = 1) {
-	if (!gauges.has(name)) throw new Error(`gauge "${name}" not defined`);
-	gauges.set(name, gauges.get(name) - by);
+	const curr = gauges.get(name);
+	if (curr === undefined) throw new Error(`gauge "${name}" not defined`);
+	gauges.set(name, curr - by);
 }
 
 function getGauge(name) {
-	const snap = latestSnapshot.gauges;
-	if (!(name in snap)) throw new Error(`gauge "${name}" not defined`);
-	return snap[name];
-}
-
-function getMetrics() {
-	return latestSnapshot;
+	const curr = gauges.get(name);
+	if (curr === undefined) throw new Error(`gauge "${name}" not defined`);
+	return curr;
 }
 
 async function cleanup() {
-	clearInterval(snapshotInterval);
 	if (!server) return;
 	await new Promise(res =>
 		server.close(err => {
@@ -110,6 +83,8 @@ let metrics;
 if (config.metrics.enabled)
 	metrics = {
 		names,
+		counters,
+		gauges,
 		init,
 		counter: {
 			create: createCounter,
@@ -123,7 +98,6 @@ if (config.metrics.enabled)
 			decrement: decGauge,
 			get: getGauge,
 		},
-		get: getMetrics,
 		cleanup,
 
 		get prometheusServer() {
@@ -134,6 +108,8 @@ else {
 	const noop = () => {};
 	metrics = {
 		names: { counters: {}, gauges: {} },
+		counters,
+		gauges,
 		init: noop,
 		counter: {
 			create: noop,
@@ -147,7 +123,6 @@ else {
 			decrement: noop,
 			get: () => 0,
 		},
-		get: () => ({ timestamp: Date.now(), counters: {}, gauges: {} }),
 		cleanup: noop,
 		get prometheusServer() {
 			return null;

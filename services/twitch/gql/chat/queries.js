@@ -5,7 +5,6 @@ query($login: String) {
 	user(login: $login) {
 		chatSettings {
 			followersOnlyDurationMinutes
-			isEmoteOnlyModeEnabled
 			isFastSubsModeEnabled
 			isSubscribersOnlyModeEnabled
 			slowModeDurationSeconds
@@ -32,7 +31,6 @@ ${BASIC_USER}`;
 export const GET_MESSAGE = `
 query($id: ID!) {
 	message(id: $id) {
-		id
 		sentAt
 		deletedAt
 		channel {

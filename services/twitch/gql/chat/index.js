@@ -8,9 +8,9 @@ import utils from '../../../../utils/index.js';
 async function canSend(channelId, channelLogin, privileged = false) {
 	let strikeStatus;
 	try {
-		const { chatModeratorStrikeStatus } =
-			await gql.user.getSelfStrikeStatus(channelId);
-		strikeStatus = chatModeratorStrikeStatus || {};
+		const res = await gql.user.getSelfStrikeStatus(channelId);
+		if (!(strikeStatus = res.chatModeratorStrikeStatus))
+			throw new Error('no strikeStatus in response:', res);
 	} catch (err) {
 		logger.error('error getting strike status:', err);
 		return {
@@ -22,14 +22,14 @@ async function canSend(channelId, channelLogin, privileged = false) {
 	}
 	// warningDetails are ignored -- it's the caller's job to ack them
 	const { banDetails, timeoutDetails } = strikeStatus;
-	if (banDetails?.createdAt)
+	if (banDetails.createdAt)
 		return {
 			allowed: false,
 			slowMode: ChatService.DEFAULT_SLOW_MODE_MS,
 			error: `you are banned from ${channelLogin}`,
 			strikeStatus,
 		};
-	if (timeoutDetails?.expiresAt) {
+	if (timeoutDetails.expiresAt) {
 		const expiresIn = utils.duration.format(
 			Date.parse(timeoutDetails.expiresAt) - Date.now()
 		);
@@ -50,7 +50,8 @@ async function canSend(channelId, channelLogin, privileged = false) {
 	let settings;
 	try {
 		const res = await getSettings(channelLogin);
-		settings = res.user.chatSettings || {};
+		if (!(settings = res.user.chatSettings))
+			throw new Error('no chatSettings in response:', res);
 	} catch (err) {
 		logger.error(`error getting chat settings for ${channelLogin}:`, err);
 		return {

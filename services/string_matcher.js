@@ -16,8 +16,14 @@ export default class StringMatcher {
 	#caseSensitive;
 	#lengthTolerance;
 	#maxCandidateCount;
+	#candidateFactor;
 	#earlyExitDistance;
 	#maxQueryLength;
+
+	#isDynamicMaxCandidateCount;
+	#hasUserMaxCandidateCount;
+
+	#dynamicMaxCandidateCounts;
 
 	#dpBuffer;
 	#prevPrevRow;
@@ -35,6 +41,10 @@ export default class StringMatcher {
 	 * @param {number} [options.candidateFactor]
 	 * @param {number} [options.earlyExitDistance]
 	 * @param {number} [options.maxQueryLength]
+	 * @param {boolean} [options.dynamicMaxCandidateCount]
+	 * If `true`, uses a dynamic `maxCandidateCount` per query length based on
+	 * the number of strings with lengths between `qLen - tolerance` and `qLen + tolerance`.
+	 * Defaults to `true` if `maxCandidateCount` is not provided
 	 */
 	constructor(strings, options = {}) {
 		if (!Array.isArray(strings) || !strings.length)
@@ -43,6 +53,7 @@ export default class StringMatcher {
 			caseSensitive = true,
 			lengthTolerance = StringMatcher.#DEFAULT_LENGTH_TOLERANCE,
 			earlyExitDistance = StringMatcher.#DEFAULT_EARLY_EXIT_DISTANCE,
+			dynamicMaxCandidateCount,
 		} = options;
 		let { maxCandidateCount, candidateFactor, maxQueryLength } = options;
 
@@ -65,15 +76,18 @@ export default class StringMatcher {
 			const str = this.#strings[read];
 			if (typeof str !== 'string' || !str)
 				continue;
+
 			const len = str.length;
 			if (len < minLength)
 				minLength = len;
 			if (len > maxLength)
 				maxLength = len;
+
 			if (!this.#lengthBuckets.has(len))
 				this.#lengthBuckets.set(len, [write]);
 			else
 				this.#lengthBuckets.get(len).push(write);
+
 			if (caseSensitive)
 				this.#strings[write] = str;
 			else {
@@ -96,13 +110,17 @@ export default class StringMatcher {
 		this.#minLength      = minLength;
 		this.#maxLength      = maxLength;
 
-		maxCandidateCount ??= Math.round(
-			write * (candidateFactor ?? StringMatcher.#DEFAULT_CANDIDATE_FACTOR)
-		);
-		maxCandidateCount = Math.min(
+		this.#caseSensitive   = caseSensitive;
+		this.#lengthTolerance = lengthTolerance;
+
+		this.#candidateFactor =
+			candidateFactor ?? StringMatcher.#DEFAULT_CANDIDATE_FACTOR;
+		this.#hasUserMaxCandidateCount = maxCandidateCount !== undefined;
+		maxCandidateCount ??= Math.round(write * this.#candidateFactor);
+		this.#maxCandidateCount = Math.min(
 			write, Math.max(StringMatcher.#MIN_CANDIDATES, maxCandidateCount)
 		);
-
+		this.#earlyExitDistance = earlyExitDistance;
 		if (maxQueryLength === undefined) {
 			if (lengthTolerance === Number.POSITIVE_INFINITY) {
 				maxQueryLength =
@@ -113,12 +131,14 @@ export default class StringMatcher {
 			} else
 				maxQueryLength = maxLength + lengthTolerance;
 		}
+		this.#maxQueryLength = maxQueryLength;
 
-		this.#caseSensitive     = caseSensitive;
-		this.#lengthTolerance   = lengthTolerance;
-		this.#maxCandidateCount = maxCandidateCount;
-		this.#earlyExitDistance = earlyExitDistance;
-		this.#maxQueryLength    = maxQueryLength;
+		if (dynamicMaxCandidateCount !== undefined)
+			this.#isDynamicMaxCandidateCount = dynamicMaxCandidateCount;
+		else
+			this.#isDynamicMaxCandidateCount = !this.#hasUserMaxCandidateCount;
+		if (this.#isDynamicMaxCandidateCount)
+			this.#buildDynamicMaxCandidateCounts();
 
 		const maxDistance = Math.max(maxQueryLength, maxLength);
 		let DpArray;
@@ -133,6 +153,73 @@ export default class StringMatcher {
 		this.#prevPrevRow = this.#dpBuffer.subarray(0, cols);
 		this.#prevRow     = this.#dpBuffer.subarray(cols, cols * 2);
 		this.#currRow     = this.#dpBuffer.subarray(cols * 2, cols * 3);
+	}
+
+	#buildDynamicMaxCandidateCounts() {
+		const N = this.#strings.length;
+
+		const maxCandidateCount = this.#hasUserMaxCandidateCount
+			? this.#maxCandidateCount
+			: N;
+
+		const lenRange = this.#maxLength - this.#minLength + 1;
+		const counts = new Uint32Array(lenRange);
+		for (const [len, bucket] of this.#lengthBuckets)
+			counts[len - this.#minLength] = bucket.length;
+		const prefix = new Uint32Array(lenRange + 1);
+		for (let i = 0; i < lenRange; i++)
+			prefix[i + 1] = prefix[i] + counts[i];
+
+		let MaxCandidateCountArray;
+		if (maxCandidateCount <= 0xff)
+			MaxCandidateCountArray = Uint8Array;
+		else if (maxCandidateCount <= 0xffff)
+			MaxCandidateCountArray = Uint16Array;
+		else
+			MaxCandidateCountArray = Uint32Array;
+
+		const dynMaxCC = new MaxCandidateCountArray(this.#maxQueryLength + 1);
+
+		for (let qLen = 0; qLen <= this.#maxQueryLength; qLen++) {
+			const tolerance =
+				this.#lengthTolerance === Number.POSITIVE_INFINITY
+					? Math.max(qLen - this.#minLength, this.#maxLength - qLen)
+					: this.#lengthTolerance;
+
+			let poolStart = qLen - tolerance,
+			    poolEnd   = qLen + tolerance;
+
+			if (poolStart < this.#minLength)
+				poolStart = this.#minLength;
+			if (poolEnd > this.#maxLength)
+				poolEnd = this.#maxLength;
+
+			if (poolStart > poolEnd) {
+				dynMaxCC[qLen] = 0;
+				continue;
+			}
+
+			const startIndex = poolStart - this.#minLength,
+			      endIndex   = poolEnd - this.#minLength,
+			      poolSize   = prefix[endIndex + 1] - prefix[startIndex];
+
+			if (!poolSize) {
+				dynMaxCC[qLen] = 0;
+				continue;
+			}
+
+			let dyn = Math.round(poolSize * this.#candidateFactor);
+			if (dyn < 1)
+				dyn = 1;
+			if (dyn > poolSize)
+				dyn = poolSize;
+			if (dyn > maxCandidateCount)
+				dyn = maxCandidateCount;
+
+			dynMaxCC[qLen] = dyn;
+		}
+
+		this.#dynamicMaxCandidateCounts = dynMaxCC;
 	}
 
 	#validateLengthTolerance(lengthTolerance) {
@@ -179,8 +266,8 @@ export default class StringMatcher {
 				const cost = qC === cC ? 0 : 1;
 
 				let distance = this.#prevRow[j] + 1; // deletion
-				const insertion = this.#currRow[j - 1] + 1;
-				const substitution = this.#prevRow[j - 1] + cost;
+				const insertion    = this.#currRow[j - 1] + 1,
+				      substitution = this.#prevRow[j - 1] + cost;
 
 				if (insertion < distance)
 					distance = insertion;
@@ -199,10 +286,11 @@ export default class StringMatcher {
 			}
 			if (rowMin > bestDistance)
 				return Infinity;
+
 			const temp = this.#prevPrevRow;
 			this.#prevPrevRow = this.#prevRow;
-			this.#prevRow = this.#currRow;
-			this.#currRow = temp;
+			this.#prevRow     = this.#currRow;
+			this.#currRow     = temp;
 		}
 
 		return this.#prevRow[cLen];
@@ -248,12 +336,21 @@ export default class StringMatcher {
 			startLen = qLen;
 
 		let tolerance =
-			this.#lengthTolerance === Infinity
+			this.#lengthTolerance === Number.POSITIVE_INFINITY
 				? Math.max(qLen - minLen, maxLen - qLen)
 				: this.#lengthTolerance;
 
 		if (tolerance > maxDistance)
 			tolerance = maxDistance;
+
+		let maxCandidateCount;
+		if (this.#isDynamicMaxCandidateCount) {
+			const dynMaxCC = this.#dynamicMaxCandidateCounts[qLen];
+			if (!dynMaxCC)
+				return null;
+			maxCandidateCount = dynMaxCC;
+		} else
+			maxCandidateCount = this.#maxCandidateCount;
 
 		let bestMatch = null, bestDistance = maxDistance;
 		buckets: for (let i = 0, cc = 0; i <= tolerance * 2; i++) {
@@ -278,6 +375,7 @@ export default class StringMatcher {
 					return this.#caseSensitive
 						? candidate
 						: (this.#originalStrings.get(candidate) ?? candidate);
+
 				const distance = this.#OSADistance(
 					query,
 					candidate,
@@ -291,12 +389,12 @@ export default class StringMatcher {
 					if (bestDistance < tolerance)
 						tolerance = bestDistance;
 					if (bestDistance === minPossible) {
-						if (cc >= this.#maxCandidateCount)
+						if (cc >= maxCandidateCount)
 							break buckets;
 						continue buckets;
 					}
 				}
-				if (cc >= this.#maxCandidateCount)
+				if (cc >= maxCandidateCount)
 					break buckets;
 			}
 		}
@@ -312,18 +410,26 @@ export default class StringMatcher {
 	get caseSensitive() { return this.#caseSensitive; }
 	get lengthTolerance() { return this.#lengthTolerance; }
 	get maxCandidateCount() { return this.#maxCandidateCount; }
+	get candidateFactor() { return this.#candidateFactor; }
 	get earlyExitDistance() { return this.#earlyExitDistance; }
 	get maxQueryLength() { return this.#maxQueryLength; }
+
+	get dynamicMaxCandidateCount() { return this.#isDynamicMaxCandidateCount; }
 
 	set lengthTolerance(lengthTolerance) {
 		this.#validateLengthTolerance(lengthTolerance);
 		this.#lengthTolerance = lengthTolerance;
+		if (this.#isDynamicMaxCandidateCount)
+			this.#buildDynamicMaxCandidateCounts();
 	}
 
 	set maxCandidateCount(maxCandidateCount) {
 		this.#validateMaxCandidateCount(maxCandidateCount);
 		this.#maxCandidateCount =
 			Math.min(this.#strings.length, maxCandidateCount);
+		this.#hasUserMaxCandidateCount = true;
+		if (this.#isDynamicMaxCandidateCount)
+			this.#buildDynamicMaxCandidateCounts();
 	}
 
 	set earlyExitDistance(earlyExitDistance) {

@@ -23,7 +23,13 @@ export default function send({
 	logger.debug(`[HELIX] ${method} ${url}`);
 	return utils.retry(
 		async () => {
-			const res = await fetch(url, options);
+			let res;
+			try {
+				res = await fetch(url, options);
+			} catch (err) {
+				err.retryable = true;
+				throw err;
+			}
 			if (res.status >= 400 && res.status < 500)
 				throw new Error(`HELIX ${res.status}: ${await res.text()}`);
 

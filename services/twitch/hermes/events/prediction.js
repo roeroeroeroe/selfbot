@@ -14,18 +14,23 @@ export const subs = {
 	user: ['predictions-user-v1'],
 	channel: ['predictions-channel-v1'],
 };
-
 // prettier-ignore
 export async function init() {
-	let dumped;
-	try {
-		dumped = (await cache.get(cache.PREDICTION_STATES_KEY)) || [];
-	} catch (err) {
-		logger.error('error getting cached prediction states:', err);
+	function initSweep() {
 		sweepInterval = setInterval(
 			sweepStale,
 			STALE_PREDICTIONS_SWEEP_INTERVAL_MS
 		);
+	}
+	let dumped;
+	try {
+		if (!(dumped = await cache.get(cache.PREDICTION_STATES_KEY))) {
+			initSweep();
+			return;
+		}
+	} catch (err) {
+		logger.error('error getting cached prediction states:', err);
+		initSweep();
 		return;
 	}
 	for (let i = 0; i < dumped.length; i++) {
@@ -41,7 +46,7 @@ export async function init() {
 			                                       delay, state.id);
 		predictionStates.set(state.id, state);
 	}
-	sweepInterval = setInterval(sweepStale, STALE_PREDICTIONS_SWEEP_INTERVAL_MS);
+	initSweep();
 }
 
 const outcomeSelectors = {
@@ -215,7 +220,6 @@ async function sweepStale() {
 				             `"${state.title}" (${id}) in #${channelName}`);
 				state.clearBetTimeout();
 				predictionStates.delete(id);
-				break;
 		}
 	}
 }

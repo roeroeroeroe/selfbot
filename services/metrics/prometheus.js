@@ -2,6 +2,11 @@ import http from 'http';
 import metrics from './index.js';
 import logger from '../logger.js';
 
+const methodNotAllowedResponseHeaders = { Allow: 'GET' };
+const okResponseHeaders = {
+	'Content-Type': 'text/plain; version=0.0.4; charset=utf-8',
+};
+
 export default function init(opts = {}) {
 	const {
 		host = '127.0.0.1',
@@ -18,22 +23,20 @@ export default function init(opts = {}) {
 			return res.end();
 		}
 		if (req.method !== 'GET') {
-			res.writeHead(405, { Allow: 'GET' });
+			res.writeHead(405, methodNotAllowedResponseHeaders);
 			logger.debug('[PROMETHEUS] 405', summary);
 			return res.end();
 		}
-		res.writeHead(200, {
-			'Content-Type': 'text/plain; version=0.0.4; charset=utf-8',
-		});
-		const { counters, gauges } = metrics.get();
+
+		res.writeHead(200, okResponseHeaders);
 		const lines = [];
-		for (const k in counters) {
+		for (const [k, v] of metrics.counters) {
 			const m = `${prefix}${k}_total`;
-			lines.push(`# TYPE ${m} counter\n${m} ${counters[k].value}`);
+			lines.push(`# TYPE ${m} counter\n${m} ${v}`);
 		}
-		for (const k in gauges) {
+		for (const [k, v] of metrics.gauges) {
 			const m = `${prefix}${k}`;
-			lines.push(`# TYPE ${m} gauge\n${m} ${gauges[k]}`);
+			lines.push(`# TYPE ${m} gauge\n${m} ${v}`);
 		}
 		res.end(lines.join('\n') + '\n');
 		logger.debug('[PROMETHEUS] 200', summary);

@@ -3,6 +3,11 @@ import logger from '../services/logger.js';
 import utils from '../utils/index.js';
 import twitch from '../services/twitch/index.js';
 
+const REWARD_TYPES = {
+	RANDOM: 'RANDOM_SUB_EMOTE_UNLOCK',
+	CHOSEN: 'CHOSEN_SUB_EMOTE_UNLOCK',
+};
+
 export default {
 	name: 'unlockchannelemote',
 	aliases: ['unlockemote', 'getemote'],
@@ -17,7 +22,7 @@ export default {
 			type: 'string',
 			defaultValue: '',
 			required: false,
-			description: 'emote to unlock',
+			description: 'emote to unlock, random if omitted',
 		},
 		{
 			name: 'channel',
@@ -44,18 +49,33 @@ export default {
 			return { text: 'error resolving channel', mention: true };
 		}
 
-		const res = await twitch.gql.channel.getUnlockableEmotes(channel.login);
+		let res;
+		try {
+			res = await twitch.gql.channel.getUnlockableEmotes(channel.login);
+		} catch (err) {
+			logger.error('error getting unlockable emotes:', err);
+			return { text: 'error getting unlockable emotes', mention: true };
+		}
 
-		const rewardType = msg.commandFlags.emoteToken
-			? 'CHOSEN_SUB_EMOTE_UNLOCK'
-			: 'RANDOM_SUB_EMOTE_UNLOCK';
+		const emoteToken = msg.commandFlags.emoteToken;
+		const rewardType = emoteToken ? REWARD_TYPES.CHOSEN : REWARD_TYPES.RANDOM;
 
 		const channelName = utils.pickName(channel.login, channel.displayName);
 
-		const reward = (
-			res.user.channel?.communityPointsSettings?.automaticRewards ?? []
-		).find(r => r.type === rewardType);
+		const automaticRewards =
+			res.user.channel?.communityPointsSettings?.automaticRewards;
+		if (!automaticRewards?.length)
+			return {
+				text: `reward ${rewardType} not found in #${channelName}`,
+				mention: true,
+			};
 
+		let reward;
+		for (let i = 0, r; i < automaticRewards.length; i++)
+			if ((r = automaticRewards[i]).type === rewardType) {
+				reward = r;
+				break;
+			}
 		if (!reward)
 			return {
 				text: `reward ${rewardType} not found in #${channelName}`,
@@ -78,39 +98,39 @@ export default {
 				mention: true,
 			};
 
-		if (msg.commandFlags.emoteToken) {
+		if (emoteToken) {
 			const emotePrefix = res.user.emoticonPrefix?.name ?? '';
-			if (
-				!msg.commandFlags.emoteToken.startsWith(emotePrefix) ||
-				msg.commandFlags.emoteToken === emotePrefix
-			)
+			if (!emoteToken.startsWith(emotePrefix) || emoteToken === emotePrefix)
 				return {
 					text: `invalid emote: the emote prefix in #${channelName} is "${emotePrefix}"`,
 					mention: true,
 				};
 
-			const unlockableEmoteSuffixes = [];
 			const prefixLength = emotePrefix.length;
-			let matchingNode;
-			for (const n of res.user.channel.communityPointsSettings.emoteVariants ??
-				[]) {
-				const token = n.emote.token;
-				if (token === msg.commandFlags.emoteToken) {
-					matchingNode = n;
+			const unlockableEmoteSuffixes = [];
+			const emoteVariants =
+				res.user.channel.communityPointsSettings.emoteVariants;
+
+			let match;
+			for (let i = 0; i < emoteVariants.length; i++) {
+				const node = emoteVariants[i];
+				const token = node.emote.token;
+				if (token.toLowerCase() === emoteToken) {
+					match = node;
 					break;
 				}
-				if (n.isUnlockable)
+				if (node.isUnlockable)
 					unlockableEmoteSuffixes.push(token.slice(prefixLength));
 			}
 
-			if (!matchingNode) {
-				let errorResponse = `emote "${msg.commandFlags.emoteToken}" not found`;
+			if (!match) {
+				let errorResponse = `emote "${emoteToken}" not found`;
 				if (unlockableEmoteSuffixes.length) {
 					let closestSuffix;
 					try {
 						closestSuffix = new StringMatcher(
 							unlockableEmoteSuffixes
-						).getClosest(msg.commandFlags.emoteToken.slice(prefixLength));
+						).getClosest(emoteToken.slice(prefixLength));
 					} catch (err) {
 						logger.warning(
 							'failed to initialize string matcher for emote suffixes:',
@@ -122,52 +142,50 @@ export default {
 				}
 				return { text: errorResponse, mention: true };
 			}
-			if (!matchingNode.isUnlockable)
+			if (!match.isUnlockable)
 				return {
-					text: `emote "${msg.commandFlags.emoteToken}" is not unlockable`,
+					text: `emote "${match.emote.token}" is not unlockable`,
 					mention: true,
 				};
 
-			const result = processResponse(
-				await twitch.gql.channel.unlockChosenEmote(
-					channel.id,
-					cost,
-					matchingNode.emote.id
-				),
-				'unlockChosenSubscriberEmote'
-			);
-			if (result.error)
-				return {
-					text: `error unlocking emote: ${result.error}`,
-					mention: true,
-				};
+			try {
+				res = (
+					await twitch.gql.channel.unlockChosenEmote(
+						channel.id,
+						cost,
+						match.emote.id
+					)
+				).unlockChosenSubscriberEmote;
+			} catch (err) {
+				logger.error('error unlocking chosen emote:', err);
+				return { text: 'error unlocking emote', mention: true };
+			}
+			const errCode = res.error?.code;
+			if (errCode)
+				return { text: `error unlocking emote: ${errCode}`, mention: true };
 
 			return {
-				text: `emote ${msg.commandFlags.emoteToken} successfully unlocked, remaining balance: ${result.balance}`,
+				text: `emote ${match.emote.token} (${match.emote.id}) successfully unlocked, remaining balance: ${res.balance}`,
 				mention: true,
 			};
 		}
 
-		const result = processResponse(
-			await twitch.gql.channel.unlockRandomEmote(channel.id, cost),
-			'unlockRandomSubscriberEmote'
-		);
-		if (result.error)
-			return { text: `error unlocking emote: ${result.error}`, mention: true };
+		try {
+			res = (await twitch.gql.channel.unlockRandomEmote(channel.id, cost))
+				.unlockRandomSubscriberEmote;
+		} catch (err) {
+			logger.error('error unlocking random emote:', err);
+			return { text: 'error unlocking emote', mention: true };
+		}
+		const errCode = res.error?.code;
+		if (errCode)
+			return { text: `error unlocking emote: ${errCode}`, mention: true };
 
 		return {
-			text: result.emote
-				? `emote ${result.emote.token} (${result.emote.id}) successfully unlocked, remaining balance: ${result.balance}`
+			text: res.emote
+				? `emote ${res.emote.token} (${res.emote.id}) successfully unlocked, remaining balance: ${res.balance}`
 				: 'error unlocking emote: no emote in response',
 			mention: true,
 		};
 	},
 };
-
-function processResponse(data, key) {
-	return {
-		emote: data[key].emote ?? null,
-		balance: data[key].balance,
-		error: data[key].error?.code ?? null,
-	};
-}

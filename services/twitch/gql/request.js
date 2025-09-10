@@ -4,15 +4,21 @@ import logger from '../../logger.js';
 import utils from '../../../utils/index.js';
 
 export default function send(body = {}) {
-	const bodyString = JSON.stringify(body);
+	const options = {
+		method: gql.METHOD,
+		headers: gql.HEADERS,
+		body: JSON.stringify(body),
+	};
 	logger.debug(`[GQL] ${gql.METHOD} ${gql.API_URL}`);
 	return utils.retry(
 		async () => {
-			const res = await fetch(gql.API_URL, {
-				method: gql.METHOD,
-				headers: gql.HEADERS,
-				body: bodyString,
-			});
+			let res;
+			try {
+				res = await fetch(gql.API_URL, options);
+			} catch (err) {
+				err.retryable = true;
+				throw err;
+			}
 			if (res.status >= 400 && res.status < 500)
 				throw new Error(`GQL ${res.status}: ${await res.text()}`);
 			if (!res.ok) {

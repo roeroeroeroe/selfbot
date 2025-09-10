@@ -111,10 +111,6 @@ const validators = {
 		assert.bool(v);
 	},
 	'metrics.enabled': assert.bool,
-	'metrics.sampleIntervalMs': v => {
-		if (!config.metrics.enabled) return;
-		assert.assert(Number.isInteger(v) && v >= 1000, 'must be a >= 1000 integer');
-	},
 	'metrics.prometheus.enabled': v => {
 		if (!config.metrics.enabled) return;
 		assert.bool(v);

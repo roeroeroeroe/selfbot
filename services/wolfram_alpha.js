@@ -22,7 +22,13 @@ function wolframAlpha(input, unitSystem = UNIT_SYSTEMS.METRIC) {
 
 	return utils.retry(
 		async () => {
-			const res = await fetch(url);
+			let res;
+			try {
+				res = await fetch(url);
+			} catch (err) {
+				err.retryable = true;
+				throw err;
+			}
 			if (res.status === 501) throw new Error('no short answer available');
 			if (res.status >= 400 && res.status < 500)
 				throw new Error(`WOLFRAM ${res.status}: ${res.statusText}`);

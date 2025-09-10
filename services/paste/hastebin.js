@@ -9,13 +9,17 @@ function create(text) {
 	if (config.paste.maxLength)
 		text = utils.format.trim(text, config.paste.maxLength);
 	const { instance, raw } = config.paste.hastebin;
+	const options = { method: 'POST', body: text };
 	logger.debug(`[HASTEBIN] creating ${instance} paste:`, text);
 	return utils.retry(
 		async () => {
-			const res = await fetch(`${instance}/documents`, {
-				method: 'POST',
-				body: text,
-			});
+			let res;
+			try {
+				res = await fetch(`${instance}/documents`, options);
+			} catch (err) {
+				err.retryable = true;
+				throw err;
+			}
 			if (res.status >= 400 && res.status < 500)
 				throw new Error(`HASTEBIN-CREATE ${res.status}: ${res.statusText}`);
 			if (!res.ok) {
