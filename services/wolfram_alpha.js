@@ -29,7 +29,7 @@ function wolframAlpha(input, unitSystem = UNIT_SYSTEMS.METRIC) {
 				err.retryable = true;
 				throw err;
 			}
-			if (res.status === 501) throw new Error('no short answer available');
+			if (res.status === 501) return 'no short answer available';
 			if (res.status >= 400 && res.status < 500)
 				throw new Error(`WOLFRAM ${res.status}: ${res.statusText}`);
 			if (!res.ok) {

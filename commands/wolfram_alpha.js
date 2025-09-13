@@ -27,13 +27,13 @@ export default {
 				text: "'WOLFRAM_ALPHA_API_KEY' environment variable is not set",
 				mention: true,
 			};
-		if (!msg.args.length) return { text: 'no input provided', mention: true };
+		const input = msg.args.join(' ');
+		if (!input) return { text: 'no input provided', mention: true };
+
+		const unitSystem = msg.commandFlags.unitSystem.toLowerCase();
 
 		try {
-			const res = await wa.query(
-				msg.args.join(' '),
-				msg.commandFlags.unitSystem.toLowerCase()
-			);
+			const res = await wa.query(input, unitSystem);
 			return { text: res, mention: true };
 		} catch (err) {
 			logger.error('wolfram alpha error:', err);
