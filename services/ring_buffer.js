@@ -2,7 +2,7 @@ import logger from './logger.js';
 
 export default class RingBuffer {
 	static #MAX_CAPACITY = 1 << 30;
-	#bufferFactory;
+	#bufferCtor;
 	#minCapacity;
 	#capacity;
 	#buffer;
@@ -12,10 +12,7 @@ export default class RingBuffer {
 	#size;
 	#clearValue;
 
-	constructor(
-		initialCapacity,
-		{ bufferFactory = cap => new Array(cap), resizable = true } = {}
-	) {
+	constructor(initialCapacity, { bufferCtor = Array, resizable = true } = {}) {
 		if (!Number.isInteger(initialCapacity) || initialCapacity < 2)
 			throw new Error('initialCapacity must be an integer >= 2');
 		const lzb = 32 - Math.clz32(initialCapacity - 1);
@@ -25,9 +22,9 @@ export default class RingBuffer {
 			);
 		this.#minCapacity = 1 << lzb;
 		this.resizable = resizable;
-		this.#bufferFactory = bufferFactory;
+		this.#bufferCtor = bufferCtor;
 		this.#capacity = this.#minCapacity;
-		this.#buffer = bufferFactory(this.#capacity);
+		this.#buffer = new bufferCtor(this.#capacity);
 		this.#mask = this.#capacity - 1;
 		this.#head = this.#tail = this.#size = 0;
 		if (ArrayBuffer.isView(this.#buffer))
@@ -93,10 +90,7 @@ export default class RingBuffer {
 		this.#buffer[this.#tail] = item;
 		this.#tail = (this.#tail + 1) & this.#mask;
 		if (this.#size < this.#capacity) this.#size++;
-		else {
-			logger.debug('[RingBuffer] forcePush: overwriting oldest item at head');
-			this.#head = (this.#head + 1) & this.#mask;
-		}
+		else this.#head = (this.#head + 1) & this.#mask;
 	}
 
 	pruneFront(predicate) {
@@ -136,7 +130,7 @@ export default class RingBuffer {
 		logger.debug(
 			`[RingBuffer] shrink: shrinking from ${this.#capacity} to ${this.#minCapacity}`
 		);
-		this.#buffer = this.#bufferFactory(this.#minCapacity);
+		this.#buffer = new this.#bufferCtor(this.#minCapacity);
 		this.#capacity = this.#minCapacity;
 		this.#mask = this.#minCapacity - 1;
 		this.#head = this.#tail = this.#size = 0;
@@ -146,7 +140,7 @@ export default class RingBuffer {
 		logger.debug(
 			`[RingBuffer] resize: resizing buffer: oldCap=${this.#capacity}, newCap=${newCapacity}`
 		);
-		const buf = this.#bufferFactory(newCapacity);
+		const buf = new this.#bufferCtor(newCapacity);
 		for (let i = 0, N = this.#size; i < N; i++)
 			buf[i] = this.#buffer[(this.#head + i) & this.#mask];
 		this.#buffer = buf;

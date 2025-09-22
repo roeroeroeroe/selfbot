@@ -43,6 +43,17 @@ import models from './models/index.js';
  * @property {number} distance ΔE₀₀ to the nearest named color
  */
 
+/**
+ * @typedef {Object} Color
+ * @property {Hex} hex
+ * @property {string | null} shorthandHex
+ * @property {RGB} RGB
+ * @property {HSL} HSL
+ * @property {XYZ} XYZ
+ * @property {Lab} Lab
+ * @property {NearestColor} nearest
+ */
+
 const N = colors.length;
 
 const labData = new Float64Array(N * 3);
@@ -64,15 +75,7 @@ const tree = new VPTree(labData);
 
 /**
  * @param {Hex | RGB | HSL | XYZ | Lab} colorInput
- * @returns {{
- *   hex: Hex,
- *   shorthandHex: string | null,
- *   RGB: RGB,
- *   HSL: HSL,
- *   XYZ: XYZ,
- *   Lab: Lab,
- *   nearest: NearestColor
- * } | null}
+ * @returns {Color | null}
  */
 function getColor(colorInput) {
 	let color = null;
@@ -127,6 +130,12 @@ function getColor(colorInput) {
 	return color;
 }
 
+/** @returns {Color} */
+function getRandomColor() {
+	const n = (Math.random() * 0x1000000) | 0;
+	return getColor({ R: (n >> 16) & 0xff, G: (n >> 8) & 0xff, B: n & 0xff });
+}
+
 export default {
 	...constants,
 	...models,
@@ -134,7 +143,7 @@ export default {
 	/**
 	 * @param {Lab} Lab1
 	 * @param {Lab} Lab2
-	 * @returns {number|null}
+	 * @returns {number | null}
 	 */
 	CIEDE2000: (Lab1, Lab2) =>
 		// the internal implementation skips input validation for performance
@@ -142,4 +151,5 @@ export default {
 			? CIEDE2000(Lab1.L, Lab1.a, Lab1.b, Lab2.L, Lab2.a, Lab2.b)
 			: null,
 	get: getColor,
+	getRandom: getRandomColor,
 };

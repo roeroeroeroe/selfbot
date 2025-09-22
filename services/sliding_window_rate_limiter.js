@@ -17,7 +17,7 @@ export default class SlidingWindowRateLimiter {
 		this.#windowMs = windowMs;
 		this.#maxPerWindow = maxPerWindow;
 		this.#buffer = new RingBuffer(maxPerWindow === 1 ? 2 : maxPerWindow, {
-			bufferFactory: cap => new Float64Array(cap),
+			bufferCtor: Float64Array,
 			resizable: false,
 		});
 		this.#doWait = async () => {

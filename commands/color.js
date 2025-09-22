@@ -6,6 +6,8 @@ import logger from '../services/logger.js';
 import utils from '../utils/index.js';
 import color from '../services/color/index.js';
 
+const COLOR_NAME_MATCHER_OPTIONS = { candidateFactor: 0.3 };
+
 const XYZ_PRECISION = 4;
 const LAB_PRECISION = 2;
 const DELTA_E00_PRECISION = 2;
@@ -28,7 +30,10 @@ for (let i = 0; i < colors.length; i++) {
 	nameToHex.set(c.name.toLowerCase(), c.hex);
 }
 
-const colorNameMatcher = new StringMatcher([...nameToHex.keys()]);
+const colorNameMatcher = new StringMatcher(
+	[...nameToHex.keys()],
+	COLOR_NAME_MATCHER_OPTIONS
+);
 
 const colorModels = {
 	name: {
@@ -193,6 +198,8 @@ export default {
 			return { text: formatDeltaE00(deltaE00), mention: true };
 		}
 
+		const { updateChatColor, swatchWidth, applyDelay, force } =
+			msg.commandFlags;
 		let { fromModel, toModel } = msg.commandFlags;
 		toModel = toModel.toLowerCase();
 		const formatColorData =
@@ -200,23 +207,24 @@ export default {
 
 		let response, colorData;
 		if (!msg.args.length) {
-			colorData = color.get({
-				R: (Math.random() * 256) | 0,
-				G: (Math.random() * 256) | 0,
-				B: (Math.random() * 256) | 0,
-			});
+			colorData = color.getRandom();
 			response = `(random) ${formatColorData(colorData)}`;
 		} else {
 			fromModel = fromModel.toLowerCase();
 			const model = colorModels[fromModel];
 
-			const colorInput = model.parse(msg.args);
+			let colorInput = model.parse(msg.args);
 			if (!colorInput && fromModel === 'name') {
 				const nameInput = msg.args.join(' ').toLowerCase();
-				let errResponse = `unknown color: "${nameInput}"`;
 				const closestName = colorNameMatcher.getClosest(nameInput);
-				if (closestName) errResponse += `, most similar name: ${closestName}`;
-				return { text: errResponse, mention: true };
+				if (!closestName)
+					return { text: `unknown color: "${nameInput}"`, mention: true };
+				if (updateChatColor)
+					return {
+						text: `unknown color: "${nameInput}", most similar name: ${closestName}`,
+						mention: true,
+					};
+				colorInput = nameToHex.get(closestName);
 			}
 			if (!model.validate(colorInput))
 				return {
@@ -231,9 +239,6 @@ export default {
 			}
 			response = formatColorData(colorData);
 		}
-
-		const { updateChatColor, swatchWidth, applyDelay, force } =
-			msg.commandFlags;
 
 		if (!updateChatColor) return { text: response, mention: true };
 
@@ -331,11 +336,7 @@ function formatAll(colorData) {
 }
 
 function formatDeltaE00(deltaE00) {
-	let description;
-	for (let i = 0; i < DELTA_E00_THRESHOLDS.length; i++)
-		if (deltaE00 <= DELTA_E00_THRESHOLDS[i][0]) {
-			description = DELTA_E00_THRESHOLDS[i][1];
-			break;
-		}
-	return `ΔE₀₀: ${deltaE00.toFixed(DELTA_E00_PRECISION)} -- ${description}`;
+	for (let i = 0, t; i < DELTA_E00_THRESHOLDS.length; i++)
+		if (deltaE00 <= (t = DELTA_E00_THRESHOLDS[i])[0])
+			return `ΔE₀₀: ${deltaE00.toFixed(DELTA_E00_PRECISION)} -- ${t[1]}`;
 }

@@ -22,17 +22,28 @@ async function shell(command, timeout = 5000) {
 			stdout: result.stdout.trim(),
 			stderr: result.stderr.trim(),
 			exitCode: 0,
+			error: null,
 			timedOut: false,
 		};
 	} catch (err) {
-		logger.error(
-			`shell command "${command}" failed (exit code ${err.code}):`,
-			err
-		);
+		let exitCode = null,
+			error = null;
+		if (typeof err.code === 'number') {
+			exitCode = err.code;
+			logger.error(
+				`shell command "${command}" failed`,
+				`(exit code ${exitCode}):`,
+				err
+			);
+		} else {
+			error = err;
+			logger.error(`shell command "${command}" failed:`, err);
+		}
 		return {
 			stdout: err.stdout?.trim() || '',
 			stderr: err.stderr?.trim() || '',
-			exitCode: err.code,
+			exitCode,
+			error,
 			timedOut: err.killed && err.signal === 'SIGTERM',
 		};
 	}

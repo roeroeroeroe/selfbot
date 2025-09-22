@@ -300,7 +300,7 @@ export default class StringMatcher {
 	 * @param {string} query
 	 * @param {number} [maxDistance]
 	 * Maximum distance allowed for a match to be considered valid
-	 * @returns {string|null}
+	 * @returns {string | null}
 	 */
 	getClosest(query, maxDistance = Infinity) {
 		if (typeof query !== 'string') {
