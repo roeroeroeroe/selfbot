@@ -22,14 +22,14 @@ async function canSend(channelId, channelLogin, privileged = false) {
 	}
 	// warningDetails are ignored -- it's the caller's job to ack them
 	const { banDetails, timeoutDetails } = strikeStatus;
-	if (banDetails.createdAt)
+	if (banDetails?.createdAt)
 		return {
 			allowed: false,
 			slowMode: ChatService.DEFAULT_SLOW_MODE_MS,
 			error: `you are banned from ${channelLogin}`,
 			strikeStatus,
 		};
-	if (timeoutDetails.expiresAt) {
+	if (timeoutDetails?.expiresAt) {
 		const expiresIn = utils.duration.format(
 			Date.parse(timeoutDetails.expiresAt) - Date.now()
 		);
