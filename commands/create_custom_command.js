@@ -140,7 +140,6 @@ export default {
 		}
 
 		const {
-			name: commandName = `${channel.login || 'global'}_${Date.now()}`,
 			trigger,
 			response,
 			runcmd,
@@ -153,6 +152,10 @@ export default {
 				text: 'you must provide a response or regular command',
 				mention: true,
 			};
+
+		let commandName = msg.commandFlags.name;
+		if (!commandName)
+			commandName = `${channel.login || 'global'}_${Date.now()}`;
 
 		if (customCommands.getCommandByName(commandName))
 			return { text: `command ${commandName} already exists`, mention: true };
