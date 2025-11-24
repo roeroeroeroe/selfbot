@@ -78,10 +78,9 @@ export default {
 			long: 'limit',
 			type: 'int',
 			required: false,
-			defaultValue: 100,
-			description:
-				'maximum messages returned (default: 100, min: 1, max: 5000)',
-			validator: v => v >= 1 && v <= 5000,
+			defaultValue: db.SEARCH_MESSAGES_DEFAULT_LIMIT,
+			description: `maximum messages returned (default: ${db.SEARCH_MESSAGES_DEFAULT_LIMIT}, min: 1, max: 50000)`,
+			validator: v => v >= 1 && v <= 50000,
 		},
 		{
 			name: 'showScore',
