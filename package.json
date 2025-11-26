@@ -16,11 +16,11 @@
 		"gen:country_codes": "python3 scripts/get_country_codes.py && mv -vf country_codes.json data"
 	},
 	"dependencies": {
-		"@mastondzn/dank-twitch-irc": "^7.2.0",
-		"dotenv": "^16.4.7",
-		"ioredis": "^5.6.0",
-		"pg": "^8.14.1",
-		"pg-copy-streams": "^6.0.6"
+		"@mastondzn/dank-twitch-irc": "7.2.0",
+		"dotenv": "16.5.0",
+		"ioredis": "5.6.1",
+		"pg": "8.14.1",
+		"pg-copy-streams": "6.0.6"
 	},
 	"engines": {
 		"node": ">=22"
