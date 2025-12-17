@@ -89,7 +89,12 @@ const validators = {
 	'retry.maxRetries': assert.nonNegativeInt,
 	'retry.baseDelayMs': assert.nonNegativeInt,
 	'retry.jitter': v => assert.floatBetween(v, 0, 1),
-	'cache': v => assert.stringOneOf(v, ['redis', 'valkey', 'inMemory']),
+	'cache': v => {
+		assert.stringOneOf(v, ['redis', 'valkey', 'inMemory']);
+		if (v === 'inMemory' && config.twitch.hermes.autoBet.enabled)
+			logger.warning("using 'inMemory' cache with 'autoBet' enabled: " +
+			               'prediction state is not persisted');
+	},
 	'db.messagesFlushIntervalMs': v => assert.intBetween(v, 100, db.MAX_MESSAGES_FLUSH_INTERVAL_MS),
 	'db.maxMessagesPerChannelFlush': v => assert.intBetween(v, 1, db.MAX_MESSAGES_PER_CHANNEL_FLUSH),
 	'paste.service': v => assert.stringOneOf(v, ['hastebin', 'nullPtr']),

@@ -14,8 +14,8 @@ function getSum(arr, accessor = identity) {
 }
 
 function getMean(arr, accessor = identity) {
-	if (!isValidArray(arr)) return null;
-	return getSum(arr, accessor) / arr.length;
+	const sum = getSum(arr, accessor);
+	return sum === null ? sum : sum / arr.length;
 }
 
 function getMinMax(arr, accessor = identity) {
@@ -31,11 +31,11 @@ function getMinMax(arr, accessor = identity) {
 }
 
 function getMin(arr, accessor = identity) {
-	return getMinMax(arr, accessor)?.[0] ?? null;
+	return getMinMax(arr, accessor)[0];
 }
 
 function getMax(arr, accessor = identity) {
-	return getMinMax(arr, accessor)?.[1] ?? null;
+	return getMinMax(arr, accessor)[1];
 }
 
 function getRange(arr, accessor = identity) {

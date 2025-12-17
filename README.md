@@ -87,7 +87,7 @@ vi config.json
     "service": "hastebin",              // "hastebin" | "nullPtr"
     "maxLength": 500000,                // 0 for unlimited
     "hastebin": {
-      "instance": "https://h.roe.lol/hb", // POST: /documents, GET: /{key}, /documents/{key}, /raw/{key}
+      "instance": "https://roe.lol/hb", // POST: /documents, GET: /{key}, /documents/{key}, /raw/{key}
       "raw": true
     },
     "nullPtr": {
