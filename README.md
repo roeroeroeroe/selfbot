@@ -85,9 +85,9 @@ vi config.json
   },
   "paste": {
     "service": "hastebin",              // "hastebin" | "nullPtr"
-    "maxLength": 500000,                // 0 for unlimited
+    "maxLength": 200000,                // 0 for unlimited
     "hastebin": {
-      "instance": "https://roe.lol/hb", // POST: /documents, GET: /{key}, /documents/{key}, /raw/{key}
+      "instance": "https://paste.ivr.fi", // POST: /documents, GET: /{key}, /documents/{key}, /raw/{key}
       "raw": true
     },
     "nullPtr": {

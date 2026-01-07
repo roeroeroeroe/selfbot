@@ -62,9 +62,9 @@
 	},
 	"paste": {
 		"service": "hastebin",
-		"maxLength": 500000,
+		"maxLength": 200000,
 		"hastebin": {
-			"instance": "https://roe.lol/hb",
+			"instance": "https://paste.ivr.fi",
 			"raw": true
 		},
 		"nullPtr": {
