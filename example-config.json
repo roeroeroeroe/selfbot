@@ -85,7 +85,10 @@
 	"shell": "/bin/bash",
 	"logger": {
 		"level": "info",
+		"colorize": 1,
+		"timestamp": true,
+		"uptime": true,
 		"showErrorStackTraces": true,
-		"colorize": true
+		"bracketedLevel": false
 	}
 }

@@ -108,8 +108,15 @@ vi config.json
   "shell": "/bin/bash",                 // null for none
   "logger": {
     "level": "info",                    // "debug" | "info" | "warning" | "error" | "none"
+    "colorize": 1,                      // 0 | 1 | 2
+                                        // 0 - never
+                                        // 1 - auto
+                                        // 2 - always
+    "timestamp": true,                  // include timestamp
+    "uptime": true,                     // include process uptime
     "showErrorStackTraces": true,
-    "colorize": true                    // enable colored output for standard streams
+    "bracketedLevel": false             // false - "level:"
+                                        // true  - "[LEVEL]"
   }
 }
 ```

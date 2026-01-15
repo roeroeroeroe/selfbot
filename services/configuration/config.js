@@ -142,8 +142,11 @@ const validators = {
 		assert.executable(v);
 	},
 	'logger.level': v => assert.stringOneOf(v, ['debug', 'info', 'warning', 'error', 'none']),
+	'logger.colorize': v => assert.intBetween(v, 0, 2),
+	'logger.timestamp': assert.bool,
+	'logger.uptime': assert.bool,
 	'logger.showErrorStackTraces': assert.bool,
-	'logger.colorize': assert.bool,
+	'logger.bracketedLevel': assert.bool,
 };
 
 function traverse(pathStr) {
