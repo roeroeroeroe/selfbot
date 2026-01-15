@@ -30,7 +30,6 @@ vi config.json
     "suggestClosest": false             // suggest closest valid command on typo
   },
   "messages": {
-    "tosViolationPlaceholder": "message goes against twitch TOS", // replaces messages that match one of the TOS patterns
     "responsePartsSeparator": " · ",    // separator for parts of command output
     "logByDefault": true                // applies to newly joined channels at runtime
   },

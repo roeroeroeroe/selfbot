@@ -22,7 +22,6 @@ const validators = {
 	'commands.defaultPrefix': v => assert.assert(utils.isValidPrefix(v), 'must be a valid prefix'),
 	'commands.loadUnsafe': assert.bool,
 	'commands.suggestClosest': assert.bool,
-	'messages.tosViolationPlaceholder': assert.nonEmptyString,
 	'messages.responsePartsSeparator': assert.nonEmptyString,
 	'messages.logByDefault': assert.bool,
 	'twitch.sender.backend': v => assert.stringOneOf(v, ['irc', 'gql']),

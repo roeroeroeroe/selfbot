@@ -70,17 +70,6 @@ export default class ChatService {
 		);
 		text = utils.format.trim(text, maxLength).replace(/[\r\n]/g, ' ');
 
-		const tosMatch = utils.regex.checkMessage(text);
-		if (tosMatch) {
-			logger.warning(
-				`[CHAT] caught message (pattern: ${tosMatch.pattern}, channel:`,
-				`${channelLogin || channelId}, user: ${userLogin || 'N/A'}):\n` +
-					utils.regex.pointer(tosMatch.match)
-			);
-			text = config.messages.tosViolationPlaceholder;
-			parentId = '';
-		}
-
 		this.#enqueue({
 			channelId,
 			channelLogin,
